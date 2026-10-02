@@ -19,3 +19,7 @@ Scoped TypeScript check and production build pass. The complete behaviour suite 
 The SDK bridge is observed with a test host listener; receipt by the live Aippy server and physical-device haptics/performance are not established by this local check. No remote Aippy import is claimed.
 
 Cumulative Node/Vite importer manifest: `updates/swim-owned-residents.json` (63 files). All changed product files are covered. Host shell, README and saved fish/credits remain intact.
+
+## View clarity follow-up
+
+Removed the broad upper HomeUI scrim from both declarations; the quiet lower dock fade remains. Owned name-tag backgrounds are 30% opaque (70% transparent), with readable text retained. Their centre now sits 0.38 body lengths plus 5px above the fish rather than 0.65 lengths plus 9px. Scoped TypeScript and production build pass. A built 390 × 844 daylight View capture (`.superpowers/swim-view-clarity.png`) was inspected and its computed top overlay checked; no page errors. Cumulative importer: `updates/swim-view-clarity.json`, 63 files.

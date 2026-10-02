@@ -100,8 +100,8 @@ export function drawAquariumView(ctx: CanvasRenderingContext2D, state: AquariumV
   for(const [id,rig]of state.rigs){const s=owned.get(id);if(!s||s.health<=0)continue;
     const name=s.name.length>24?s.name.slice(0,23)+'…':s.name;
     const tw=ctx.measureText(name).width+16;
-    const x=Math.max(tw/2+4,Math.min(w-tw/2-4,rig.fish.x)),y=Math.max(13,rig.fish.y-rig.fish.L*.65-9);
-    ctx.fillStyle='rgba(8,38,43,.42)';ctx.beginPath();ctx.roundRect(x-tw/2,y-10,tw,20,10);ctx.fill();
+    const x=Math.max(tw/2+4,Math.min(w-tw/2-4,rig.fish.x)),y=Math.max(13,rig.fish.y-rig.fish.L*.38-5);
+    ctx.fillStyle='rgba(8,38,43,.3)';ctx.beginPath();ctx.roundRect(x-tw/2,y-10,tw,20,10);ctx.fill();
     ctx.fillStyle='rgba(240,245,216,.9)';ctx.fillText(name,x,y);
   }ctx.restore();
 }
