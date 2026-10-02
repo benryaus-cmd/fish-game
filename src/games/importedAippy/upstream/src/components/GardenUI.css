@@ -35,10 +35,10 @@
 .garden-burst>span{display:flex;height:100%;border-radius:50%;background:radial-gradient(circle at 35% 20%,#30565a,#0c303b 75%);border:1px solid #fffbe42a;flex-direction:column;justify-content:center;color:#f3e6b7;box-shadow:inset 0 2px 4px #d4e6dc22}
 .garden-burst b{font-size:10px;letter-spacing:.1em}.garden-burst small{font-size:7px;color:#c1d4c3;margin-top:3px}.garden-burst:active{transform:scale(.94)}
 .garden-modal{position:absolute;inset:0;z-index:45;display:flex;align-items:center;justify-content:center;padding:20px;background:#041820aa;backdrop-filter:blur(9px);touch-action:pan-y}
-.garden-dialog{width:min(100%,380px);padding:24px;border-radius:24px;max-height:calc(100dvh - 48px);overflow-y:auto;overscroll-behavior:contain}
+.garden-dialog{width:min(100%,380px);padding:20px;border-radius:24px;max-height:100%;box-sizing:border-box;overflow-y:auto;overscroll-behavior:contain;scroll-padding-block:16px}
 .garden-dialog h2{font-family:Georgia,serif;font-size:30px;font-weight:400;line-height:1.1;margin:8px 0 12px;color:#f7f0dc}
 .garden-dialog p{font-size:12px;line-height:1.6;color:#c6d8cc}
-.garden-dialog .fish-portrait{margin:8px auto;border-radius:18px;width:100%;height:150px}
+.garden-dialog .fish-portrait{margin:8px auto;border-radius:18px;width:100%;height:110px}
 .dialog-actions{display:grid;gap:10px;margin-top:16px}
 .appraisal-value{display:flex;align-items:baseline;justify-content:space-between;border-top:1px solid #ccd7b422;padding-top:15px;margin-top:14px}
 .appraisal-value strong{font-size:30px;font-weight:400;color:#efdda4}.appraisal-value span{font-size:11px;color:#d4dcca}
@@ -47,7 +47,7 @@
 .specimen-name:focus{border-color:#e6ce91}
 .garden-save-warning{position:absolute;top:175px;left:16px;font-size:10px;color:#ffe0a4;z-index:31;background:#15343dd9;border-radius:8px;padding:7px 10px}
 .garden-notice{background:#714d2233;color:#f4dbad;border:1px solid #d8b76a55;padding:12px;border-radius:12px;font-size:12px;line-height:1.5}
-.boutique-screen{position:absolute;inset:0;z-index:40;background:radial-gradient(ellipse at 85% 0,#28594f88,transparent 50%),linear-gradient(165deg,#173e47,#071d29);padding:22px max(20px,env(safe-area-inset-right)) 30px max(20px,env(safe-area-inset-left));padding-top:max(22px,env(safe-area-inset-top));overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}
+.boutique-screen{position:absolute;inset:0;z-index:40;color:#f7f0dc;background:radial-gradient(ellipse at 85% 0,#28594f88,transparent 50%),linear-gradient(165deg,#173e47,#071d29);padding:22px max(20px,env(safe-area-inset-right)) 30px max(20px,env(safe-area-inset-left));padding-top:max(22px,env(safe-area-inset-top));overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}
 .boutique-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:25px}
 .boutique-header h1{font-family:Georgia,serif;font-size:42px;letter-spacing:-.03em;font-weight:400;line-height:1.15;margin:6px 0;color:#fff1ce}
 .boutique-header>div>p:last-child{font-size:11px;color:#a9c6bc;margin:0}
@@ -65,3 +65,38 @@
 .boutique-footer{display:flex;justify-content:space-between;gap:15px;padding-top:28px;color:#a4bba7;font-size:9px}.collection-pages{display:flex;align-items:center;justify-content:center;gap:15px;margin:20px 0;font-size:12px}.collection-pages button{border:1px solid #aabda944;border-radius:8px;padding:8px 12px}.collection-pages button:disabled{opacity:.4}
 @media(max-height:600px){.garden-stats{top:60px}.garden-condition{padding:7px 10px}.garden-joystick{width:90px;height:90px;bottom:16px}.nursery-action{bottom:114px}.garden-burst{bottom:22px}.garden-dialog{padding:18px}.garden-dialog .fish-portrait{height:100px}.garden-dialog h2{font-size:25px}.garden-topbar{padding-top:10px}}
 @media(prefers-reduced-motion:reduce){.garden-root *{transition:none!important}}
+
+/* Compact play HUD: readable edges, clear swimming centre. */
+.garden-topbar{padding-top:max(10px,env(safe-area-inset-top));align-items:center}
+.garden-topbar>div>span{font-size:10px;font-weight:600;color:#e2eadc}
+.garden-wallet,.garden-round{height:44px;min-width:44px}
+.garden-round{width:44px}
+.garden-stats{top:calc(max(10px,env(safe-area-inset-top)) + 51px);pointer-events:auto;align-items:center}
+.garden-condition{width:166px;min-height:44px;padding:8px 10px;display:flex;gap:12px;text-align:left;cursor:pointer}
+.garden-condition>span{flex:1;min-width:0}
+.garden-condition label{display:flex;justify-content:space-between;gap:5px;font-size:9px;margin-bottom:5px;pointer-events:none}
+.garden-condition em{font-size:9px;font-style:normal;color:#f0ebd3;font-variant-numeric:tabular-nums}
+.garden-condition i{margin-top:0;height:3px}
+.garden-growth{padding:7px 10px;min-width:82px;min-height:44px;display:flex;gap:7px;align-items:center;text-align:left;cursor:pointer}
+.garden-growth>span{margin:0;font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:#e5dba9}
+.garden-growth strong{font-size:19px;white-space:nowrap}
+.garden-growth strong small{font-size:9px;margin-left:1px}
+.garden-status{position:absolute;top:calc(max(10px,env(safe-area-inset-top)) + 100px);left:18px;z-index:20;font-size:10px;color:#e5f0dc;text-shadow:0 1px 4px #143c48;background:#143b4580;padding:4px 7px;border-radius:8px;pointer-events:none}
+.garden-status.danger{color:#ffe0c9;background:#493b3fcc}
+.garden-detail-panel{position:absolute;top:calc(max(10px,env(safe-area-inset-top)) + 103px);left:16px;right:16px;z-index:35;border-radius:16px;padding:12px 14px;max-width:360px;color:#f7f0dc}
+.garden-detail-panel>div{display:flex;justify-content:space-between;align-items:center}
+.garden-detail-close{width:44px;height:44px;font-size:24px;color:#f5e7b9}
+.garden-detail-panel p:not(.garden-eyebrow){font-size:11px;line-height:1.7;margin:4px 0}.garden-detail-panel .garden-detail-note{color:#c6d9d0;font-size:10px}
+.nursery-action{bottom:max(24px,env(safe-area-inset-bottom));left:136px;right:158px;min-height:44px;align-items:center}
+.nursery-button{min-width:92px;max-width:100px;min-height:44px;padding:8px 9px;font-size:10px;gap:5px;white-space:normal;line-height:1.3}
+.nursery-direction{display:flex;gap:7px;align-items:center;font-size:10px;white-space:nowrap;color:#f3efd9;text-shadow:0 1px 5px #143748;padding:5px}
+.nursery-direction i{display:block;font-style:normal;font-size:18px}.nursery-direction small{display:block;font-size:8px;color:#e0e9db;margin-top:2px}
+.garden-first-hint{position:absolute;bottom:calc(max(24px,env(safe-area-inset-bottom)) + 116px);left:20px;right:20px;text-align:center;font-size:10px;color:#f4f0d9;text-shadow:0 1px 4px #123743;pointer-events:none;z-index:25}
+.garden-save-warning{top:155px}
+.garden-button-small{min-height:44px}
+.boutique-section-title h2,.boutique-empty h3,.specimen-card-copy h3{color:#f7f0dc}
+.garden-modal{box-sizing:border-box;padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom))}
+.garden-dialog h2{font-size:27px;margin:6px 0 9px}.garden-dialog p{font-size:11px;line-height:1.5}
+.dialog-actions{gap:8px;margin-top:12px}.dialog-actions>p{margin:0 0 5px}
+@media(max-width:360px){.garden-stats{left:12px;right:12px}.garden-condition{width:145px}.garden-growth{min-width:72px;padding:7px 8px}.garden-joystick{width:90px;height:90px;left:12px}.garden-burst{right:66px;width:66px;height:66px}.nursery-action{left:108px;right:138px}.nursery-button{min-width:76px;max-width:78px;font-size:9px}}
+@media(max-height:600px){.garden-topbar{padding-top:8px}.garden-stats{top:58px}.garden-status{top:106px}.garden-joystick{width:92px;height:92px;bottom:16px}.garden-burst{bottom:22px}.nursery-action{bottom:16px}.garden-first-hint{bottom:112px}.garden-modal{padding:12px}.garden-dialog{padding:14px}.garden-dialog .fish-portrait{height:78px}.garden-dialog h2{font-size:23px}.garden-dialog p{font-size:10px}.dialog-actions{gap:6px}}

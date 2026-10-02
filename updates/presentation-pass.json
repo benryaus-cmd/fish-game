@@ -1,0 +1,16 @@
+{
+  "update": "fish-presentation-v1",
+  "baseUrl": "https://raw.githubusercontent.com/benryaus-cmd/fish-game/main/",
+  "files": [
+    "src/games/importedAippy/upstream/src/components/Aquarium.tsx",
+    "src/games/importedAippy/upstream/src/components/GardenHUD.tsx",
+    "src/games/importedAippy/upstream/src/components/GardenUI.css",
+    "src/games/importedAippy/upstream/src/utils/aquaScene.ts",
+    "src/games/importedAippy/upstream/src/utils/colorfulRender.ts",
+    "src/games/importedAippy/upstream/src/utils/fishFins.ts",
+    "src/games/importedAippy/upstream/src/utils/fishModel.ts",
+    "src/games/importedAippy/upstream/src/utils/fishRender.ts",
+    "src/games/importedAippy/upstream/src/utils/survivalEcology.ts",
+    "src/games/importedAippy/upstream/src/utils/worldCamera.ts"
+  ]
+}

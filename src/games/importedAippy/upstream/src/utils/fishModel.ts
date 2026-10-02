@@ -50,6 +50,48 @@ export function fishScale(f: Fish): number {
   return f.L * f.depth * (1 + 0.04 * s);
 }
 
+/** Projected orthonormal body axes: forward, local down and lateral. */
+export function fishFrame(f: Fish, i: number) {
+  const a = f.ya[i], p = f.pitch + f.tilt;
+  const ca = Math.cos(a), sa = Math.sin(a), cp = Math.cos(p), sp = Math.sin(p);
+  return { fx: ca * cp, fy: -sp, fz: sa * cp,
+    dx: ca * sp, dy: cp, dz: sa * sp, lx: -sa, ly: 0, lz: ca };
+}
+
+export function fishPoint(f: Fish, i: number, forward = 0, down = 0, lateral = 0) {
+  const b = fishFrame(f, i);
+  return { x: f.px[i] + b.fx * forward + b.dx * down + b.lx * lateral,
+    y: f.py[i] + b.fy * forward + b.dy * down,
+    z: f.pz[i] + b.fz * forward + b.dz * down + b.lz * lateral };
+}
+
+/** Covariance of a projected 3D ellipsoid, used for body sections and markings. */
+export function fishEllipse(ctx: CanvasRenderingContext2D, f: Fish, i: number,
+  forward: number, down: number, lateral = 0, offsetDown = 0, offsetLateral = 0) {
+  const b = fishFrame(f, i), q = fishPoint(f, i, 0, offsetDown, offsetLateral);
+  const xx = (b.fx * forward) ** 2 + (b.dx * down) ** 2 + (b.lx * lateral) ** 2;
+  const yy = (b.fy * forward) ** 2 + (b.dy * down) ** 2;
+  const xy = b.fx * b.fy * forward ** 2 + b.dx * b.dy * down ** 2;
+  const delta = Math.hypot(xx - yy, 2 * xy);
+  const rx = Math.sqrt(Math.max(0.000001, (xx + yy + delta) * 0.5));
+  const ry = Math.sqrt(Math.max(0.000001, (xx + yy - delta) * 0.5));
+  const angle = Math.atan2(2 * xy, xx - yy) * 0.5;
+  ctx.moveTo(q.x + Math.cos(angle) * rx, q.y + Math.sin(angle) * rx);
+  ctx.ellipse(q.x, q.y, rx, ry, angle, 0, TAU);
+}
+
+/** Soft surface shading rotates with the local frame, not the screen. */
+export function fishBlit(ctx: CanvasRenderingContext2D, img: HTMLCanvasElement, f: Fish,
+  i: number, down: number, lateral: number, w: number, h: number, alpha: number) {
+  if (alpha <= 0.005) return;
+  const q = fishPoint(f, i, 0, down, lateral);
+  const p = f.pitch + f.tilt, facing = Math.cos(f.ya[i]) >= 0 ? 1 : -1;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(q.x, q.y);
+  ctx.rotate(-facing * p);
+  ctx.drawImage(img, -w / 2, -h / 2, w, h);
+  ctx.restore();
+}
+
 /**
  * Builds the 3D spine: head leads, body and tail follow with lagging yaw, plus a
  * travelling lateral wave. Projected orthographically (x, y), z kept for ordering.
@@ -74,9 +116,10 @@ export function computePose(f: Fish): void {
     }
     prev = a;
     f.ya[i] = a;
-    f.px[i] = x;
-    f.pz[i] = z;
-    f.py[i] = y + 0.03 * t * t * Math.sin(f.phase - t * wave - 0.9) * (0.4 + f.amp);
+    const bob = 0.03 * t * t * Math.sin(f.phase - t * wave - 0.9) * (0.4 + f.amp);
+    f.px[i] = x + Math.cos(a) * sp * bob;
+    f.pz[i] = z + Math.sin(a) * sp * bob;
+    f.py[i] = y + cp * bob;
   }
   const ox = Math.cos(f.yaw) * cp * 0.42, oz = Math.sin(f.yaw) * cp * 0.42, oy = -sp * 0.42;
   for (let i = 0; i < N; i++) { f.px[i] += ox; f.py[i] += oy; f.pz[i] += oz; }
@@ -106,11 +149,13 @@ export function makeColorfulPalette(base: string, accent: string): FishPalette {
   };
 }
 
-export function bodyGradient(ctx: CanvasRenderingContext2D, p: FishPalette): CanvasGradient {
-  if (!p.grad) {
-    const g = ctx.createLinearGradient(0, -p.gh, 0, p.gh);
+export function bodyGradient(ctx: CanvasRenderingContext2D, p: FishPalette, f?: Fish): CanvasGradient {
+  if (!p.grad || f) {
+    const b = f ? fishFrame(f, Math.round(LAST * 0.5)) : { dx: 0, dy: 1 };
+    const g = ctx.createLinearGradient(-b.dx * p.gh, -b.dy * p.gh, b.dx * p.gh, b.dy * p.gh);
     g.addColorStop(0, p.top); g.addColorStop(0.36, p.mid);
     g.addColorStop(0.66, p.low); g.addColorStop(1, p.belly);
+    if (f) return g;
     p.grad = g;
   }
   return p.grad;

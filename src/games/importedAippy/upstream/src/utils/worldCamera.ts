@@ -6,6 +6,40 @@ export interface Camera {
   shakeX: number;
   shakeY: number;
   shakeTime: number;
+  zoom: number;
+}
+
+export interface CameraHints {
+  /** Actual world travel speed in pixels/second, not stick strength. */
+  speed?: number;
+  /** The player's body length in world pixels (excluding ornamental fins). */
+  bodyLength?: number;
+  reducedMotion?: boolean;
+}
+
+const MIN_ZOOM = 0.75;
+const zoomStates = new WeakMap<Camera, { fast: boolean; target: number }>();
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+
+function clampCameraAxis(position: number, worldSize: number, visibleSize: number) {
+  // Expose equal space on both sides when the viewport exceeds the world.
+  return visibleSize >= worldSize
+    ? (worldSize - visibleSize) / 2
+    : Math.max(0, Math.min(worldSize - visibleSize, position));
+}
+
+/** One world-space view for transforms, culling, effects and pointer picking.
+ * Shake offsets are world pixels and follow the existing positive-offset contract.
+ */
+export function getCameraView(cam: Camera, viewW: number, viewH: number) {
+  const zoom = Number.isFinite(cam.zoom) ? Math.max(MIN_ZOOM, Math.min(1, cam.zoom)) : 1;
+  return {
+    x: cam.x + cam.shakeX,
+    y: cam.y + cam.shakeY,
+    width: viewW / zoom,
+    height: viewH / zoom,
+    zoom,
+  };
 }
 
 export const WORLD_WIDTH = 2400;
@@ -39,6 +73,7 @@ export function createCamera(): Camera {
     shakeX: 0,
     shakeY: 0,
     shakeTime: 0,
+    zoom: 1,
   };
 }
 
@@ -54,28 +89,61 @@ export function updateCamera(
   viewH: number,
   dt: number,
   lookAheadX = 0,
-  lookAheadY = 0
+  lookAheadY = 0,
+  hints: CameraHints = {}
 ) {
+  dt = Number.isFinite(dt) ? Math.max(0, dt) : 0;
+  const oldZoom = Number.isFinite(cam.zoom) ? Math.max(MIN_ZOOM, Math.min(1, cam.zoom)) : 1;
+  const centerX = cam.x + viewW / oldZoom / 2;
+  const centerY = cam.y + viewH / oldZoom / 2;
+  let state = zoomStates.get(cam);
+  if (!state) {
+    state = { fast: false, target: oldZoom };
+    zoomStates.set(cam, state);
+  }
+
+  if (hints.reducedMotion) {
+    state.fast = false;
+    state.target = cam.zoom = 1;
+    cam.shakeTime = cam.shakeX = cam.shakeY = 0;
+    lookAheadX = lookAheadY = 0;
+  } else {
+    const speed = Number.isFinite(hints.speed) ? Math.max(0, hints.speed!) : 0;
+    const bodyLength = Number.isFinite(hints.bodyLength) ? Math.max(0, hints.bodyLength!) : 72;
+    // Schmitt trigger: ordinary 72px guppy cruise (~245px/s) stays at 1x.
+    if (speed >= 280) state.fast = true;
+    else if (speed <= 240) state.fast = false;
+    const speedRoom = state.fast ? clamp01((speed - 240) / 240) : 0;
+    const sizeRoom = clamp01((bodyLength - 85) / 30);
+    const target = 1 - (1 - MIN_ZOOM) * Math.max(speedRoom, sizeRoom);
+    // Hold tiny target fluctuations, but always allow full recovery / maximum room.
+    if (Math.abs(target - state.target) >= 0.015 || target === 1 || target === MIN_ZOOM) state.target = target;
+    const zoomRate = state.target < oldZoom ? 2 : 0.65;
+    cam.zoom = oldZoom + (state.target - oldZoom) * (1 - Math.exp(-zoomRate * dt));
+  }
+  const worldViewW = viewW / cam.zoom;
+  const worldViewH = viewH / cam.zoom;
+  // Zoom about the current centre, rather than anchoring the old top-left.
+  cam.x = centerX - worldViewW / 2;
+  cam.y = centerY - worldViewH / 2;
+
   // Desired center in world coordinates
   const desiredCenterX = targetX + lookAheadX;
   const desiredCenterY = targetY + lookAheadY;
 
   // Camera top-left in world coords
-  let desiredCamX = desiredCenterX - viewW / 2;
-  let desiredCamY = desiredCenterY - viewH / 2;
-
-  // Clamp camera to world bounds
-  const maxCamX = Math.max(0, WORLD_WIDTH - viewW);
-  const maxCamY = Math.max(0, WORLD_HEIGHT - viewH);
-
-  desiredCamX = Math.max(0, Math.min(maxCamX, desiredCamX));
-  desiredCamY = Math.max(0, Math.min(maxCamY, desiredCamY));
+  const desiredCamX = clampCameraAxis(desiredCenterX - worldViewW / 2, WORLD_WIDTH, worldViewW);
+  const desiredCamY = clampCameraAxis(desiredCenterY - worldViewH / 2, WORLD_HEIGHT, worldViewH);
 
   // Smooth follow
   const followSpeed = 6.0;
   const k = 1 - Math.exp(-followSpeed * dt);
   cam.x += (desiredCamX - cam.x) * k;
   cam.y += (desiredCamY - cam.y) * k;
+  // Clamp the actual view too: a resize or zoom change must not reveal an edge
+  // while the smoothed position is still catching up to its target.
+  cam.x = clampCameraAxis(cam.x, WORLD_WIDTH, worldViewW);
+  cam.y = clampCameraAxis(cam.y, WORLD_HEIGHT, worldViewH);
 
   // Shake effect
   if (cam.shakeTime > 0) {
@@ -87,6 +155,8 @@ export function updateCamera(
     cam.shakeX = 0;
     cam.shakeY = 0;
   }
+  cam.shakeX = clampCameraAxis(cam.x + cam.shakeX, WORLD_WIDTH, worldViewW) - cam.x;
+  cam.shakeY = clampCameraAxis(cam.y + cam.shakeY, WORLD_HEIGHT, worldViewH) - cam.y;
 }
 
 // Bounded procedural sand floor height in world coords

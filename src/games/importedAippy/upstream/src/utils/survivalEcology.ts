@@ -84,8 +84,8 @@ export function createPredatorFish(x: number, y: number, baseLength: number): Pr
 export function getFishMouthPos(f: Fish): { x: number; y: number } {
   const S = fishScale(f);
   const p = f.pitch + f.tilt;
-  const mx = f.x + Math.cos(f.yaw) * Math.cos(p) * 0.42 * S;
-  const my = f.y - Math.sin(p) * 0.42 * S + 0.03 * S;
+  const mx = f.x + Math.cos(f.yaw) * (Math.cos(p) * 0.42 + Math.sin(p) * 0.03) * S;
+  const my = f.y + (-Math.sin(p) * 0.42 + Math.cos(p) * 0.03) * S;
   return { x: mx, y: my };
 }
 

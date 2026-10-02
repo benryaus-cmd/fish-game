@@ -71,3 +71,37 @@ export function drawCaustics(
   layer(ctx, 90 - t * 3.7, 40 + t * 3.3, kx * 1.31, ky * 1.31, x, y, w, h);
   ctx.globalAlpha = 1;
 }
+
+let waterLightBuffer: HTMLCanvasElement | null = null;
+
+/** Full visible water lighting, attenuated in world depth rather than cropped in screen space. */
+export function drawWaterCaustics(
+  ctx: CanvasRenderingContext2D, pat: CanvasPattern, t: number,
+  x: number, y: number, w: number, h: number, alpha: number, worldHeight: number,
+): void {
+  if (alpha <= 0 || w <= 0 || h <= 0 || !Number.isFinite(w + h + x + y) || worldHeight <= 0) return;
+  if (!waterLightBuffer) waterLightBuffer = document.createElement('canvas');
+  // Quantised dimensions avoid reallocating the buffer on every eased zoom frame.
+  const width = Math.min(2048, Math.ceil(w / 64) * 64);
+  const height = Math.min(2048, Math.ceil(h / 64) * 64);
+  if (waterLightBuffer.width !== width) waterLightBuffer.width = width;
+  if (waterLightBuffer.height !== height) waterLightBuffer.height = height;
+  const light = waterLightBuffer.getContext('2d');
+  if (!light) return;
+  const sx = Math.min(1, width / w), sy = Math.min(1, height / h);
+  light.setTransform(1, 0, 0, 1, 0, 0);
+  light.globalCompositeOperation = 'source-over'; light.globalAlpha = 1;
+  light.clearRect(0, 0, width, height);
+  light.setTransform(sx, 0, 0, sy, -x * sx, -y * sy);
+  drawCaustics(light, pat, t, x, y, w, h, 1, 1, 0.8);
+  const depth = light.createLinearGradient(0, 0, 0, worldHeight);
+  depth.addColorStop(0, 'rgba(255,255,255,1)');
+  depth.addColorStop(0.5, 'rgba(255,255,255,0.45)');
+  depth.addColorStop(1, 'rgba(255,255,255,0.10)');
+  light.globalCompositeOperation = 'destination-in'; light.fillStyle = depth;
+  light.fillRect(x, y, w, h);
+  light.globalCompositeOperation = 'source-over';
+  ctx.save(); ctx.globalAlpha = Math.min(1, alpha);
+  ctx.drawImage(waterLightBuffer, 0, 0, w * sx, h * sy, x, y, w, h);
+  ctx.restore();
+}

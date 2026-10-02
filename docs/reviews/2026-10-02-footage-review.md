@@ -26,3 +26,13 @@ The new outing reaches juvenile growth roughly 14 seconds after spawning (about 
 Capture a mobile sequence: juvenile and adult fish climb, dive, reverse both ways, burst into open water and return through cover. Show coherent silhouettes, readable threats, smooth zoom, continuous lighting and an unobstructed centre. Include home/boutique empty and populated states and appraisal with the keyboard open. Use the Aippy-sized viewport as well as full-screen portrait. Builds/tests support this evidence; they do not replace it.
 
 Follow with home/stock and progression slices in `final-product.md`. Keep this review as a baseline; append resolution evidence when fixes land rather than changing observations into completed claims.
+
+## Presentation implementation — 2026-10-02
+
+Implemented coherent pitched fish geometry, attachments, shading and bite contact; world-depth caustics across the complete visible area; bounded speed/size zoom with reduced-motion support; compact expandable HUD, edge nursery guidance and readable scrollable boutique/appraisal screens. No save schema or transaction changes. Collection branches, living home, paid stock and breeding remain future slices.
+
+Verification: 41 Node checks passed; the optional pose-sheet export check is skipped unless requested (a separate export run passed all 42). Scoped TypeScript and production build passed. Native Canvas pixel checks cover steep-pitch silhouettes, face/shading attachment and lighting below the former cut-off. Inspected the 36-pose sheet and mobile screenshots of swimming, adult climb, burst/turn, boutique and short appraisal. Chromium checks passed compact HUD/details, text contrast, 320px control separation, 390×420 appraisal/naming action reachability, actual renderer zoom, live reduced motion and ordinary vertical travel. Existing sale/keep/new-run/reload, both growth choices, vertical movement, resize, pause and storage-failure preservation checks passed without runtime errors.
+
+Fresh review caught overlapping narrow-phone nursery controls and double-counted vertical speed in the zoom hint. Both were reproduced with failing browser checks and corrected: a shorter label/narrow-phone layout separates controls; camera speed now uses actual displacement. Those checks passed after correction.
+
+Evidence is headless Chromium and native Canvas, not an Aippy deployment or physical-device performance/audio assessment. No new audio implementation or measured mobile FPS claim. Import this pass using `updates/presentation-pass.json`; the prior playable guppy-garden slice must already be installed.

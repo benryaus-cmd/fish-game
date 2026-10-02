@@ -6,7 +6,7 @@ import { useSound, useAudioContext } from '@aippy/runtime/audio';
 import * as Tone from 'tone';
 import tweaksConfig from '@/config/tweaksConfig.json';
 import { useGameLoop } from '@/hooks/useGameLoop';
-import { drawCaustics, drawRays, getCausticPattern, type Ray } from '@/utils/aquaScene';
+import { drawWaterCaustics, drawRays, getCausticPattern, type Ray } from '@/utils/aquaScene';
 import { createBubbleSim, drawBubbles, updateBubbles } from '@/utils/aquaBubbles';
 import { createMotes, drawMotes, updateMotes, type Mote } from '@/utils/aquaMotes';
 import { getBubbleSprite, getDotSprite, mulberry } from '@/utils/aquaTextures';
@@ -16,7 +16,7 @@ import { drawCastle, castleLayout } from '@/utils/castleRender';
 import { drawPlant } from '@/utils/plantRender';
 import { drawRock } from '@/utils/rockRender';
 import { InputManager } from '@/utils/playerInput';
-import { createCamera, updateCamera, triggerCameraShake, worldSurfaceY, buildWorldScene, WORLD_WIDTH, WORLD_HEIGHT, NURSERY_ZONE, CASTLE_LANDMARK } from '@/utils/worldCamera';
+import { createCamera, updateCamera, getCameraView, triggerCameraShake, worldSurfaceY, buildWorldScene, WORLD_WIDTH, WORLD_HEIGHT, NURSERY_ZONE, CASTLE_LANDMARK } from '@/utils/worldCamera';
 import { createPlayerSurvival, updatePlayerFish, type PlayerSurvivalState } from '@/utils/playerSurvival';
 import { createPreyFish, createPredatorFish, getFishMouthPos, updatePrey, updatePredator, type PreyEntity, type PredatorEntity } from '@/utils/survivalEcology';
 import { createSurvivalJuice, spawnBurstWake, spawnEatGlints, updateSurvivalJuice, drawSurvivalJuice } from '@/utils/survivalJuice';
@@ -191,6 +191,13 @@ const Aquarium = ({
   const [choiceStage, setChoiceStage] = useState(0);
   const [receipt, setReceipt] = useState<{ kind: 'sell' | 'keep'; value: number; specimen: Specimen } | null>(null);
   const [fishName, setFishName] = useState('Coral');
+  const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReducedMotion(query.matches);
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   const profileRef = useRef(profile);
   profileRef.current = profile;
   const viewportRef = useRef({ width, height });
@@ -324,7 +331,7 @@ const Aquarium = ({
     playerPalRef.current = applySpecimenAppearance(p, specimenRef.current);
 
     // Reset camera onto player
-    const cam = cameraRef.current;
+    const cam = cameraRef.current = createCamera();
     const viewport = viewportRef.current;
     cam.x = Math.max(0, Math.min(Math.max(0, WORLD_WIDTH - viewport.width), startX - viewport.width / 2));
     cam.y = Math.max(0, Math.min(Math.max(0, WORLD_HEIGHT - viewport.height), startY - viewport.height / 2));
@@ -433,6 +440,8 @@ const Aquarium = ({
     const predator = predatorRef.current;
     const juice = juiceRef.current;
     if (!player || !predator) return;
+    const previousPlayerX = player.x;
+    const previousPlayerY = player.y;
 
     // Nursery Shelter Check: player in X: 160..720, Y > 1250
     const inShelter = isInNursery(player.x, player.y);
@@ -510,7 +519,8 @@ const Aquarium = ({
     }
 
     // Update Prey
-    updatePrey(preyListRef.current, player, predator, dt, cam.x, cam.y, vW, vH, worldSurfaceY);
+    const ecologyView = getCameraView(cam, vW, vH);
+    updatePrey(preyListRef.current, player, predator, dt, ecologyView.x, ecologyView.y, ecologyView.width, ecologyView.height, worldSurfaceY);
 
     // Update Predator
     if (!displaySpecimen) updatePredator(predator, player, survival, dt, worldSurfaceY, () => {
@@ -537,7 +547,8 @@ const Aquarium = ({
     const lookAhead = survival.isBursting ? 120 : 60;
     const lookAheadX = Math.cos(player.yawBody) * Math.cos(player.pitch) * lookAhead;
     const lookAheadY = -Math.sin(player.pitch) * lookAhead;
-    updateCamera(cam, player.x, player.y, vW, vH, dt, lookAheadX, lookAheadY);
+    updateCamera(cam, player.x, player.y, vW, vH, dt, lookAheadX, lookAheadY,
+      { speed: Math.hypot(player.x - previousPlayerX, player.y - previousPlayerY) / dt, bodyLength: player.L, reducedMotion });
 
     // Environmental particles & bubbles
     updateBubbles(bubblesRef.current, dt, WORLD_WIDTH, WORLD_HEIGHT, worldSurfaceY, bubbleAmount, NOOP);
@@ -582,15 +593,16 @@ const Aquarium = ({
     const dotSprite = getDotSprite();
 
     // Viewport bounds in world coords (for culling)
-    const renderCamX = cam.x + cam.shakeX;
-    const renderCamY = cam.y + cam.shakeY;
+    const view = getCameraView(cam, vW, vH);
+    const renderCamX = view.x;
+    const renderCamY = view.y;
     const viewLeft = renderCamX - 100;
-    const viewRight = renderCamX + vW + 100;
+    const viewRight = renderCamX + view.width + 100;
     const viewTop = renderCamY - 100;
-    const viewBottom = renderCamY + vH + 100;
+    const viewBottom = renderCamY + view.height + 100;
 
     // 1. Screen Space Background (soft underwater gradient matching depth)
-    const bgGrad = ctx.createLinearGradient(0, -renderCamY, 0, WORLD_HEIGHT - renderCamY);
+    const bgGrad = ctx.createLinearGradient(0, -renderCamY * view.zoom, 0, (WORLD_HEIGHT - renderCamY) * view.zoom);
     bgGrad.addColorStop(0, waterTop);
     bgGrad.addColorStop(0.5, waterMid);
     bgGrad.addColorStop(1, waterDeep);
@@ -600,6 +612,7 @@ const Aquarium = ({
     // 2. World Space Layer
     ctx.save();
     // Apply Camera Transform
+    ctx.scale(view.zoom, view.zoom);
     ctx.translate(-renderCamX, -renderCamY);
 
     // Light Rays
@@ -609,7 +622,7 @@ const Aquarium = ({
     // Caustics
     const pat = getCausticPattern(ctx);
     if (pat && causticIntensity > 0) {
-      drawCaustics(ctx, pat, t, renderCamX, renderCamY, vW, Math.min(vH, 400), 0.04 * causticIntensity, 1, 0.8);
+      drawWaterCaustics(ctx, pat, t, renderCamX, renderCamY, view.width, view.height, 0.055 * causticIntensity, WORLD_HEIGHT);
     }
     ctx.globalCompositeOperation = 'source-over';
 
@@ -756,11 +769,16 @@ const Aquarium = ({
     setAppraisalOpen(false);
   };
   const specimen = snapshot()?.specimen ?? specimenRef.current;
+  const player = playerRef.current;
+  const refugeX = player ? Math.max(NURSERY_ZONE.x0, Math.min(NURSERY_ZONE.x1, player.x)) : 380;
+  const refugeY = player ? Math.max(NURSERY_ZONE.y0, Math.min(NURSERY_ZONE.y1, player.y)) : 1520;
+  const refuge = { distance: player ? Math.round(Math.hypot(refugeX - player.x, refugeY - player.y)) : 0,
+    angle: player ? Math.atan2(refugeY - player.y, refugeX - player.x) : 0 };
   const controls = !paused && !appraisalOpen && !choiceStage && !receipt && !hudState.isDead;
   return <div className="garden-root" onClick={() => void initAudio()}>
     <canvas ref={canvasRef} className="block w-full h-full" />
     <GardenHUD hud={{ ...hudState, threat: predatorRef.current?.state === 'stalk' || predatorRef.current?.state === 'charge' }}
-      coins={profile.coins} value={appraiseFish(specimen)} stage={getStage(hudState.growth)}
+      coins={profile.coins} value={appraiseFish(specimen)} stage={getStage(hudState.growth)} refuge={refuge}
       display={!!displaySpecimen} controls={controls} saved={saved}
       onShop={openBoutique} onAppraise={openAppraisal} onSound={toggleSound} sound={soundEnabled}
       knobRef={stickKnobRef} joyDown={handleJoyPointerDown} joyMove={handleJoyPointerMove} joyUp={handleJoyPointerUp}
