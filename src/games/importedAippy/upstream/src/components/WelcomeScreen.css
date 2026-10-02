@@ -1,0 +1,14 @@
+.swim-welcome{z-index:90;padding:16px;background:rgba(5,24,30,.8);backdrop-filter:blur(12px)}
+.swim-welcome-card{width:min(420px,100%);max-height:calc(100dvh - 32px);overflow:auto;box-sizing:border-box;padding:25px;border:1px solid rgba(191,224,206,.24);border-radius:28px;background:linear-gradient(155deg,#21484c,#0b252e);color:#ecedd9;box-shadow:0 24px 80px #03121980;outline:none}
+.swim-welcome-card .home-eyebrow{font-size:10px;letter-spacing:.16em;margin:0 0 12px}
+.swim-welcome-card h1{font-family:Georgia,serif;font-size:34px;line-height:1.08;font-weight:400;margin:0;text-wrap:balance}
+.swim-welcome-card h1 span{color:#e4d09a}
+.swim-welcome-fish{position:relative;margin:18px 0 15px;overflow:hidden;border-radius:20px;border:1px solid #a8d9d51c;background:#102e35}
+.swim-welcome-fish .fish-portrait{display:block;width:100%;height:auto;aspect-ratio:180/90;object-fit:cover;border-radius:0}
+.swim-welcome-intro{font-size:14px;line-height:1.5;margin:0 0 18px;color:#d3e1d6}
+.swim-welcome-tips{list-style:none;padding:0;margin:0 0 22px;display:grid;gap:13px}
+.swim-welcome-tips li{display:grid;gap:3px}
+.swim-welcome-tips strong{font-size:13px;color:#e4d09a}
+.swim-welcome-tips span{font-size:12px;line-height:1.5;color:#c0d3cd}
+.swim-welcome-start{width:100%;justify-content:space-between;min-height:48px}
+@media(max-height:650px){.swim-welcome-card{padding:18px}.swim-welcome-fish{margin:10px 0;height:112px}.swim-welcome-fish .fish-portrait{height:112px;object-fit:contain}.swim-welcome-tips{gap:9px;margin-bottom:15px}.swim-welcome-intro{margin-bottom:12px}}

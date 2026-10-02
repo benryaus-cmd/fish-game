@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import WelcomeScreen from '@/components/WelcomeScreen';
 import AudioSettings from '@/components/AudioSettings';
 import Aquarium from '@/components/Aquarium';
 import HomeScreen from '@/components/HomeScreen';
@@ -19,6 +20,7 @@ const App = () => {
   const [saved, setSaved] = useState(true);
   const [raising, setRaising] = useState(false);
   const [stockOpen, setStockOpen] = useState(false);
+  const [welcomeOpen, setWelcomeOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [breedingOpen, setBreedingOpen] = useState(false);
   const [selectedFishId, setSelectedFishId] = useState<string | null>(null);
@@ -92,15 +94,16 @@ const App = () => {
     <div className="absolute inset-0">
       <Aquarium width={size.width} height={size.height} mode={raising ? 'swim' : 'view'} onSelectFish={setSelectedFishId}
         profile={profile} onProfileChange={commitProfile} onOpenShop={returnHome} onChooseStock={chooseNext}
-        paused={stockOpen || breedingOpen || settingsOpen || !!selectedFishId} displaySpecimen={null} saved={saved} audio={audio} />
+        paused={welcomeOpen || stockOpen || breedingOpen || settingsOpen || !!selectedFishId} displaySpecimen={null} saved={saved} audio={audio} />
     </div>
-    {!raising && <div inert={stockOpen || breedingOpen || settingsOpen} aria-hidden={stockOpen || breedingOpen || settingsOpen || undefined}><HomeScreen width={size.width} height={size.height} profile={profile} saved={saved} paused={stockOpen || breedingOpen || settingsOpen}
+    {!raising && <div inert={welcomeOpen || stockOpen || breedingOpen || settingsOpen} aria-hidden={welcomeOpen || stockOpen || breedingOpen || settingsOpen || undefined}><HomeScreen width={size.width} height={size.height} profile={profile} saved={saved} paused={welcomeOpen || stockOpen || breedingOpen || settingsOpen}
       onRaise={() => setStockOpen(true)} onContinue={() => { if (profileRef.current.activeRun) { setStockOpen(false); setRaising(true); void audio.initAudio(); } }}
       onSellFish={sellResident} onRaiseResident={raiseResident} onFeedResident={feedResident} onBreed={() => setBreedingOpen(true)}
       selectedFishId={selectedFishId} onClearSelection={() => setSelectedFishId(null)}
       onCleanTank={() => { const current=profileRef.current,next=cleanTank(current,true,Date.now());if(next!==current)commitProfile(next); }}
       tankDirt={profile.tankCare?.dirt ?? 0} pelletPrice={PELLET_PRICE} cleanPrice={CLEAN_PRICE}
       onSound={() => setSettingsOpen(true)} sound={audio.soundEnabled} onInteract={() => void audio.initAudio()} /></div>}
+    {welcomeOpen && <WelcomeScreen onContinue={() => { setWelcomeOpen(false); void audio.initAudio(); }} />}
     {settingsOpen && <AudioSettings audio={audio} onClose={() => setSettingsOpen(false)} />}
     {stockOpen && <StockSheet profile={profile} saved={saved} onChoose={chooseStock} onClose={() => setStockOpen(false)} />}
     {breedingOpen && <BreedingSheet profile={profile} saved={saved} onStart={breed} onClaim={welcomeGuppy} onClose={() => setBreedingOpen(false)} />}

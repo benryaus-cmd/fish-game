@@ -29,3 +29,5 @@ View has a Buy fish dock action. Purchases or selection changes park the previou
 
 Predator/crab balance: both deal 8 health out of 100 per hit. Predator detection radius is 600 world units (80% of its former 750). Ending a chase preserves the current heading toward one fixed destination while slowing to patrol speed; do not choose retreat targets every frame or force a turnaround.
 Default Burst endurance is 50% longer (normalized drain 65/1.5 per second); retain the saved 0–100 stamina scale and existing recovery/cooldown thresholds.
+
+Launch welcomes players with V0.9, the native Rainbow portrait and a concise how-to-play card. Dismiss into View; returning from Swim does not reopen it. Browser journeys should dismiss Let’s begin before interacting with Home.
