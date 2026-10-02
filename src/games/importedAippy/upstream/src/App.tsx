@@ -4,7 +4,7 @@ import Aquarium from '@/components/Aquarium';
 import HomeScreen from '@/components/HomeScreen';
 import StockSheet from '@/components/StockSheet';
 import BreedingSheet from '@/components/BreedingSheet';
-import { loadBoutique, writeBoutique, startStockRun, startResidentRun, sellOwnedFish, type BoutiqueSave } from '@/utils/boutique';
+import { loadBoutique, writeBoutique, purchaseStockRun, selectResidentRun, sellOwnedFish, type BoutiqueSave } from '@/utils/boutique';
 import { initialiseCareProfile, advanceProfileCare } from '@/utils/worldClock';
 import { startBreeding, claimBreeding } from '@/utils/breeding';
 import { buyTankPellets, cleanTank, PELLET_PRICE, CLEAN_PRICE } from '@/utils/tankCare';
@@ -40,7 +40,7 @@ const App = () => {
   const chooseStock = (stockId: StockId) => {
     const current = profileRef.current;
     const runId = globalThis.crypto?.randomUUID?.() ?? `stock-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const next = startStockRun(current, stockId, runId);
+    const next = purchaseStockRun(current, stockId, runId);
     if (next === current || !commitProfile(next)) return;
     setStockOpen(false); setRaising(true);
     void audio.initAudio();
@@ -48,7 +48,7 @@ const App = () => {
   const raiseResident = (id: string) => {
     const current = profileRef.current;
     const visitId = globalThis.crypto?.randomUUID?.() ?? `visit-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const next = startResidentRun(current, id, visitId, Date.now());
+    const next = selectResidentRun(current, id, visitId, Date.now());
     if (next === current || !commitProfile(next)) return;
     setStockOpen(false); setBreedingOpen(false); setSelectedFishId(null); setRaising(true);
     void audio.initAudio();

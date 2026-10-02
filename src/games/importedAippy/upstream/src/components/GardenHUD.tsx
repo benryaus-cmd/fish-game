@@ -2,7 +2,7 @@ import { useEffect, useState, type PointerEvent, type ReactNode, type RefObject 
 import type { Adaptation } from '@/utils/boutique';
 import WorldTimeBadge from '@/components/WorldTimeBadge';
 import type { WorldClock } from '@/utils/worldClock';
-interface Hud { health: number; hunger: number; stamina: number; growth: number; inShelter: boolean; isDead: boolean; threat?: boolean }
+interface Hud { health: number; hunger: number; stamina: number; growth: number; inShelter: boolean; isDead: boolean; threat?: boolean; burstCooldown?: number; burstExhausted?: boolean; isBursting?: boolean }
 interface Props {
   hud: Hud; coins: number; value: number; stage: string; display: boolean; controls: boolean;
   onShop: () => void; onAppraise: () => void; onSound: () => void; sound: boolean; saved: boolean;
@@ -22,6 +22,9 @@ interface Props {
 }
 export default function GardenHUD(p: Props) {
   const { hud } = p;
+  const burstLocked = !!hud.burstExhausted || hud.stamina <= 20 || (hud.burstCooldown ?? 0) > 0 || hud.isDead;
+  const burstLabel = hud.isBursting ? 'BURST' : (hud.burstCooldown ?? 0) > 0 ? 'COOLDOWN' : burstLocked ? 'RECHARGE' : 'BURST';
+  const burstHint = hud.isBursting ? 'hold / space' : (hud.burstCooldown ?? 0) > 0 ? (hud.burstCooldown ?? 0).toFixed(1) + 's' : burstLocked ? 'recover >20%' : 'hold / space';
   const mode = p.mode ?? 'swim';
   const ageMinutes = Math.max(0, p.ageSeconds ?? 0) / 60;
   const pendingChoices = (p.pendingDevelopment ?? []).reduce((total, opportunity) => total + opportunity.slots, 0);
@@ -70,7 +73,7 @@ export default function GardenHUD(p: Props) {
       <div className="garden-joystick" onPointerDown={p.joyDown} onPointerMove={p.joyMove} onPointerUp={p.joyUp} onPointerCancel={p.joyUp} aria-label="Swim joystick">
         <div className="joystick-inner" /><div className="joystick-knob" ref={p.knobRef}><span /></div>
       </div>
-      <button className="garden-burst" aria-label="Burst speed" onPointerDown={p.burstDown} onPointerUp={p.burstUp} onPointerCancel={p.burstUp} style={{ background: 'conic-gradient(#e5d59d ' + hud.stamina * 3.6 + 'deg, rgba(225,235,223,0.12) 0)' }}><span><b>BURST</b><small>hold / space</small></span></button>
+      <button className={'garden-burst' + (burstLabel !== 'BURST' ? ' garden-burst-waiting' : '') + (hud.stamina < 20 ? ' garden-burst-low' : '')} aria-label={'Burst speed · ' + burstLabel.toLowerCase() + (burstLocked ? ' · ' + burstHint : '')} aria-disabled={burstLocked && !hud.isBursting} onPointerDown={p.burstDown} onPointerUp={p.burstUp} onPointerCancel={p.burstUp} style={{ background: 'conic-gradient(' + (hud.stamina < 20 ? '#e76565 ' : burstLocked && !hud.isBursting ? '#97b5b6 ' : '#e5d59d ') + hud.stamina * 3.6 + 'deg, rgba(225,235,223,0.12) 0)' }}><span><b>{burstLabel}</b><small>{burstHint}</small></span></button>
       {!p.display && <button className="garden-eat" aria-label="Eat food" onClick={e => p.eatClick?.(e.detail)} onPointerDown={p.eatDown} onPointerUp={p.eatUp} onPointerCancel={p.eatUp}><span><b>EAT</b><small>tap / hold / E</small></span></button>}
     </>}
     {hud.health < 25 && !hud.isDead && <><div className="garden-low-health-vignette" aria-hidden="true" /><p className="garden-low-health" role="status">Low health · Rest in the castle bubbles</p></>}

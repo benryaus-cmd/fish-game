@@ -75,6 +75,34 @@ export function startStockRun(save: BoutiqueSave, stockId: StockId, runId: strin
     activeRun: { specimen: ensureSpecimenCare({...createSpecimen(stock.id, runId), hunger:70}, now), x: 380, y: 1520, stamina: 100 },
   };
 }
+/** A View purchase can safely park the currently selected individual before the new outing. */
+function parkSelectedFish(save: BoutiqueSave): BoutiqueSave {
+  const active = save.activeRun;
+  if (!active) return save;
+  if (active.specimen.health <= 0 || save.kept.some(f=>f.id===active.specimen.id)) return save;
+  const historyId=active.source==='resident' ? active.visitId : active.specimen.id;
+  const parked={...save,kept:[...save.kept,cloneSpecimen(active.specimen)],activeRun:null,
+    placements:{...save.placements,[active.specimen.id]:'home' as const},
+    completedRunIds:historyId?[...new Set([...save.completedRunIds,historyId])].slice(-MAX_HISTORY):save.completedRunIds};
+  return parked;
+}
+export function purchaseStockRun(save: BoutiqueSave, stockId: StockId, runId: string, now = Date.now()): BoutiqueSave {
+  const parked=parkSelectedFish(save);
+  const next=startStockRun(parked,stockId,runId,now);
+  return next===parked ? save : next;
+}
+/** Choosing another owned fish parks the current selection without a sale or ownership change. */
+export function selectResidentRun(save: BoutiqueSave, id: string, visitId: string, now = Date.now()): BoutiqueSave {
+  if(save.activeRun?.specimen.id===id)return save;
+  const parked=parkSelectedFish(save),next=startResidentRun(parked,id,visitId,now);
+  return next===parked ? save : next;
+}
+/** Persist a caught shrimp and its live care in the same profile as the one-credit reward. */
+export function rewardShrimpCatch(save: BoutiqueSave, active: ActiveRun): BoutiqueSave {
+  if (!save.activeRun || save.activeRun.specimen.id!==active.specimen.id || save.activeRun.visitId!==active.visitId) return save;
+  return {...save,activeRun:active,coins:Math.min(MAX_COINS,save.coins+1)};
+}
+
 const bounded = (value: unknown, maximum: number, fallback = 0): number =>
   typeof value === 'number' && Number.isFinite(value) ? Math.min(maximum, Math.max(0, value)) : fallback;
 export function getStage(growth: number): 'fry' | 'juvenile' | 'adult' {

@@ -21,13 +21,13 @@ export default function StockSheet({ profile, saved, onChoose, onClose }: Props)
       <header className="home-sheet-header"><div><p className="home-eyebrow">THE ORNAMENTAL NURSERY</p><h2>Choose a little beginning</h2></div><button className="home-icon" onClick={onClose} aria-label="Close stock selection">×</button></header>
       <div className="home-sheet-scroll">
         <div className="home-stock-intro"><p>Three stock groups. Your own little lives.<br />Care reveals their colour as they grow.</p><span className="home-wallet"><span aria-hidden="true">◈</span> {profile.coins.toLocaleString()} <small>credits</small></span></div>
-        <div className="stock-family-tabs" role="tablist" aria-label="Fish families">{([['starter','Starter'],['colorful','Tropical'],['angel','Angels']] as const).map(([id,label])=><button key={id} role="tab" aria-selected={family===id} onClick={()=>setFamily(id)}>{label}</button>)}</div>
+        <div className="stock-family-tabs" role="tablist" aria-label="Fish families">{([['starter','Guppies'],['colorful','Tropical'],['angel','Angels']] as const).map(([id,label])=><button key={id} role="tab" aria-selected={family===id} onClick={()=>setFamily(id)}>{label}</button>)}</div>
         {full && <p className="home-notice" role="status">All 10 fish spaces are occupied or reserved. Sell a fish to make room.</p>}
-        {active && <p className="home-notice" role="status">An outing is already paused. Close this sheet and choose Continue Swim to return to your fish.</p>}
+        {active && <p className="home-notice" role="status">Buying another fish keeps your current fish in the collection and starts the new one.</p>}
         {!saved && <p className="home-notice" role="status">Saving failed. Purchases complete only when saving succeeds. You can retry.</p>}
         <div className="home-stock-grid">{previews.filter(({stock})=>stockFamily(stock.bodyShape)===family).map(({ stock, specimen }) => {
           const affordable = profile.coins >= stock.price;
-          const disabled = active || full || !saved || !affordable;
+          const disabled = full || !saved || !affordable;
           return <article className="home-stock-card" key={stock.id}>
             <div className="home-stock-portrait"><FishPortrait specimen={specimen} /><span className="home-stock-price">{stock.price === 0 ? 'Free' : `◈ ${stock.price}`}</span></div>
             <div className="home-stock-copy"><p className="home-eyebrow">{stock.species.toUpperCase()} FRY · {stock.finStyle.toUpperCase()} FINS</p><h3>{stock.name}</h3><p>{stock.description}</p>

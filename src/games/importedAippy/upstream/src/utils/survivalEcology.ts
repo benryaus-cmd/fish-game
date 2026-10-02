@@ -6,7 +6,7 @@ import {
   type FishPalette,
 } from '@/utils/fishModel';
 import { SPECIES, type SpeciesId } from '@/utils/fishSpecies';
-import type { PlayerSurvivalState } from '@/utils/playerSurvival';
+import { MAX_PLAYER_PITCH, type PlayerSurvivalState } from '@/utils/playerSurvival';
 import { NURSERY_ZONE, WORLD_WIDTH } from '@/utils/worldCamera';
 
 const PI = Math.PI;
@@ -241,7 +241,10 @@ export function updatePredator(
     case 'patrol': {
       if (canSeePlayer && pred.attackCooldown <= 0) {
         pred.state = 'stalk';
-        pred.stateTimer = 3.5;
+        pred.stateTimer = 0.65;
+        f.tx = player.x;
+        f.ty = player.y;
+        f.cruise = 2.4;
         break;
       }
       if (pred.stateTimer <= 0 || Math.abs(f.tx - f.x) < f.L * 0.6) {
@@ -255,19 +258,20 @@ export function updatePredator(
     }
 
     case 'stalk': {
-      if (playerInNursery || distToPlayer > 850) {
+      if (playerInNursery || playerSurvival.isDead || distToPlayer > 850) {
         pred.state = 'disengage';
         pred.stateTimer = 2.5;
         break;
       }
       f.tx = player.x;
       f.ty = player.y;
-      f.cruise = 0.95;
+      f.cruise = 2.4;
 
       // When close enough, charge!
-      if (distToPlayer < 380 && pred.attackCooldown <= 0) {
+      if ((distToPlayer < 650 || pred.stateTimer <= 0) && pred.attackCooldown <= 0) {
         pred.state = 'charge';
-        pred.stateTimer = 2.2;
+        pred.stateTimer = 1.4;
+        f.cruise = 6.4;
       } else if (pred.stateTimer <= 0) {
         pred.state = 'disengage';
         pred.stateTimer = 2.0;
@@ -276,18 +280,18 @@ export function updatePredator(
     }
 
     case 'charge': {
-      if (playerInNursery) {
+      if (playerInNursery || playerSurvival.isDead) {
         pred.state = 'disengage';
         pred.stateTimer = 2.5;
         break;
       }
       f.tx = player.x;
       f.ty = player.y;
-      f.cruise = 1.95; // fast burst
+      f.cruise = 6.4; // decisive lunge: 3.2 body lengths/second
 
       // Bite test
       const mouthDist = Math.hypot(pMouth.x - player.x, pMouth.y - player.y);
-      if (mouthDist < player.L * 0.75 && pred.attackCooldown <= 0) {
+      if (mouthDist < player.L * 0.75 && pred.attackCooldown <= 0 && playerSurvival.invulnerableTime <= 0) {
         f.mouth = 1.0;
         pred.attackCooldown = 2.0; // safe window
         pred.state = 'disengage';
@@ -313,26 +317,31 @@ export function updatePredator(
     }
   }
 
-  // Turn logic
+  // Pose in the same local 3D frame as controlled fish, including dorsal dives.
   const dx = f.tx - f.x;
-  if (dx > 40 && f.dir !== 1) f.dir = 1;
-  else if (dx < -40 && f.dir !== -1) f.dir = -1;
-
-  const goal = f.dir === 1 ? 0 : PI;
-  const k = pred.state === 'charge' ? 5.0 : 3.0;
+  const dy = f.ty - f.y;
+  const distance = Math.hypot(dx, dy) || 1;
+  const directionX = dx / distance;
+  const directionY = dy / distance;
+  if (dx > 0.001) f.dir = 1;
+  else if (dx < -0.001) f.dir = -1;
+  const goal = Math.atan2(Math.abs(directionY), directionX);
+  const pitchGoal = clamp(Math.atan2(-directionY, Math.abs(directionX)), -MAX_PLAYER_PITCH, MAX_PLAYER_PITCH);
+  f.pitch += (pitchGoal - f.pitch) * ease(pred.state === 'charge' ? 8 : 5, dt);
+  const k = pred.state === 'charge' ? 46.8 : 5.2;
   const c = 2 * Math.sqrt(k) * 0.95;
   f.yawVel += ((goal - f.yaw) * k - f.yawVel * c) * dt;
   f.yaw = clamp(f.yaw + f.yawVel * dt, -0.04, PI + 0.04);
-  f.yawBody += (f.yaw - f.yawBody) * ease(3.8, dt);
-  f.yawTail += (f.yawBody - f.yawTail) * ease(2.8, dt);
+  f.yawBody += (f.yaw - f.yawBody) * ease(pred.state === 'charge' ? 16.5 : 5.5, dt);
+  f.yawTail += (f.yawBody - f.yawTail) * ease(pred.state === 'charge' ? 12.6 : 4.2, dt);
 
   const targetSpeed = f.cruise * f.L * f.pSpeed * .4;
-  f.speed += (targetSpeed - f.speed) * ease(pred.state === 'charge' ? 4.5 : 1.8, dt);
+  f.speed += (targetSpeed - f.speed) * ease(pred.state === 'charge' ? 9 : 1.8, dt);
 
-  const vx = f.speed * Math.cos(f.yawBody);
-  const vyTarget = clamp((f.ty - f.y) * 1.2, -f.speed * 0.8, f.speed * 0.8);
-  f.vy += (vyTarget - f.vy) * ease(2.5, dt);
-
+  // Steep attacks travel vertically instead of stalling on a side-facing yaw.
+  const vx = directionX * f.speed * (0.8 + 0.2 * Math.abs(Math.cos(f.yawBody)));
+  const vyTarget = directionY * f.speed * 0.9;
+  f.vy += (vyTarget - f.vy) * ease(pred.state === 'charge' ? 9 : 2.5, dt);
   f.x += vx * dt;
   f.y += f.vy * dt;
 

@@ -46,3 +46,25 @@ test('return to View requires nursery and low health gives a text reminder', () 
   assert.match(render({hud:{...props.hud,health:24}}), /Low health · Rest in the castle bubbles/);
   assert.doesNotMatch(render({hud:{...props.hud,health:25}}), /Low health ·/);
 });
+
+test('burst control reports cooldown and exhausted recovery without losing pointer release', () => {
+  const cooldown = render({hud:{...props.hud,stamina:45,burstCooldown:.8,isBursting:false}});
+  const button = cooldown.match(/<button class="garden-burst(?: [^"]*)?"[^>]*>.*?<\/button>/)?.[0];
+  assert.match(button, /aria-disabled="true"/);
+  assert.match(button, /COOLDOWN/);
+  assert.match(button, /0\.8s/);
+  assert.doesNotMatch(button, / disabled=/);
+  const exhausted = render({hud:{...props.hud,stamina:20,burstExhausted:true}});
+  assert.match(exhausted,/RECHARGE/);assert.match(exhausted,/recover &gt;20%/);
+  const active = render({hud:{...props.hud,stamina:10,isBursting:true}});
+  assert.match(active,/aria-disabled="false"/);assert.match(active,/hold \/ space/);
+});
+
+test('burst ring is red strictly below twenty percent even during an active burst', () => {
+  for(const isBursting of [false,true]) {
+    const low=render({hud:{...props.hud,stamina:19,isBursting}}).match(/<button class="garden-burst(?: [^"]*)?"[^>]*>/)?.[0];
+    const threshold=render({hud:{...props.hud,stamina:20,isBursting}}).match(/<button class="garden-burst(?: [^"]*)?"[^>]*>/)?.[0];
+    assert.match(low,/conic-gradient\(#e76565 /);
+    assert.doesNotMatch(threshold,/conic-gradient\(#e76565 /);
+  }
+});

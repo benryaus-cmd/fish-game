@@ -3,6 +3,8 @@ import type { JoystickInput } from '@/utils/playerInput';
 
 const PI = Math.PI;
 export const MAX_PLAYER_PITCH = 50 * PI / 180;
+export const BURST_RESTART_STAMINA = 20;
+export const BURST_COOLDOWN_SECONDS = 1;
 const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
 const ease = (rate: number, dt: number) => 1 - Math.exp(-rate * dt);
 
@@ -14,6 +16,7 @@ export interface PlayerSurvivalState {
   invulnerableTime: number; // seconds remaining
   burstCooldown: number; // seconds remaining
   isBursting: boolean;
+  burstExhausted: boolean; // zero stamina locks new bursts until recovery above 20%
   isInNursery: boolean;
   isDead: boolean;
   scoreReported: boolean;
@@ -30,12 +33,18 @@ export function createPlayerSurvival(): PlayerSurvivalState {
     invulnerableTime: 0,
     burstCooldown: 0,
     isBursting: false,
+    burstExhausted: false,
     isInNursery: true,
     isDead: false,
     scoreReported: false,
     growthPulse: 0,
     damageFlash: 0,
   };
+}
+
+export function canStartBurst(survival: PlayerSurvivalState): boolean {
+  return !survival.isDead && survival.health > 0 && !survival.burstExhausted
+    && survival.stamina > BURST_RESTART_STAMINA && survival.burstCooldown <= 0;
 }
 
 export interface WorldBounds {
@@ -96,18 +105,24 @@ export function updatePlayerFish(
     survival.burstCooldown = Math.max(0, survival.burstCooldown - dt);
   }
 
-  const wantsBurst = input.burst && survival.stamina > 20 && survival.burstCooldown <= 0;
+  // Legacy/resumed zero stamina must obey the same exhaustion gate.
+  if (survival.stamina <= 0) survival.burstExhausted = true;
+  else if (survival.stamina > BURST_RESTART_STAMINA) survival.burstExhausted = false;
+  const wasBursting = survival.isBursting;
+  const wantsBurst = input.burst && !survival.isDead && !survival.burstExhausted
+    && survival.burstCooldown <= 0 && (wasBursting || canStartBurst(survival));
   if (wantsBurst) {
-    survival.isBursting = true;
     survival.stamina = Math.max(0, survival.stamina - dt * 65 * staminaDrainMultiplier);
-    if (survival.stamina <= 5) {
-      survival.isBursting = false;
-      survival.burstCooldown = 1.0;
+    survival.isBursting = survival.stamina > 0;
+    if (!survival.isBursting) {
+      survival.burstExhausted = true;
+      survival.burstCooldown = BURST_COOLDOWN_SECONDS;
     }
   } else {
     survival.isBursting = false;
-    // Stamina recovery (faster when coasting/resting)
-    const recRate = input.active ? 22 : 38;
+    if (wasBursting) survival.burstCooldown = BURST_COOLDOWN_SECONDS;
+    // Half the prior recovery rate; holding the button cannot bypass recovery.
+    const recRate = input.active ? 11 : 19;
     survival.stamina = Math.min(100, survival.stamina + dt * recRate);
   }
 

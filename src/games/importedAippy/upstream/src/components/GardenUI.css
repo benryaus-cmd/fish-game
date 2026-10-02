@@ -141,3 +141,5 @@
 .garden-low-health-vignette {position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 45px #d8705c33;animation:swim-health-breathe 3s ease-in-out infinite;}
 @keyframes swim-health-breathe {50%{opacity:.35}}
 @media(prefers-reduced-motion:reduce){.garden-low-health-vignette{animation:none}}
+
+.garden-burst-waiting span b{font-size:9px;letter-spacing:.03em}.garden-burst-waiting span small{font-size:7px;letter-spacing:0}.garden-burst-low span b{color:#ff9b8f}

@@ -96,8 +96,8 @@ export function drawWaterCaustics(
   drawCaustics(light, pat, t, x, y, w, h, 1, 1, 0.8);
   const depth = light.createLinearGradient(0, 0, 0, worldHeight);
   depth.addColorStop(0, 'rgba(255,255,255,1)');
-  depth.addColorStop(0.5, 'rgba(255,255,255,0.45)');
-  depth.addColorStop(1, 'rgba(255,255,255,0.10)');
+  depth.addColorStop(0.5, 'rgba(255,255,255,0.55)');
+  depth.addColorStop(1, 'rgba(255,255,255,0.18)');
   light.globalCompositeOperation = 'destination-in'; light.fillStyle = depth;
   light.fillRect(x, y, w, h);
   light.globalCompositeOperation = 'source-over';

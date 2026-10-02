@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, useCallback, type PointerEvent } from 'react';
+import { vibrate } from '@aippy/runtime/device';
+import { drawWaterAtmosphere } from '@/utils/waterAtmosphere';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import { reportScore } from '@aippy/runtime/leaderboard';
 import type { AquariumAudio } from '@/hooks/useAquariumAudio';
@@ -15,10 +17,10 @@ import { drawPlant } from '@/utils/plantRender';
 import { drawRock } from '@/utils/rockRender';
 import { InputManager } from '@/utils/playerInput';
 import { createCamera, updateCamera, getCameraView, triggerCameraShake, worldSurfaceY, buildWorldScene, WORLD_WIDTH, WORLD_HEIGHT, NURSERY_ZONE, CASTLE_LANDMARK } from '@/utils/worldCamera';
-import { createPlayerSurvival, updatePlayerFish, type PlayerSurvivalState } from '@/utils/playerSurvival';
+import { createPlayerSurvival, updatePlayerFish, canStartBurst, type PlayerSurvivalState } from '@/utils/playerSurvival';
 import { createPreyFish, createPredatorFish, updatePrey, updatePredator, type PreyEntity, type PredatorEntity } from '@/utils/survivalEcology';
 import { createSurvivalJuice, spawnBurstWake, spawnEatGlints, updateSurvivalJuice, drawSurvivalJuice } from '@/utils/survivalJuice';
-import { createSpecimen, appraiseFish, getStage, settleRun, finishDeath, NURSERY_CAPACITY, type ActiveRun, type Adaptation, type BoutiqueSave, type Specimen } from '@/utils/boutique';
+import { createSpecimen, appraiseFish, getStage, settleRun, finishDeath, rewardShrimpCatch, NURSERY_CAPACITY, type ActiveRun, type Adaptation, type BoutiqueSave, type Specimen } from '@/utils/boutique';
 import { applySpecimenAppearance, specimenModifiers } from '@/utils/specimenAppearance';
 import { drawSpecimenFish, specimenMouthPoint } from '@/utils/specimenRender';
 import { createBottomEcology, updateBottomEcology, biteShrimp, drawBottomEcology } from '@/utils/bottomEcology';
@@ -79,6 +81,7 @@ const Aquarium = ({
     health: 100,
     hunger: 100,
     stamina: 100,
+    burstCooldown: 0, burstExhausted: false, isBursting: false,
     growth: 0,
     inShelter: true,
     isDead: false,
@@ -212,13 +215,13 @@ const Aquarium = ({
   // Update rays
   useEffect(() => {
     const rnd = mulberry(12345);
-    const count = 9;
+    const count = 12;
     const rays: Ray[] = [];
     for (let i = 0; i < count; i++) {
       rays.push({
         x: (i + 0.5 + (rnd() - 0.5) * 0.5) / count * WORLD_WIDTH * 1.05,
-        width: 140 * (0.8 + rnd() * 0.6),
-        len: WORLD_HEIGHT * (0.7 + rnd() * 0.3),
+        width: 170 * (0.8 + rnd() * 0.6),
+        len: WORLD_HEIGHT * (1.45 + rnd() * 0.35),
         angle: 0.17 + (rnd() - 0.5) * 0.08,
         alpha: 0.045 + rnd() * 0.045,
         ph: rnd() * 6.28,
@@ -306,7 +309,7 @@ const Aquarium = ({
     // Reset juice
     juiceRef.current = createSurvivalJuice();
     setHudState({
-      health: Math.round(state.health), hunger: Math.round(state.hunger), stamina: Math.round(state.stamina), growth: Math.round(state.growth),
+      health: Math.round(state.health), hunger: Math.round(state.hunger), stamina: Math.round(state.stamina), burstCooldown: state.burstCooldown, burstExhausted: state.burstExhausted, isBursting: state.isBursting, growth: Math.round(state.growth),
       inShelter: isInNursery(startX, startY), isDead: state.isDead, score: state.growth
     });
     saveRun();
@@ -434,7 +437,7 @@ const Aquarium = ({
 
 
     // Sound trigger on burst start
-    if (input.burst && survival.stamina > 25 && survival.burstCooldown <= 0 && !survival.isBursting) {
+    if (input.burst && canStartBurst(survival) && !survival.isBursting) {
       playBurstSound();
     }
 
@@ -472,7 +475,15 @@ const Aquarium = ({
           const afterCare=careSummary(specimenRef.current);
           const afterReady=nextStage==='juvenile' ? Math.max(0,280-afterCare.healthySeconds) : afterCare.adultReadyInSeconds;
           const savedSeconds=Math.max(0,Math.round(beforeReady-afterReady));
+          let creditAwarded=false;
+          if(meal==='prey'){
+            const active=snapshot();
+            if(active){const current=profileRef.current,next=rewardShrimpCatch(current,active);
+              if(next!==current&&onProfileChange(next)){profileRef.current=next;creditAwarded=true;}
+            }
+          }
           setMealNotice(specimenRef.current.health<beforeHealth ? `Overfed · −${Math.round(beforeHealth-specimenRef.current.health)} health · ${savedSeconds}s saved${specimenRef.current.growth<75 ? ` to ${nextStage}` : ''}. Let your fish digest.` : `${meal === 'prey' ? 'Shrimp eaten' : meal === 'algae' ? 'Algae grazed' : meal === 'pellet' ? 'Pellet eaten' : 'Flake eaten'} · nourishment ${Math.round(specimenRef.current.care?.nutrition ?? 0)}%${savedSeconds>0 ? ` · −${savedSeconds}s to ${nextStage}` : ''}`);
+          if(creditAwarded)setMealNotice(notice=>`${notice} · +1 credit`);
           spawnEatGlints(juice, mouth.x, mouth.y, player.L); playBiteSound();
         }
       }
@@ -489,7 +500,7 @@ const Aquarium = ({
         survival.health = Math.max(0, survival.health - hit.amount);
         survival.invulnerableTime = 1.8; survival.damageFlash = 1;
         survival.isDead = survival.health <= 0;
-        triggerCameraShake(cam, 0.2); playDamageSound();
+        triggerCameraShake(cam, 0.2); playDamageSound(); void vibrate(45).catch(NOOP);
       }
     }
 
@@ -502,10 +513,11 @@ const Aquarium = ({
       // Predator bite hit player!
       if (survival.invulnerableTime <= 0 && !survival.isDead) {
         survival.health = Math.max(0, survival.health - 25);
+        survival.isDead = survival.health <= 0;
         survival.invulnerableTime = 1.8;
         survival.damageFlash = 1.0;
         triggerCameraShake(cam, 0.3);
-        playDamageSound();
+        playDamageSound(); void vibrate([35,20,65]).catch(NOOP);
       }
     });
 
@@ -545,6 +557,7 @@ const Aquarium = ({
         health: Math.round(survival.health),
         hunger: Math.round(survival.hunger),
         stamina: Math.round(survival.stamina),
+        burstCooldown: survival.burstCooldown, burstExhausted: survival.burstExhausted, isBursting: survival.isBursting,
         growth: Math.round(survival.growth),
         inShelter: survival.isInNursery,
         isDead: survival.isDead,
@@ -588,6 +601,7 @@ const Aquarium = ({
     bgGrad.addColorStop(1, tankPalette.waterDeep);
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, vW, vH);
+    drawWaterAtmosphere(ctx,vW,vH,reducedMotion?0:t,daylight,renderCamX,renderCamY);
 
     // 2. World Space Layer
     ctx.save();

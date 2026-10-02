@@ -1,3 +1,4 @@
+import { drawWaterAtmosphere } from '@/utils/waterAtmosphere';
 import type { BoutiqueSave, Specimen } from '@/utils/boutique';
 import { createFish, type Fish, type FishPalette } from '@/utils/fishModel';
 import { drawFish, drawFishShadow } from '@/utils/fishRender';
@@ -13,7 +14,7 @@ import type { BottomEcology } from '@/utils/bottomEcology';
 import type { PredatorEntity } from '@/utils/survivalEcology';
 import { WORLD_WIDTH,WORLD_HEIGHT,CASTLE_LANDMARK,worldSurfaceY,buildWorldScene } from '@/utils/worldCamera';
 import { drawWaterBackground, drawSandCaustics, drawCycleTint, getTankPalette } from '@/utils/tankLighting';
-import { getCausticPattern, drawWaterCaustics } from '@/utils/aquaScene';
+import { getCausticPattern, drawWaterCaustics, drawRays } from '@/utils/aquaScene';
 import { drawCastleBubbles } from '@/utils/castleHealing';
 import { drawFoodEcology, type FoodParticle } from '@/utils/foodEcology';
 
@@ -54,24 +55,15 @@ export function updateAquariumView(state: AquariumViewState, profile: BoutiqueSa
   }
 }
 export function pickAquariumViewFish(state: AquariumViewState,x:number,y:number){let id:string|null=null,distance=Infinity;for(const [key,rig] of state.rigs){const d=Math.hypot(x-rig.fish.x,y-rig.fish.y);if(d<Math.max(24,rig.fish.L*.8)&&d<distance){id=key;distance=d;}}return id;}
+const overviewRays=Array.from({length:5},(_,i)=>({x:(i+.35)/5*WORLD_WIDTH,width:390+i%2*120,len:WORLD_HEIGHT*1.6,angle:.1,alpha:.05,ph:i*1.7,sp:.025}));
 const overviewDecor=buildWorldScene();
 const crabPalette = makeCrabPalette('#bc7150');
 export function drawAquariumView(ctx: CanvasRenderingContext2D, state: AquariumViewState, profile: BoutiqueSave, bottom: BottomEcology, predator: PredatorEntity | null, predatorPalette: FishPalette | null, w: number,h:number,time:number,daylight:number, secondPredator:PredatorEntity|null=null, secondPredatorPalette:FishPalette|null=predatorPalette) {
   const palette = getTankPalette(Math.round(daylight*2)/2), sandY=h*.82;
   const surface=(x:number)=>worldSurfaceY(x/w*WORLD_WIDTH)/WORLD_HEIGHT*h*.94;
   drawWaterBackground(ctx,w,h,daylight);
-  // Sparse suspended grains provide depth without competing with the creatures.
-  const driftTime=time===0?0:state.waterTime;
-  ctx.save();ctx.fillStyle='#cce9df';
-  const count=Math.min(32,Math.max(14,Math.round(w*h/22000)));
-  for(let i=0;i<count;i++){
-    const seed=(i*0.61803398875)%1;
-    const x=((seed*w+Math.sin(driftTime*.12+i)*8+driftTime*(1+i%3*.35))%w+w)%w;
-    const y=((i*.38196601125%1)*h*.78+driftTime*(.35+i%2*.2))%(h*.8)+h*.03;
-    ctx.globalAlpha=.12+(i%4)*.035;
-    ctx.beginPath();ctx.arc(x,y,.6+(i%3)*.3,0,Math.PI*2);ctx.fill();
-  }
-  ctx.restore();
+  drawWaterAtmosphere(ctx,w,h,time===0?0:state.waterTime,daylight);
+  ctx.save();ctx.scale(w/WORLD_WIDTH,h/WORLD_HEIGHT);ctx.globalCompositeOperation='lighter';drawRays(ctx,overviewRays,time,.15+daylight*.85);ctx.restore();
   ctx.fillStyle=getTankPalette(daylight).sand; ctx.beginPath();ctx.moveTo(0,h);ctx.lineTo(0,surface(0));
   for(let x=0;x<=w+8;x+=8)ctx.lineTo(x,surface(x));ctx.lineTo(w,h);ctx.closePath();ctx.fill();
   const pattern=getCausticPattern(ctx);

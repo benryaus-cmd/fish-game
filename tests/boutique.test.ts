@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appraiseFish, createBoutiqueSave, createSpecimen, getStage, loadBoutique, settleRun, writeBoutique, sellOwnedFish, ownedFishCount, NURSERY_CAPACITY, startStockRun, startResidentRun } from '../src/games/importedAippy/upstream/src/utils/boutique.ts';
+import { appraiseFish, createBoutiqueSave, createSpecimen, getStage, loadBoutique, settleRun, writeBoutique, sellOwnedFish, ownedFishCount, NURSERY_CAPACITY, purchaseStockRun, selectResidentRun, rewardShrimpCatch, startStockRun, startResidentRun } from '../src/games/importedAippy/upstream/src/utils/boutique.ts';
 import type { BoutiqueSave } from '../src/games/importedAippy/upstream/src/utils/boutique.ts';
 
 function liveSave(growth = 80): BoutiqueSave {
@@ -180,4 +180,25 @@ test('sales work at fry, juvenile and adult growth for stock and resident sessio
     assert.equal(sellOwnedFish(restored,fish.id),restored);
     assert.equal(loadBoutique({getItem:()=>JSON.stringify(restored)}).activeRun,null);
   }
+});
+
+test('View purchase preserves an active fry and starts new stock atomically',()=>{
+ const before={...liveSave(0),coins:100},id=before.activeRun!.specimen.id;
+ const after=purchaseStockRun(before,'sunburst','next-fish',1000000);
+ assert.equal(after.coins,60);assert.equal(after.kept[0].id,id);assert.equal(after.kept[0].growth,0);assert.equal(after.activeRun!.specimen.id,'next-fish');assert.equal(after.sales,0);
+ const storage=memoryStorage();writeBoutique(after,storage);const restored=loadBoutique(storage);assert.equal(restored.kept[0].id,id);assert.equal(restored.activeRun!.specimen.id,'next-fish');
+ assert.equal(purchaseStockRun(before,'rainbowangel','expensive',1000000),before);
+ const full={...before,kept:Array.from({length:9},(_,i)=>createSpecimen('ordinary',`full-${i}`))};assert.equal(purchaseStockRun(full,'ordinary','eleventh'),full);
+});
+test('selecting a kept adult preserves the earlier active individual and total ownership',()=>{
+ const adult={...createSpecimen('ordinary','adult-to-swim'),growth:80};const before={...liveSave(0),kept:[adult]};
+ const after=selectResidentRun(before,adult.id,'new-visit',1000000);
+ assert.equal(after.activeRun!.specimen.id,adult.id);assert.equal(after.kept[0].id,before.activeRun!.specimen.id);assert.equal(ownedFishCount(after),ownedFishCount(before));assert.equal(after.coins,before.coins);
+});
+test('shrimp reward checkpoints live care and exactly one credit without changing sales',()=>{
+ const before={...liveSave(),coins:20};const active={...before.activeRun!,specimen:{...before.activeRun!.specimen,hunger:95,health:90}};
+ const after=rewardShrimpCatch(before,active);assert.equal(after.coins,21);assert.equal(after.activeRun!.specimen.hunger,95);assert.equal(after.sales,0);assert.equal(before.coins,20);
+ const storage=memoryStorage();writeBoutique(after,storage);assert.equal(loadBoutique(storage).coins,21);
+ assert.equal(rewardShrimpCatch({...before,activeRun:null},active).activeRun,null);
+ assert.equal(rewardShrimpCatch(before,{...active,visitId:'stale-visit'}),before);
 });

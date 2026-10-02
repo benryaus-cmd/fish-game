@@ -47,3 +47,8 @@ export function bodyShapeSpecies(shape: BodyShape): OrnamentalSpecies { return s
 
 /** Shop grouping is independent of anatomical species and breeding compatibility. */
 export function stockFamily(shape: BodyShape): 'starter' | 'colorful' | 'angel' { return shape === 'seahorse' ? 'colorful' : shape; }
+
+/** Player-facing anatomy names; save axes retain their existing identifiers. */
+export function specimenFormLabel(fish: AppearanceSpecimen): string {
+  return ({starter:'Guppy form',colorful:'Tropical form',angel:'Angelfish form',seahorse:'Seahorse form'} as const)[specimenBodyShape(fish)];
+}

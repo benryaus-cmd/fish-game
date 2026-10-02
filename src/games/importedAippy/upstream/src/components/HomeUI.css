@@ -36,3 +36,8 @@
 .home-tank-care{top:72px;bottom:auto!important;right:20px;max-width:140px}.home-tank-care>span{display:none}@media(max-height:500px){.home-tank-care{top:54px;right:18px}}
 
 .home-tank-care .home-button{white-space:nowrap;gap:10px;padding:10px 14px}
+
+.care-primary-action{margin:8px 0 14px}.care-primary-action .home-button{min-height:44px}
+
+/* Keep all four View actions clear of the host developer-access button. */
+.home-screen .home-dock{right:74px}.home-screen .home-dock button{padding-inline:4px}
