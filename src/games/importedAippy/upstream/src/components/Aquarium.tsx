@@ -27,7 +27,7 @@ import GardenHUD from '@/components/GardenHUD';
 import FishPortrait from '@/components/FishPortrait';
 import FishCarePanel from '@/components/FishCarePanel';
 import { useHomeSheet } from '@/components/HomeScreen';
-import { ensureSpecimenCare, advanceSpecimenCare, feedSpecimen, chooseDevelopment } from '@/utils/specimenCare';
+import { ensureSpecimenCare, advanceSpecimenCare, feedSpecimen, careSummary, chooseDevelopment } from '@/utils/specimenCare';
 import { cleanTank } from '@/utils/tankCare';
 import { CASTLE_HEAL_PER_SECOND, inCastleHealingPlume, drawCastleBubbles } from '@/utils/castleHealing';
 import { createAquariumView, updateAquariumView, drawAquariumView, pickAquariumViewFish } from '@/utils/aquariumView';
@@ -112,7 +112,7 @@ const Aquarium = ({
   const runMetadataRef = useRef(profile.activeRun);
   const endedRef = useRef(false);
   const modalRef = useRef(false);
-  modalRef.current = paused || detailsOpen || appraisalOpen || choiceStage > 0 || receipt !== null;
+  modalRef.current = paused || (mode === 'swim' && (detailsOpen || appraisalOpen || choiceStage > 0 || receipt !== null));
   const checkpointRef = useRef(0);
   const stickKnobRef = useRef<HTMLDivElement>(null);
   const displayPalettesRef = useRef(new Map<number, FishPalette>());
@@ -130,6 +130,7 @@ const Aquarium = ({
   const biteCooldownRef = useRef(0);
   const playerRef = useRef<Fish | null>(null);
   const preyListRef = useRef<PreyEntity[]>([]);
+  const secondPredatorRef = useRef<PredatorEntity | null>(null);
   const predatorRef = useRef<PredatorEntity | null>(null);
 
   // Environment elements
@@ -149,6 +150,8 @@ const Aquarium = ({
   const snapshot = useCallback((): ActiveRun | null => {
     const fish = playerRef.current;
     const state = survivalRef.current;
+    const current = profileRef.current.activeRun;
+    if (!current || current.specimen.id !== runMetadataRef.current?.specimen.id || current.visitId !== runMetadataRef.current?.visitId) return null;
     if (!fish || endedRef.current || displaySpecimen || !runMetadataRef.current) return null;
     return { ...runMetadataRef.current, specimen: { ...specimenRef.current, growth: state.growth, health: state.health, hunger: state.hunger },
       x: fish.x, y: fish.y, stamina: state.stamina };
@@ -298,6 +301,7 @@ const Aquarium = ({
 
     // Spawn 1 Predator far away in deep open water (X: 1950, Y: 800)
     predatorRef.current = createPredatorFish(WORLD_WIDTH*.7, 800, startL * 1.75);
+    secondPredatorRef.current = createPredatorFish(WORLD_WIDTH*.47, 480, startL * 1.55);
 
     // Reset juice
     juiceRef.current = createSurvivalJuice();
@@ -310,8 +314,8 @@ const Aquarium = ({
 
   // Initial spawn
   useEffect(() => {
-    if(!playerRef.current || (profile.activeRun && profile.activeRun.specimen.id!==runMetadataRef.current?.specimen.id)) restartGame();
-  }, [restartGame, profile.activeRun?.specimen.id]);
+    if(!playerRef.current || (profile.activeRun && (endedRef.current || profile.activeRun.specimen.id!==runMetadataRef.current?.specimen.id || profile.activeRun.visitId!==runMetadataRef.current?.visitId))) restartGame();
+  }, [restartGame, profile.activeRun?.specimen.id, profile.activeRun?.visitId]);
 
   // In View, the profile's real-time care/paid actions are authoritative. Swim
   // checkpoints own live damage and motion, so a background tick cannot rewind it.
@@ -376,7 +380,7 @@ const Aquarium = ({
   } = useGameLoop({
     width,
     height,
-    maxFPS: paused || detailsOpen || appraisalOpen || choiceStage > 0 || receipt ? 10 : 60,
+    maxFPS: paused || (mode === 'swim' && (detailsOpen || appraisalOpen || choiceStage > 0 || receipt)) ? 10 : 60,
     designWidth: 0
   }, ({
     deltaTime,
@@ -403,7 +407,7 @@ const Aquarium = ({
     if(mode==='view'){
       updateAquariumView(viewStateRef.current,profileRef.current,vW,vH,reducedMotion?0:dt);
       updateBottomEcology(bottomRef.current,dt,{x:-1000,y:0,L:1,growth:0},worldSurfaceY,{damageEnabled:false});
-      updatePredator(predator,{...player,x:-1000,y:0}, {...survival,isInNursery:true},dt,worldSurfaceY,NOOP);
+      for (const hunter of [predator, secondPredatorRef.current]) if(hunter) updatePredator(hunter,{...player,x:-1000,y:0}, {...survival,isInNursery:true},dt,worldSurfaceY,NOOP);
       const current=profileRef.current;
       const dead=[...current.kept,...(current.activeRun?[current.activeRun.specimen]:[])].find(f=>f.health<=0);
       if(dead){
@@ -459,10 +463,16 @@ const Aquarium = ({
         if (meal) {
           const phase = profileRef.current.worldClock ? sampleWorldClock(profileRef.current.worldClock, Date.now()).phase : 'day';
           const beforeHealth=specimenRef.current.health;
+          const beforeCare=careSummary(specimenRef.current);
+          const nextStage=specimenRef.current.growth < 35 ? 'juvenile' : 'adult';
+          const beforeReady=nextStage==='juvenile' ? Math.max(0,280-beforeCare.healthySeconds) : beforeCare.adultReadyInSeconds;
           specimenRef.current = feedSpecimen(specimenRef.current, meal, Date.now(), phase);
           survival.hunger = specimenRef.current.hunger;
           survival.health = specimenRef.current.health;
-          setMealNotice(specimenRef.current.health<beforeHealth ? 'Overfed · health lost. Let your fish digest.' : `${meal === 'prey' ? 'Shrimp eaten' : meal === 'algae' ? 'Algae grazed' : meal === 'pellet' ? 'Pellet eaten' : 'Flake eaten'} · nourishment ${Math.round(specimenRef.current.care?.nutrition ?? 0)}%`);
+          const afterCare=careSummary(specimenRef.current);
+          const afterReady=nextStage==='juvenile' ? Math.max(0,280-afterCare.healthySeconds) : afterCare.adultReadyInSeconds;
+          const savedSeconds=Math.max(0,Math.round(beforeReady-afterReady));
+          setMealNotice(specimenRef.current.health<beforeHealth ? 'Overfed · health lost. Let your fish digest.' : `${meal === 'prey' ? 'Shrimp eaten' : meal === 'algae' ? 'Algae grazed' : meal === 'pellet' ? 'Pellet eaten' : 'Flake eaten'} · nourishment ${Math.round(specimenRef.current.care?.nutrition ?? 0)}%${savedSeconds>0 ? ` · −${savedSeconds}s to ${nextStage}` : ''}`);
           spawnEatGlints(juice, mouth.x, mouth.y, player.L); playBiteSound();
         }
       }
@@ -488,7 +498,7 @@ const Aquarium = ({
     updatePrey(preyListRef.current, player, predator, dt, ecologyView.x, ecologyView.y, ecologyView.width, ecologyView.height, worldSurfaceY);
 
     // Update Predator
-    if (!displaySpecimen) updatePredator(predator, player, survival, dt, worldSurfaceY, () => {
+    if (!displaySpecimen) for (const hunter of [predator, secondPredatorRef.current]) if(hunter) updatePredator(hunter, player, survival, dt, worldSurfaceY, () => {
       // Predator bite hit player!
       if (survival.invulnerableTime <= 0 && !survival.isDead) {
         survival.health = Math.max(0, survival.health - 25);
@@ -552,7 +562,7 @@ const Aquarium = ({
     const t = timeRef.current;
     const daylight = profileRef.current.worldClock ? sampleWorldClock(profileRef.current.worldClock, Date.now()).daylight : 1;
     if(mode==='view'){
-      drawAquariumView(ctx,viewStateRef.current,profileRef.current,bottomRef.current,predator,predatorPalRef.current,vW,vH,t,daylight);
+      drawAquariumView(ctx,viewStateRef.current,profileRef.current,bottomRef.current,predator,predatorPalRef.current,vW,vH,reducedMotion?0:t,daylight,secondPredatorRef.current);
       return;
     }
     const tankPalette = getTankPalette(daylight);
@@ -675,8 +685,8 @@ const Aquarium = ({
     }
 
     // Draw Predator Fish
-    if (!displaySpecimen && predator && predatorPalRef.current) {
-      const pf = predator.fish;
+    for (const hunter of [predator, secondPredatorRef.current]) if (!displaySpecimen && hunter && predatorPalRef.current) {
+      const pf = hunter.fish;
       if (pf.x + pf.L >= viewLeft && pf.x - pf.L <= viewRight) {
         drawFish(ctx, pf, predatorPalRef.current);
       }
@@ -710,6 +720,9 @@ const Aquarium = ({
   });
 
   const openBoutique = () => {
+    const player = playerRef.current;
+    if (!player || survivalRef.current.isDead || !isInNursery(player.x, player.y)) return;
+    setDetailsOpen(false); setAppraisalOpen(false); setChoiceStage(0); setReceipt(null);
     inputManagerRef.current?.resetInput();
     if (stickKnobRef.current) stickKnobRef.current.style.transform = '';
     if(profileRef.current.activeRun&&!endedRef.current&&!saveRun())return;
@@ -751,8 +764,8 @@ const Aquarium = ({
   };
   const finishRun = (kind: 'sell' | 'keep') => {
     const player = playerRef.current;
-    if (!player || endedRef.current || survivalRef.current.isDead || !isInNursery(player.x, player.y)) return;
-    specimenRef.current = { ...specimenRef.current, name: fishName.trim().slice(0, 40) || 'Coral' };
+    if (!player || endedRef.current || survivalRef.current.isDead || (kind === 'keep' && !isInNursery(player.x, player.y))) return;
+    specimenRef.current = { ...specimenRef.current, name: appraisalOpen ? fishName.trim().slice(0, 40) || specimenRef.current.name : specimenRef.current.name };
     const activeRun = snapshot();
     if (!activeRun) return;
     const base = { ...profileRef.current, activeRun };
@@ -762,7 +775,7 @@ const Aquarium = ({
     endedRef.current = true;
     inputManagerRef.current?.resetInput();
     setReceipt({ kind, value: kind === 'sell' ? appraiseFish(activeRun.specimen) : 0, specimen: activeRun.specimen });
-    setAppraisalOpen(false);
+    setAppraisalOpen(false); setDetailsOpen(false);
   };
   const specimen = snapshot()?.specimen ?? specimenRef.current;
   const player = playerRef.current;
@@ -798,7 +811,7 @@ const Aquarium = ({
       knobRef={stickKnobRef} joyDown={handleJoyPointerDown} joyMove={handleJoyPointerMove} joyUp={handleJoyPointerUp}
       eatDown={handleEatPointerDown} eatUp={handleEatPointerUp} eatClick={detail => inputManagerRef.current?.onEatClick(detail)}
       burstDown={handleBurstPointerDown} burstUp={handleBurstPointerUp}>
-      {detailsOpen && <div className="garden-modal"><div ref={detailsSheetRef} tabIndex={-1} className="garden-dialog garden-glass" role="dialog" aria-modal="true" aria-label="Fish care"><button className="garden-detail-close" aria-label="Close fish care" onClick={() => setDetailsOpen(false)}>×</button><FishCarePanel specimen={specimen} phase={profile.worldClock ? sampleWorldClock(profile.worldClock).phase : 'day'} /><button className="garden-button garden-button-secondary" onClick={() => setDetailsOpen(false)}>Back to Swim <span>↗</span></button></div></div>}
+      {detailsOpen && <div className="garden-modal"><div ref={detailsSheetRef} tabIndex={-1} className="garden-dialog garden-glass" role="dialog" aria-modal="true" aria-label="Fish care"><button className="garden-detail-close" aria-label="Close fish care" onClick={() => setDetailsOpen(false)}>×</button><FishCarePanel specimen={specimen} phase={profile.worldClock ? sampleWorldClock(profile.worldClock).phase : 'day'} /><button className="garden-button garden-button-secondary" disabled={!saved || specimen.health <= 0} onClick={() => finishRun('sell')}>Sell this fish · ◈ {appraiseFish(specimen)}</button><button className="garden-button garden-button-secondary" onClick={() => setDetailsOpen(false)}>Back to Swim <span>↗</span></button></div></div>}
       {!!choiceStage && <div className="garden-modal"><section className="garden-dialog garden-glass" role="dialog" aria-modal="true" aria-label="Choose an adaptation">
         <button className="garden-detail-close" aria-label="Choose later" onClick={()=>setChoiceStage(0)}>×</button>
         <p className="garden-eyebrow">GROWTH MILESTONE · {choiceStage === 35 ? 'JUVENILE' : 'ADULT'}</p>
@@ -826,8 +839,8 @@ const Aquarium = ({
         {nurseryFull && <p className="garden-notice">Your owned fish{profile.breeding ? ' and reserved breeding fry' : ''} occupy all {NURSERY_CAPACITY} nursery spaces. Make room before keeping this fish.</p>}
         {!saved && <p className="garden-notice">Saving is unavailable. Your fish is still here; the transaction has not been completed.</p>}
         <div className="dialog-actions">
-          <button className="garden-button" disabled={runMetadataRef.current?.source === 'resident' || specimen.growth < 10} onClick={() => finishRun('sell')}>Sell this specimen <span>◈ {appraiseFish(specimen)}</span></button>
-          <button className="garden-button garden-button-secondary" aria-label={runMetadataRef.current?.source === 'resident' ? 'Return to View' : undefined} disabled={nurseryFull || (!resident && specimen.growth < 10)} onClick={() => finishRun('keep')}>{nurseryFull ? 'Your nursery is full' : resident ? 'Return to View' : 'Keep in my aquarium'} <span aria-hidden="true">♡</span></button>
+          <button className="garden-button" disabled={!saved} onClick={() => finishRun('sell')}>Sell this specimen <span>◈ {appraiseFish(specimen)}</span></button>
+          <button className="garden-button garden-button-secondary" aria-label={runMetadataRef.current?.source === 'resident' ? 'Return to View mode' : undefined} disabled={!resident && (nurseryFull || specimen.growth < 10)} onClick={() => finishRun('keep')}>{nurseryFull ? 'Your nursery is full' : resident ? 'Return to View mode' : 'Keep in my aquarium'} <span aria-hidden="true">♡</span></button>
           <button className="garden-button garden-button-secondary" onClick={() => setAppraisalOpen(false)}>Keep exploring <span>↗</span></button>
         </div>
       </section></div>}

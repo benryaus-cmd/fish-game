@@ -1,4 +1,4 @@
-# AquaLume — final product direction
+# SWIM — final product direction
 
 **Revised 2 October 2026 after the first playable footage. Destination, not completed features.** Read the opening and the relevant section; workers do not need the whole document for every task.
 
@@ -111,3 +111,5 @@ Use Canvas caching, bounded particles and lower-frequency distant simulation fir
 6. **Release finish:** onboarding through play, accessibility, migration/interruption recovery, balanced economy and sustained mobile performance.
 
 Target 60 fps on representative mid-range phones with stable 30 fps fallback, readable danger and clean audio through a busy ten-minute session. Unit tests and builds do not certify visual finish. Inspect all-direction swimming, zoom, mobile layouts and a complete journey in motion. Record observations separately from intended features.
+
+Current polish: ten owned fish including active fish and reserved fry; legacy collections are retained. Sales are available at any age. View and Swim share one aquarium with two predators; only the nursery permits returning to View mode. Visual dive/climb pitch is limited to 50° from side-on while movement remains fully vertical. Saved audio sliders default to music 80% and effects 60%. Low health below 25% gives a quiet reminder; overfeeding damage is capped at 6 per bite.

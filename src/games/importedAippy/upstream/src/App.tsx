@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import AudioSettings from '@/components/AudioSettings';
 import Aquarium from '@/components/Aquarium';
 import HomeScreen from '@/components/HomeScreen';
 import StockSheet from '@/components/StockSheet';
 import BreedingSheet from '@/components/BreedingSheet';
-import { loadBoutique, writeBoutique, startStockRun, startResidentRun, type BoutiqueSave } from '@/utils/boutique';
+import { loadBoutique, writeBoutique, startStockRun, startResidentRun, sellOwnedFish, type BoutiqueSave } from '@/utils/boutique';
 import { initialiseCareProfile, advanceProfileCare } from '@/utils/worldClock';
 import { startBreeding, claimBreeding } from '@/utils/breeding';
 import { buyTankPellets, cleanTank, PELLET_PRICE, CLEAN_PRICE } from '@/utils/tankCare';
@@ -18,6 +19,7 @@ const App = () => {
   const [saved, setSaved] = useState(true);
   const [raising, setRaising] = useState(false);
   const [stockOpen, setStockOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [breedingOpen, setBreedingOpen] = useState(false);
   const [selectedFishId, setSelectedFishId] = useState<string | null>(null);
   // Retain the ended outing through its receipt, as well as unsaved live motion at home.
@@ -67,6 +69,12 @@ const App = () => {
     const next = buyTankPellets(current,id,Date.now());
     if(next!==current)commitProfile(next);
   };
+  const sellResident = (id: string) => {
+    const current = profileRef.current, next = sellOwnedFish(current, id);
+    if (next === current || !commitProfile(next)) return;
+    setSelectedFishId(null);
+    if (current.activeRun?.specimen.id === id) setRaising(false);
+  };
   useEffect(() => {
     const tick = () => commitProfile(advanceProfileCare(profileRef.current, Date.now(), !raising,document.hidden?'away':'present'));
     tick();
@@ -84,15 +92,16 @@ const App = () => {
     <div className="absolute inset-0">
       <Aquarium width={size.width} height={size.height} mode={raising ? 'swim' : 'view'} onSelectFish={setSelectedFishId}
         profile={profile} onProfileChange={commitProfile} onOpenShop={returnHome} onChooseStock={chooseNext}
-        paused={stockOpen || breedingOpen || !!selectedFishId} displaySpecimen={null} saved={saved} audio={audio} />
+        paused={stockOpen || breedingOpen || settingsOpen || !!selectedFishId} displaySpecimen={null} saved={saved} audio={audio} />
     </div>
-    {!raising && <div inert={stockOpen || breedingOpen} aria-hidden={stockOpen || breedingOpen || undefined}><HomeScreen width={size.width} height={size.height} profile={profile} saved={saved} paused={stockOpen || breedingOpen}
+    {!raising && <div inert={stockOpen || breedingOpen || settingsOpen} aria-hidden={stockOpen || breedingOpen || settingsOpen || undefined}><HomeScreen width={size.width} height={size.height} profile={profile} saved={saved} paused={stockOpen || breedingOpen || settingsOpen}
       onRaise={() => setStockOpen(true)} onContinue={() => { if (profileRef.current.activeRun) { setStockOpen(false); setRaising(true); void audio.initAudio(); } }}
-      onRaiseResident={raiseResident} onFeedResident={feedResident} onBreed={() => setBreedingOpen(true)}
+      onSellFish={sellResident} onRaiseResident={raiseResident} onFeedResident={feedResident} onBreed={() => setBreedingOpen(true)}
       selectedFishId={selectedFishId} onClearSelection={() => setSelectedFishId(null)}
       onCleanTank={() => { const current=profileRef.current,next=cleanTank(current,true,Date.now());if(next!==current)commitProfile(next); }}
       tankDirt={profile.tankCare?.dirt ?? 0} pelletPrice={PELLET_PRICE} cleanPrice={CLEAN_PRICE}
-      onSound={audio.toggleSound} sound={audio.soundEnabled} onInteract={() => void audio.initAudio()} /></div>}
+      onSound={() => setSettingsOpen(true)} sound={audio.soundEnabled} onInteract={() => void audio.initAudio()} /></div>}
+    {settingsOpen && <AudioSettings audio={audio} onClose={() => setSettingsOpen(false)} />}
     {stockOpen && <StockSheet profile={profile} saved={saved} onChoose={chooseStock} onClose={() => setStockOpen(false)} />}
     {breedingOpen && <BreedingSheet profile={profile} saved={saved} onStart={breed} onClaim={welcomeGuppy} onClose={() => setBreedingOpen(false)} />}
   </div>;

@@ -1,5 +1,5 @@
 import { specimenBodyShape, specimenFinStyle, specimenPattern, bodyShapeSpecies } from './stockCatalog.ts';
-import { createSpecimen, NURSERY_CAPACITY, type BoutiqueSave, type Specimen } from './boutique.ts';
+import { createSpecimen, NURSERY_CAPACITY, ownedFishCount, type BoutiqueSave, type Specimen } from './boutique.ts';
 import { advanceSpecimenCare, ensureSpecimenCare, ADULT_HEALTHY_SECONDS } from './specimenCare.ts';
 export const BREEDING_SECONDS = 120;
 export interface BreedingCycle { id: string; parentIds: [string,string]; startedAtMs: number; readyAtMs: number; offspring: Specimen }
@@ -7,7 +7,7 @@ export function breedingEligibility(save: BoutiqueSave, a: string, b: string, no
   const reject = (reason: string) => ({ eligible: false, reason });
   if (save.breeding) return reject('A nursery cycle is already underway.');
   if (a === b) return reject('Choose two different parents.');
-  if (save.kept.length + (save.activeRun?.source === 'resident' ? 1 : 0) >= NURSERY_CAPACITY) return reject('The nursery is full.');
+  if (ownedFishCount(save) >= NURSERY_CAPACITY) return reject('The nursery is full.');
   const parents = [a,b].map(id=>save.kept.find(fish=>fish.id===id));
   if (parents.some(fish=>!fish)) return reject('Both parents must be in the viewing tank.');
   for (const parent of parents) {
@@ -41,6 +41,6 @@ export function startBreeding(save: BoutiqueSave, a: string, b: string, cycleId:
 export function claimBreeding(save: BoutiqueSave, now = Date.now()): BoutiqueSave {
   const cycle=save.breeding;
   now = Number.isFinite(now) ? Math.max(now, save.worldClock?.lastSeenMs ?? 0, ...(cycle ? save.kept.filter(fish => cycle.parentIds.includes(fish.id)).map(fish => fish.care?.lastCareAtMs ?? 0) : [])) : now;
-  if (!cycle || !Number.isFinite(now) || now<cycle.readyAtMs || save.completedRunIds.includes(cycle.id) || save.kept.length>=NURSERY_CAPACITY || save.kept.some(fish=>fish.id===cycle.offspring.id) || save.activeRun?.specimen.id===cycle.offspring.id) return save;
+  if (!cycle || !Number.isFinite(now) || now<cycle.readyAtMs || save.completedRunIds.includes(cycle.id) || save.kept.some(fish=>fish.id===cycle.offspring.id) || save.activeRun?.specimen.id===cycle.offspring.id) return save;
   return {...save,kept:[...save.kept,advanceSpecimenCare(cycle.offspring,now,'home')],placements:{...save.placements,[cycle.offspring.id]:'home'},breeding:null,completedRunIds:[...save.completedRunIds,cycle.id].slice(-10000)};
 }

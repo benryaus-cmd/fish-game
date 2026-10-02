@@ -2,6 +2,7 @@ import { TAU, type Fish } from '@/utils/fishModel';
 import type { JoystickInput } from '@/utils/playerInput';
 
 const PI = Math.PI;
+export const MAX_PLAYER_PITCH = 50 * PI / 180;
 const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
 const ease = (rate: number, dt: number) => 1 - Math.exp(-rate * dt);
 
@@ -134,7 +135,7 @@ export function updatePlayerFish(
     // Desired vertical pitch based on Y input
     // Positive pitch lifts the nose in the procedural rig (screen Y points down).
     // Dive through the local body frame; yaw exposes the back instead of a rotated flank.
-    const pitchGoal = clamp(Math.atan2(-directionY, Math.abs(directionX)), -1.35, 1.35);
+    const pitchGoal = clamp(Math.atan2(-directionY, Math.abs(directionX)), -MAX_PLAYER_PITCH, MAX_PLAYER_PITCH);
     player.pitch += (pitchGoal - player.pitch) * ease(5, dt);
   } else {
     // Gentle leveling when idle

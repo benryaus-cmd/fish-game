@@ -136,3 +136,8 @@
 .garden-root button:focus-visible{outline:3px solid #f7d990;outline-offset:3px}
 @media(max-width:360px){.garden-condition{padding:8px;gap:8px}.garden-growth{min-width:116px;padding:8px}.garden-top-actions{gap:6px}.garden-wallet{padding:0 10px}.garden-growth strong{font-size:19px}}
 @media(max-height:480px){.garden-first-hint{bottom:105px;font-size:9px;left:12px;right:80px}.garden-edge-actions{gap:4px}.garden-detail-panel{max-height:calc(100% - 230px)}}
+
+.garden-low-health {position:absolute;top:155px;left:50%;transform:translateX(-50%);max-width:calc(100% - 32px);padding:7px 12px;border:1px solid #e8a89488;border-radius:16px;background:#183c43df;color:#ffe1ce;font-size:12px;text-align:center;pointer-events:none;z-index:8;}
+.garden-low-health-vignette {position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 45px #d8705c33;animation:swim-health-breathe 3s ease-in-out infinite;}
+@keyframes swim-health-breathe {50%{opacity:.35}}
+@media(prefers-reduced-motion:reduce){.garden-low-health-vignette{animation:none}}

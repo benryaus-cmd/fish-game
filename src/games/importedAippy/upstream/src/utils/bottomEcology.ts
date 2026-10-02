@@ -8,6 +8,7 @@ import { drawCrab } from '@/utils/crabRender';
 import { canEatFood, foodIsNearbyEdible, drawEdibleGlow, type FoodConsumer } from '@/utils/foodEcology';
 import { WORLD_WIDTH, WORLD_HEIGHT, NURSERY_ZONE, worldSurfaceY } from '@/utils/worldCamera';
 export const CRAB_WINDUP_SECONDS = 0.75;
+export const CRAB_HOP_HEIGHT = 210;
 export const CRAB_DAMAGE_COOLDOWN = 2;
 export interface BottomPlayer { x:number; y:number; L:number; growth:number; inShelter?:boolean }
 export interface BottomDamage { kind:'crab'; amount:number; x:number; y:number }
@@ -67,7 +68,7 @@ export function updateBottomEcology(state:BottomEcology,dtRaw:number,player:Bott
   }
   for(const c of state.crabs){const r=c.rig;c.cooldown=Math.max(0,c.cooldown-dt);c.phaseTime+=dt;
    const enabled=options.damageEnabled!==false;
-   const low=player.y>surfaceY(player.x)-220&&player.y<surfaceY(player.x)+55;
+   const low=player.y>surfaceY(player.x)-(CRAB_HOP_HEIGHT+80)&&player.y<surfaceY(player.x)+55;
    const safe=inNursery(player);
    const near=Math.abs(player.x-r.x)<155;
    if(!enabled&&(c.phase==='windup'||c.phase==='lunge')){c.phase='recover';c.phaseTime=0;c.cooldown=CRAB_DAMAGE_COOLDOWN;}
@@ -81,7 +82,7 @@ export function updateBottomEcology(state:BottomEcology,dtRaw:number,player:Bott
    const env=crabEnv(surfaceY);env.speed=c.phase==='lunge'?5:1;
    updateCrab(r,[],dt,env,()=>{},()=>{});
    r.x=clamp(r.x,800,WORLD_WIDTH-100);r.cx=r.x;r.tx=clamp(r.tx,800,WORLD_WIDTH-100);
-   c.hopHeight=c.phase==='lunge'?(c.phaseTime<.22?140*Math.sin(c.phaseTime/.22*Math.PI/2):140*Math.pow(Math.max(0,1-(c.phaseTime-.22)/.98),1.35)):0;
+   c.hopHeight=c.phase==='lunge'?(c.phaseTime<.22?CRAB_HOP_HEIGHT*Math.sin(c.phaseTime/.22*Math.PI/2):CRAB_HOP_HEIGHT*Math.pow(Math.max(0,1-(c.phaseTime-.22)/.98),1.35)):0;
    r.cy-=c.hopHeight;r.footY-=c.hopHeight;
    for(const foot of r.feet){foot.y-=c.hopHeight;foot.sy-=c.hopHeight;}
    if(c.phase==='windup'||c.phase==='lunge'){

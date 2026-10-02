@@ -23,7 +23,7 @@ class ImportedGameErrorBoundary extends Component<ErrorBoundaryProps, ErrorBound
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('[Aippy] Error caught in recovered AquaLume application:', error, errorInfo);
+    console.error('[Aippy] Error caught in recovered SWIM application:', error, errorInfo);
   }
 
   render() {
@@ -31,7 +31,7 @@ class ImportedGameErrorBoundary extends Component<ErrorBoundaryProps, ErrorBound
       return (
         <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 text-white p-6 text-center select-none">
           <div className="text-5xl mb-4">🐠</div>
-          <h2 className="text-xl font-bold mb-2">AquaLume Encountered an Issue</h2>
+          <h2 className="text-xl font-bold mb-2">SWIM Encountered an Issue</h2>
           <p className="text-sm text-slate-400 max-w-sm mb-6">
             {this.state.error?.message || 'Failed to render aquarium simulation.'}
           </p>
@@ -61,7 +61,7 @@ export default function ImportedAippyGame() {
           <AppToRender />
         ) : (
           <div className="flex h-full items-center justify-center p-6 text-center text-sm text-slate-300">
-            AquaLume source recovery is incomplete; the recovered app could not be mounted.
+            SWIM source recovery is incomplete; the recovered app could not be mounted.
           </div>
         )}
       </ImportedGameErrorBoundary>

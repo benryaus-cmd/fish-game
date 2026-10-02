@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { createSpecimen, type BoutiqueSave } from '@/utils/boutique';
+import { createSpecimen, ownedFishCount, NURSERY_CAPACITY, type BoutiqueSave } from '@/utils/boutique';
 import { STOCK_CATALOG, type StockId, type BodyShape } from '@/utils/stockCatalog';
 import FishPortrait from '@/components/FishPortrait';
 import { useHomeSheet } from '@/components/HomeScreen';
@@ -13,6 +13,7 @@ interface Props {
 export default function StockSheet({ profile, saved, onChoose, onClose }: Props) {
   const ref = useHomeSheet(true, onClose);
   const previews = useMemo(() => STOCK_CATALOG.map(stock => ({ stock, specimen: createSpecimen(stock.id, `stock-preview-${stock.id}`) })), []);
+  const full = ownedFishCount(profile) >= NURSERY_CAPACITY;
   const active = !!profile.activeRun;
   const [family, setFamily] = useState<BodyShape>('starter');
   return <div className="home-modal home-stock-modal" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
@@ -21,11 +22,12 @@ export default function StockSheet({ profile, saved, onChoose, onClose }: Props)
       <div className="home-sheet-scroll">
         <div className="home-stock-intro"><p>Three body families. Your own little lives.<br />Care reveals their colour as they grow.</p><span className="home-wallet"><span aria-hidden="true">◈</span> {profile.coins.toLocaleString()} <small>credits</small></span></div>
         <div className="stock-family-tabs" role="tablist" aria-label="Fish families">{([['starter','Starter'],['colorful','Tropical'],['angel','Angels']] as const).map(([id,label])=><button key={id} role="tab" aria-selected={family===id} onClick={()=>setFamily(id)}>{label}</button>)}</div>
+        {full && <p className="home-notice" role="status">All 10 fish spaces are occupied or reserved. Sell a fish to make room.</p>}
         {active && <p className="home-notice" role="status">An outing is already paused. Close this sheet and choose Continue Swim to return to your fish.</p>}
         {!saved && <p className="home-notice" role="status">Saving failed. Purchases complete only when saving succeeds. You can retry.</p>}
         <div className="home-stock-grid">{previews.filter(({stock})=>stock.bodyShape===family).map(({ stock, specimen }) => {
           const affordable = profile.coins >= stock.price;
-          const disabled = active || !affordable;
+          const disabled = active || full || !saved || !affordable;
           return <article className="home-stock-card" key={stock.id}>
             <div className="home-stock-portrait"><FishPortrait specimen={specimen} /><span className="home-stock-price">{stock.price === 0 ? 'Free' : `◈ ${stock.price}`}</span></div>
             <div className="home-stock-copy"><p className="home-eyebrow">{stock.species.toUpperCase()} FRY · {stock.finStyle.toUpperCase()} FINS</p><h3>{stock.name}</h3><p>{stock.description}</p>

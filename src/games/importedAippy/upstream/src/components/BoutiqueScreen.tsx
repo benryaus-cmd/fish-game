@@ -12,9 +12,9 @@ export default function BoutiqueScreen({ profile, onReturn, onDisplay, saved }: 
   const [page, setPage] = useState(0);
   const pages = Math.max(1, Math.ceil(profile.kept.length / 6));
   const visible = profile.kept.slice(page * 6, page * 6 + 6);
-  return <section className="boutique-screen" aria-label="AquaLume boutique">
+  return <section className="boutique-screen" aria-label="SWIM boutique">
     <header className="boutique-header">
-      <div><p className="garden-eyebrow">AQUARIUM BOUTIQUE</p><h1>AquaLume</h1><p>Little lives. Beautifully raised.</p></div>
+      <div><p className="garden-eyebrow">AQUARIUM BOUTIQUE</p><h1>SWIM</h1><p>Little lives. Beautifully raised.</p></div>
       <button className="garden-round" onClick={onReturn} aria-label="Return to garden">×</button>
     </header>
     <div className="boutique-summary garden-glass">

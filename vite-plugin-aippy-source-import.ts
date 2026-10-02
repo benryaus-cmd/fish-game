@@ -14,7 +14,7 @@ export function aippySourceImportPlugin(): Plugin {
     enforce: 'pre',
 
     async resolveId(source, importer) {
-      // Virtual init module for AquaLume side effects and tweaks setup
+      // Virtual init module for SWIM side effects and tweaks setup
       if (source === RECOVERED_AQUA_INIT_ID) {
         return RESOLVED_AQUA_INIT_ID;
       }
@@ -41,7 +41,7 @@ export function aippySourceImportPlugin(): Plugin {
             // continue
           }
         }
-        throw new Error('[Aippy] Could not resolve recovered AquaLume App at ' + recoveredAppBase);
+        throw new Error('[Aippy] Could not resolve recovered SWIM App at ' + recoveredAppBase);
       }
 
       // Handle @/ imports with strict importer scoping
@@ -76,7 +76,7 @@ export function aippySourceImportPlugin(): Plugin {
           }
           return null;
         } else {
-          // Upstream imports: resolve strictly against recovered AquaLume source tree
+          // Upstream imports: resolve strictly against recovered SWIM source tree
           const upstreamCandidates = [
             path.resolve(process.cwd(), UPSTREAM_ROOT, 'src', subPath),
             path.resolve(process.cwd(), UPSTREAM_ROOT, 'src/src', subPath),
@@ -161,7 +161,7 @@ export function aippySourceImportPlugin(): Plugin {
           'src/config/tweaksConfig.json'
         );
 
-        let initCode = 'console.log("[Aippy] AquaLume runtime initialization mounted.");\n';
+        let initCode = 'console.log("[Aippy] SWIM runtime initialization mounted.");\n';
 
         let hasTweaks = false;
         try {

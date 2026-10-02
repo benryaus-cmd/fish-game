@@ -31,14 +31,14 @@ test('straight dives hold the dorsal view from either prior side without changin
     const initial = {...fish(), dir, yaw: dir===1?0:Math.PI, yawBody:dir===1?0:Math.PI,yawTail:dir===1?0:Math.PI};
     const down = swim(0, 1, 60, 5, initial);
     for (const yaw of [down.yaw,down.yawBody,down.yawTail]) assert.ok(Math.abs(yaw-Math.PI/2)<0.01);
-    assert.ok(down.pitch < -1.34 && down.pitch > -1.36);
-    assert.ok(Math.sin(down.yawBody)*Math.sin(down.pitch)<-0.95, 'local back faces the camera');
+    assert.ok(Math.abs(down.pitch + 50*Math.PI/180)<0.001);
+    assert.ok(Math.sin(down.yawBody)*Math.sin(down.pitch)<-0.76, 'local back faces the camera');
     assert.ok(Math.abs(down.vy-183.6*.4)<0.001);
   }
 });
 test('climbs and diagonal dives have continuous depth rather than binary side facing', () => {
   const up=swim(0,-1,60,5), right=swim(0.7,0.7,60,5), left=swim(-0.7,0.7,60,5);
-  assert.ok(up.pitch>1.34 && up.pitch<1.36);
+  assert.ok(Math.abs(up.pitch-50*Math.PI/180)<0.001);
   assert.ok(Math.abs(up.yawBody-Math.PI/2)<0.01);
   assert.ok(Math.abs(right.yawBody-Math.PI/4)<0.01);
   assert.ok(Math.abs(left.yawBody-3*Math.PI/4)<0.01);
@@ -52,7 +52,7 @@ test('release levels the diving pose smoothly and preserves horizontal turn beha
     updatePlayerFish(player,{x:0,y:0,active:false,burst:false},survival,1/60,bounds,false);
     assert.ok(Math.abs(player.pitch)<before);
   }
-  assert.ok(Math.abs(player.pitch)>0.37 && Math.abs(player.pitch)<0.40);
+  assert.ok(Math.abs(player.pitch)>0.24 && Math.abs(player.pitch)<0.26);
 });
 test('full-stick turns preserve head body and tail lag in both directions', () => {
   const left = swim(-1, 0, 60, 0.1);

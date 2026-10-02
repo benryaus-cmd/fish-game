@@ -135,3 +135,29 @@ test('recovery at full health cannot bank surplus against later starvation in a 
   for(let i=1;i<=2000;i++) many=advanceSpecimenCare(many,t+i*1000,'growing');
   assert.ok(Math.abs(once.health-many.health)<.001, `${once.health} differs from ${many.health}`);
 });
+
+test('breeding capacity counts stock swims and claimed fry only transfers its reserved slot', () => {
+  const parents=Array.from({length:9},(_,i)=>ensureSpecimenCare({...createSpecimen('ordinary',`cap-${i}`),growth:80},t));
+  const save={...createBoutiqueSave(),kept:parents,activeRun:{specimen:createSpecimen('ordinary','stock-active'),x:0,y:0,stamina:100}};
+  assert.equal(startBreeding(save,'cap-0','cap-1','blocked',t),save);
+  const cycle=startBreeding({...save,activeRun:null},'cap-0','cap-1','last-slot',t);
+  assert.ok(cycle.breeding);
+  const claimed=claimBreeding(cycle,t+120_000);
+  assert.equal(claimed.kept.length,10);
+  assert.equal(claimed.breeding,null);
+  const legacy={...cycle,kept:[...cycle.kept,ensureSpecimenCare({...createSpecimen('ordinary','legacy-extra'),growth:80},t)]};
+  assert.equal(claimBreeding(legacy,t+120_000).kept.length,11);
+});
+
+test('overfeeding applies the gentler coefficient and never exceeds six health per bite', () => {
+  const full=ensureSpecimenCare({...createSpecimen('ordinary','overfed'),growth:80,hunger:100},t);
+  const fed=feedSpecimen(full,'flake',t,'day');
+  assert.equal(full.health-fed.health,6);
+  const almostFull={...full,hunger:86};
+  assert.ok(Math.abs(almostFull.health-feedSpecimen(almostFull,'flake',t,'day').health-3.8)<.0001);
+  const efficient={...full,traits:Array.from({length:8},()=> 'vital' as const)};
+  assert.equal(efficient.health-feedSpecimen(efficient,'prey',t,'day').health,6);
+  assert.equal(fed.care!.nutrition,full.care!.nutrition);
+  assert.equal(fed.care!.healthySeconds,full.care!.healthySeconds);
+  assert.equal(feedSpecimen({...full,health:5},'flake',t,'day').health,0);
+});

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appraiseFish, createBoutiqueSave, createSpecimen, getStage, loadBoutique, settleRun, writeBoutique } from '../src/games/importedAippy/upstream/src/utils/boutique.ts';
+import { appraiseFish, createBoutiqueSave, createSpecimen, getStage, loadBoutique, settleRun, writeBoutique, sellOwnedFish, ownedFishCount, NURSERY_CAPACITY, startStockRun, startResidentRun } from '../src/games/importedAippy/upstream/src/utils/boutique.ts';
 import type { BoutiqueSave } from '../src/games/importedAippy/upstream/src/utils/boutique.ts';
 
 function liveSave(growth = 80): BoutiqueSave {
@@ -38,10 +38,11 @@ test('keeping preserves the full individual without paying coins', () => {
   assert.equal(after.activeRun, null);
 });
 
-test('stale IDs and untouched starter fish cannot settle or earn value', () => {
+test('stale IDs cannot settle and starter sales release ownership without earning value', () => {
   const save = liveSave(0);
   assert.equal(appraiseFish(save.activeRun!.specimen), 0);
-  assert.deepEqual(settleRun(save, save.activeRun!.specimen.id, 'sell'), save);
+  assert.equal(settleRun(save, save.activeRun!.specimen.id, 'sell').activeRun, null);
+  assert.deepEqual(settleRun(save, save.activeRun!.specimen.id, 'keep'), save);
   const grown = liveSave();
   assert.deepEqual(settleRun(grown, 'stale', 'sell'), grown);
   assert.deepEqual(settleRun(grown, 'stale', 'keep'), grown);
@@ -109,4 +110,74 @@ test('both growth choices can repeat an adaptation and each earns its premium', 
   assert.equal(appraiseFish(swift) - appraiseFish({ ...swift, traits: ['swift'] }), 12);
   const overfull = { ...save, activeRun: { ...save.activeRun!, specimen: { ...fish, traits: ['ornate', 'invalid', 'swift', 'ornate'] } } };
   assert.deepEqual(loadBoutique({ getItem: () => JSON.stringify(overfull) }).activeRun!.specimen.traits, ['ornate', 'swift', 'ornate']);
+});
+
+test('ten ownership slots include active fish and reserved fry, but resident transfers stay available', () => {
+  assert.equal(NURSERY_CAPACITY, 10);
+  const fish = Array.from({length:10}, (_,i) => ({...createSpecimen('ordinary',`slot-${i}`),growth:80}));
+  const full = {...createBoutiqueSave(), coins:1000, kept:fish};
+  assert.equal(ownedFishCount(full),10);
+  assert.equal(startStockRun(full,'ordinary','purchase'),full);
+  const swim = startResidentRun(full,fish[0].id,'visit',1_000_000);
+  assert.equal(ownedFishCount(swim),10);
+  assert.equal(swim.kept.length,9);
+  assert.equal(settleRun(swim,fish[0].id,'keep').kept.length,10);
+  const reserved = {...full, kept:fish.slice(0,9), breeding:{id:'cycle',parentIds:[fish[0].id,fish[1].id] as [string,string],startedAtMs:1,readyAtMs:120001,offspring:createSpecimen('ordinary','child')}};
+  assert.equal(ownedFishCount(reserved),10);
+  assert.equal(startStockRun(reserved,'ordinary','purchase'),reserved);
+  const free = {...full, kept:fish.slice(0,9)};
+  assert.equal(ownedFishCount(startStockRun(free,'ordinary','purchase')),10);
+});
+
+test('legacy saves above capacity preserve every fish, active run and reserved offspring through writes', () => {
+  const kept = Array.from({length:105}, (_,i)=>createSpecimen('ordinary',`legacy-${i}`));
+  const save = {...createBoutiqueSave(),coins:900,kept,activeRun:{specimen:createSpecimen('ordinary','active'),x:1,y:2,stamina:100},breeding:{id:'legacy-cycle',parentIds:['legacy-0','legacy-1'] as [string,string],startedAtMs:1,readyAtMs:120001,offspring:createSpecimen('ordinary','legacy-child')}};
+  const storage = memoryStorage();
+  assert.ok(writeBoutique(save,storage));
+  const loaded = loadBoutique(storage);
+  assert.equal(loaded.kept.length,105);
+  assert.equal(loaded.activeRun!.specimen.id,'active');
+  assert.equal(loaded.breeding!.offspring.id,'legacy-child');
+  assert.equal(ownedFishCount(loaded),107);
+});
+
+test('selling a kept parent pays once, removes placement and cancels its reserved cycle', () => {
+  const parent = {...createSpecimen('ordinary','parent'),growth:80};
+  const other = createSpecimen('ordinary','other');
+  const active = {specimen:createSpecimen('ordinary','swimmer'),x:1,y:2,stamina:100};
+  const before = {...createBoutiqueSave(),coins:12,kept:[parent,other],activeRun:active,placements:{parent:'home' as const,other:'home' as const},completedRunIds:['parent'],breeding:{id:'cycle',parentIds:['parent','other'] as [string,string],startedAtMs:1,readyAtMs:120001,offspring:createSpecimen('ordinary','child')}};
+  const sold = sellOwnedFish(before,'parent');
+  assert.equal(sold.coins,12+appraiseFish(parent));
+  assert.equal(sold.sales,1);
+  assert.deepEqual(sold.kept,[other]);
+  assert.deepEqual(sold.placements,{other:'home'});
+  assert.equal(sold.activeRun,active);
+  assert.equal(sold.breeding,null);
+  assert.ok(sold.completedRunIds.includes('sale:parent'));
+  assert.ok(sold.completedRunIds.includes('cycle'));
+  assert.equal(sellOwnedFish(sold,'parent'),sold);
+  assert.equal(sellOwnedFish({...sold,kept:[parent,other]},'parent').coins,sold.coins);
+  const restored = loadBoutique({getItem:()=>JSON.stringify({...sold,kept:[parent,other]})});
+  assert.deepEqual(restored.kept,[other]);
+  assert.equal(before.kept.length,2);
+  assert.ok(before.breeding);
+});
+
+test('sales work at fry, juvenile and adult growth for stock and resident sessions', () => {
+  for (const growth of [0,9,35,80]) {
+    const save = liveSave(growth);
+    const fish = save.activeRun!.specimen;
+    const sold = sellOwnedFish(save,fish.id);
+    assert.equal(sold.activeRun,null);
+    assert.equal(sold.coins,appraiseFish(fish));
+    assert.equal(sold.sales,1);
+    const resident = {...save,activeRun:{...save.activeRun!,source:'resident' as const,visitId:'resident-visit'},completedRunIds:[fish.id]};
+    const soldResident = settleRun(resident,'resident-visit','sell');
+    assert.equal(soldResident.activeRun,null);
+    assert.equal(soldResident.coins,appraiseFish(fish));
+    assert.ok(soldResident.completedRunIds.includes('resident-visit'));
+    const restored = {...soldResident,activeRun:resident.activeRun};
+    assert.equal(sellOwnedFish(restored,fish.id),restored);
+    assert.equal(loadBoutique({getItem:()=>JSON.stringify(restored)}).activeRun,null);
+  }
 });

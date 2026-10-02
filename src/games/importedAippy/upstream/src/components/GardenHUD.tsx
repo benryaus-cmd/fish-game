@@ -50,8 +50,8 @@ export default function GardenHUD(p: Props) {
         <button className="garden-button garden-button-secondary garden-button-small" onClick={() => { setDetails(false); p.onCare?.(); }}>Care and development</button>
       </section>}
     </>}
-    <header className="garden-topbar"><div><p className="garden-eyebrow">AQUALUME</p><span>{mode === 'view' ? 'View' : 'Swim'}</span><WorldTimeBadge clock={p.worldClock} /></div>
-      <div className="garden-top-actions"><button className="garden-wallet garden-glass" onClick={p.onShop} aria-label="View aquarium">◈ {p.coins.toLocaleString()}</button>
+    <header className="garden-topbar"><div><p className="garden-eyebrow">SWIM</p><span>{mode === 'view' ? 'View' : 'Swim'}</span><WorldTimeBadge clock={p.worldClock} /></div>
+      <div className="garden-top-actions"><button className="garden-wallet garden-glass" onClick={p.onShop} disabled={!hud.inShelter || hud.isDead} title={hud.inShelter ? "Return to View mode" : "Return to the nursery to enter View mode"} aria-label="Return to View mode">◈ {p.coins.toLocaleString()}</button>
         <button className="garden-round garden-glass" aria-label={p.sound ? 'Mute audio' : 'Enable audio'} onClick={p.onSound}>{p.sound ? '♪' : '♩'}</button></div>
     </header>
     {mode === 'swim' && <div className="garden-edge-actions">
@@ -62,7 +62,7 @@ export default function GardenHUD(p: Props) {
     {p.controls && <>
       {!!p.mealNotice && <p className="garden-meal-notice" role="status">{p.mealNotice}</p>}
       {!p.display && !hud.isDead && <div className="nursery-action">
-        {hud.inShelter ? <button className="garden-button garden-glass nursery-button" aria-label={p.resident ? 'Return to View' : hud.growth >= 10 ? 'Appraise your fish' : 'Nursery · Feed to grow'} onClick={p.onAppraise}>{p.resident ? 'Return fish' : hud.growth >= 10 ? 'Appraise' : 'Feed to grow'} <span>↗</span></button> :
+        {hud.inShelter ? <button className="garden-button garden-glass nursery-button" aria-label={p.resident ? 'Return to View mode' : hud.growth >= 10 ? 'Appraise your fish' : 'Nursery · Feed to grow'} onClick={p.resident ? p.onShop : p.onAppraise}>{p.resident ? 'Return to View mode' : hud.growth >= 10 ? 'Appraise' : 'Feed to grow'} <span>↗</span></button> :
           <span className="nursery-direction" aria-label={'Nursery ' + (p.refuge?.distance ?? 0) + ' units away'}><i style={{ transform: 'rotate(' + (p.refuge?.angle ?? 0) + 'rad)' }}>➜</i><span>Nursery<small>{p.refuge?.distance ?? 0} away</small></span></span>}
       </div>}
       {!p.display && intro && hud.growth < 10 && <p className="garden-first-hint">Hold Eat near food · Tap your fish for care</p>}
@@ -73,6 +73,7 @@ export default function GardenHUD(p: Props) {
       <button className="garden-burst" aria-label="Burst speed" onPointerDown={p.burstDown} onPointerUp={p.burstUp} onPointerCancel={p.burstUp} style={{ background: 'conic-gradient(#e5d59d ' + hud.stamina * 3.6 + 'deg, rgba(225,235,223,0.12) 0)' }}><span><b>BURST</b><small>hold / space</small></span></button>
       {!p.display && <button className="garden-eat" aria-label="Eat food" onClick={e => p.eatClick?.(e.detail)} onPointerDown={p.eatDown} onPointerUp={p.eatUp} onPointerCancel={p.eatUp}><span><b>EAT</b><small>tap / hold / E</small></span></button>}
     </>}
+    {hud.health < 25 && !hud.isDead && <><div className="garden-low-health-vignette" aria-hidden="true" /><p className="garden-low-health" role="status">Low health · Rest in the castle bubbles</p></>}
     {p.children}
   </>;
 }

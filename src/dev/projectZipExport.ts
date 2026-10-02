@@ -39,7 +39,7 @@ export const downloadBlob = (blob: Blob, filename: string): void => {
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 };
-export const downloadProjectZip = async (files: ProjectFileEntry[], filename = 'aqualume-project.zip'): Promise<void> => {
+export const downloadProjectZip = async (files: ProjectFileEntry[], filename = 'swim-project.zip'): Promise<void> => {
   const blob = await buildProjectZip(files);
   downloadBlob(blob, filename);
 };

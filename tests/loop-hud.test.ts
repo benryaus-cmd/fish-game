@@ -27,7 +27,7 @@ test('Swim puts condition and actual age before aquarium identity', () => {
   assert.match(html, /2\.1 min/);
   assert.match(html, /Swim/);
   assert.doesNotMatch(html, /Viewing tank|Growing tank/);
-  assert.match(html, /aria-label="View aquarium"/);
+  assert.match(html, /aria-label="Return to View mode"/);
 });
 test('accumulated development opportunities are available as an edge action', () => {
   const html = render({ pendingDevelopment: [{ stage: 35, slots: 3, options: ['swift', 'vital'] }, {stage:75, slots:2, options:['ornate']}], onDevelopment() {} });
@@ -38,4 +38,11 @@ test('accumulated development opportunities are available as an edge action', ()
 test('free glass cleaning is accessible in Swim only', () => {
   assert.match(render({onClean() {}}), /aria-label="Clean glass"/);
   assert.doesNotMatch(render({mode:'view', onClean() {}}), /aria-label="Clean glass"/);
+});
+
+test('return to View requires nursery and low health gives a text reminder', () => {
+  assert.match(render(), /disabled=""[^>]+aria-label="Return to View mode"/);
+  assert.doesNotMatch(render({hud:{...props.hud,inShelter:true}}), /disabled=""[^>]+aria-label="Return to View mode"/);
+  assert.match(render({hud:{...props.hud,health:24}}), /Low health · Rest in the castle bubbles/);
+  assert.doesNotMatch(render({hud:{...props.hud,health:25}}), /Low health ·/);
 });

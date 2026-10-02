@@ -31,7 +31,7 @@ test('crabs wind up then hop with one hit per attack and a two second cooldown',
   airborne=Math.max(airborne,1580-c.rig.cy);
   assert.ok(c.rig.x>=800&&c.rig.x<=3500);
  }
- assert.ok(airborne>130);assert.ok(hits>0&&hits<=3);
+ assert.ok(airborne>200);assert.ok(hits>0&&hits<=3);
  for(let i=1;i<times.length;i++)assert.ok(times[i]-times[i-1]>=2);
 });
 test('crabs cannot attack the nursery but castle shelter does not stop their windup',()=>{
@@ -59,4 +59,17 @@ test('swimming over shrimp never eats them without an explicit bite call',()=>{
  const state=createBottomEcology();const s=state.shrimps[0];
  for(let i=0;i<80;i++)updateBottomEcology(state,.05,player(s.rig.x,s.rig.y),floor);
  assert.ok(state.shrimps.every(s=>s.active));
+});
+
+// The larger arc can reach fish formerly outside the old floor band.
+test('crab telegraph reaches the new higher hop band',()=>{
+ const state=createBottomEcology();const c=state.crabs[0];
+ updateBottomEcology(state,.05,player(c.rig.x,1320),floor);
+ assert.equal(c.phase,'windup');
+ let peak=0,hits=0;
+ for(let i=0;i<45;i++){
+  if(updateBottomEcology(state,.05,player(c.rig.x,1320),floor))hits++;
+  peak=Math.max(peak,c.hopHeight);
+ }
+ assert.ok(peak>200&&peak<=210);assert.equal(hits,1);
 });
