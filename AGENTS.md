@@ -6,7 +6,7 @@ The main game is `src/games/importedAippy/upstream/src/`. Evolve it in place. Im
 
 ## Current priorities
 
-The presentation and living home/stock slices are implemented. Read their evidence in [the footage review](docs/reviews/2026-10-02-footage-review.md) and [home/stock implementation](docs/reviews/2026-10-02-home-stock-implementation.md). Next is purposeful guppy progression and a small tracked FishoDex, then breeding. Builds and behaviour tests alone do not establish visual quality.
+The presentation and living home/stock slices are implemented. Read their evidence in [the footage review](docs/reviews/2026-10-02-footage-review.md) and [home/stock implementation](docs/reviews/2026-10-02-home-stock-implementation.md). Next is purposeful guppy progression and a small tracked FishoDex, then breeding. Builds and behaviour tests alone do not establish visual quality. The [living-swimming review](docs/reviews/2026-10-02-living-swimming.md) distinguishes relaxed passive aquarium motion from controlled back-facing dives; do not reintroduce binary side-facing vertical poses.
 
 The saved home aquarium is the main menu. Kept fish are persistent individuals and future breeding stock. Free ordinary and paid fancy guppy stock now have disclosed inherited appearance. Development will separate ornamental, athletic and vitality paths. Breeding, adjustable habitat conditions and FishoDex remain intended systems.
 

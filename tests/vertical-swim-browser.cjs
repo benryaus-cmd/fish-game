@@ -1,4 +1,4 @@
-// Built journey and motion captures for the restored gentle climb/dive attitude.
+// Built journey and motion captures for relaxed watching and continuous depth swimming.
 const assert = require('node:assert/strict'), fs = require('node:fs'), http = require('node:http');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
 const key = 'aqualume.boutique.v1';
@@ -12,13 +12,19 @@ const profile = {version:1,coins:100,sales:0,kept:[{...specimen,id:'home-vertica
     const page=await browser.newPage({viewport:{width:390,height:680}});
     page.setDefaultTimeout(10000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.addInitScript(profile=>{
-      localStorage.setItem('aqualume.boutique.v1',JSON.stringify(profile));window.gardenDraws=0;
+      localStorage.setItem('aqualume.boutique.v1',JSON.stringify(profile));window.gardenDraws=0;window.homeTailSamples=[];
+      const moveTo=CanvasRenderingContext2D.prototype.moveTo;
+      CanvasRenderingContext2D.prototype.moveTo=function(x,y){if(this.__captureTail){window.homeTailSamples.push({x,y,t:performance.now()});this.__captureTail=false;}return moveTo.call(this,x,y);};
       const scale=CanvasRenderingContext2D.prototype.scale;
-      CanvasRenderingContext2D.prototype.scale=function(x,y){if(this.canvas.className==='block w-full h-full' && x===y && x>=.74 && x<=1)window.gardenDraws++;return scale.call(this,x,y);};
+      CanvasRenderingContext2D.prototype.scale=function(x,y){if(this.canvas.className==='block w-full h-full' && x===y && x>=.74 && x<=1)window.gardenDraws++;if(this.canvas.getAttribute('aria-label')?.startsWith('Safe planted home') && x===y && x>14 && x<75)this.__captureTail=true;return scale.call(this,x,y);};
     },profile);
     await page.goto('http://127.0.0.1:'+server.address().port,{waitUntil:'domcontentloaded'});
     const click=name=>page.getByRole('button',{name,exact:true}).click();
     const capture=async name=>{if(process.env.SCREENSHOTS)await page.screenshot({path:'test-results/vertical-'+name+'.png',timeout:60000});};
+    await page.waitForTimeout(1800);await capture('home-watching');
+    const samples=await page.evaluate(()=>window.homeTailSamples);
+    assert.ok(samples.length>10,'home keeps rendering passive animation');
+    assert.ok(Math.max(...samples.map(s=>s.x))-Math.min(...samples.map(s=>s.x))>0.002,'rendered tail roots visibly flex while watching');
     await click('Continue raising');await page.waitForFunction(()=>window.gardenDraws>8);
     await page.keyboard.down('ArrowUp');await page.waitForTimeout(500);await capture('garden-up');await page.keyboard.up('ArrowUp');
     await click('Open boutique');

@@ -3,6 +3,12 @@ import { LAST, fishFrame, fishPoint, type Fish } from '@/utils/fishModel';
 const sx = new Float32Array(32);
 const sy = new Float32Array(32);
 
+/** Camera-facing median fins must remain above the body during a dorsal dive. */
+export function medianFinFacesCamera(f: Fish, t0: number, t1: number, side: number): boolean {
+  const i = Math.round((t0 + t1) * 0.5 * LAST);
+  return side * fishFrame(f, i).dz > 0.08;
+}
+
 /**
  * Dorsal (side = -1) or lower fins (side = 1) standing in the spine's vertical plane.
  * `skew` > 1 sweeps the fin's peak toward the rear for a sharper, pointed silhouette.

@@ -96,7 +96,7 @@ export default function HomeTank({ width, height, specimens, controlledId, onSel
       plants.forEach((p,i) => drawPlant(ctx,plantX(i),surface(plantX(i))+3,p,decorScale,'#688e61',sceneTime, i<7 ? 0.7 : 0.86,'back'));
       for (const r of [...residents.current].sort((a,b)=>a.y-b.y)) {
         const rig = rigs.current.get(r.id)!;
-        Object.assign(rig.fish,{x:r.x,y:r.y,L:r.size,phase:reduced.matches?0:r.phase,finPhase:reduced.matches?0:r.phase*0.8,amp:0.13,pitch:r.pitch,yaw:r.yaw,yawBody:r.yawBody,yawTail:r.yawTail,dir:r.heading===0?1:-1});
+        Object.assign(rig.fish,{x:r.x,y:r.y,L:r.size,phase:reduced.matches?0:r.phase,finPhase:reduced.matches?0:r.finPhase,amp:r.amp,pitch:r.pitch,yaw:r.yaw,yawBody:r.yawBody,yawTail:r.yawTail,dir:r.heading===0?1:-1});
         drawFishShadow(ctx,rig.fish,surface); drawFish(ctx,rig.fish,rig.palette);
         if (r.id === controlledId) {
           ctx.strokeStyle='rgba(246,221,158,.65)'; ctx.lineWidth=1.3; ctx.beginPath(); ctx.ellipse(r.x,r.y,r.size*0.9,Math.max(18,r.size*0.5),0,0,Math.PI*2); ctx.stroke();

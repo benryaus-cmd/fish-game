@@ -138,16 +138,16 @@ export function updatePlayerFish(
   // Direction & Steering
   if (moving) {
     // Determine horizontal facing (1 = right, -1 = left)
-    if (inputX > 0.15 && player.dir !== 1) {
+    if (inputX > 0.001 && player.dir !== 1) {
       player.dir = 1;
-    } else if (inputX < -0.15 && player.dir !== -1) {
+    } else if (inputX < -0.001 && player.dir !== -1) {
       player.dir = -1;
     }
 
     // Desired vertical pitch based on Y input
     // Positive pitch lifts the nose in the procedural rig (screen Y points down).
-    // Effort gives a gentle nose lift without rotating the fish upright.
-    const pitchGoal = clamp(-inputY * 0.45, -0.42, 0.42);
+    // Dive through the local body frame; yaw exposes the back instead of a rotated flank.
+    const pitchGoal = clamp(Math.atan2(-directionY, Math.abs(directionX)), -1.35, 1.35);
     player.pitch += (pitchGoal - player.pitch) * ease(5, dt);
   } else {
     // Gentle leveling when idle
@@ -158,7 +158,8 @@ export function updatePlayerFish(
   // Keep the original response below half stick; reach full boost at 90%.
   const turnInput = moving ? clamp((Math.abs(inputX) - 0.5) / 0.4, 0, 1) : 0;
   const turnBoost = turnInput * turnInput * (3 - 2 * turnInput);
-  const goalYaw = player.dir === 1 ? 0 : PI;
+  // A vertical direction holds the middle of a turn, independent of the previous side.
+  const goalYaw = moving ? Math.atan2(Math.abs(directionY), directionX) : (player.dir === 1 ? 0 : PI);
   const k = 5.2 + 41.6 * turnBoost;
   const c = 2 * Math.sqrt(k) * 0.95;
   player.yawVel += ((goalYaw - player.yaw) * k - player.yawVel * c) * dt;

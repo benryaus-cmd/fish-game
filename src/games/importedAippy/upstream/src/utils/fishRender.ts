@@ -1,7 +1,7 @@
 import {
   LAST, N, TAU, bodyGradient, computePose, fishBlit, fishEllipse, fishFrame, fishPoint, fishScale, fishSprites, type Fish, type FishPalette,
 } from '@/utils/fishModel';
-import { drawMedianFin, drawPectoral, drawTail } from '@/utils/fishFins';
+import { drawMedianFin, drawPectoral, drawTail, medianFinFacesCamera } from '@/utils/fishFins';
 import { drawColorfulShading } from '@/utils/colorfulRender';
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -132,7 +132,8 @@ export function drawFish(ctx: CanvasRenderingContext2D, f: Fish, p: FishPalette)
   ctx.scale(S, S);
   ctx.fillStyle = p.fin; ctx.strokeStyle = p.ray; ctx.lineWidth = 0.8 * lw;
   drawTail(ctx, f);
-  for (const fin of f.tr.fins) drawMedianFin(ctx, f, fin.t0, fin.t1, fin.side, fin.h, fin.skew);
+  for (const fin of f.tr.fins) if (!medianFinFacesCamera(f, fin.t0, fin.t1, fin.side))
+    drawMedianFin(ctx, f, fin.t0, fin.t1, fin.side, fin.h, fin.skew);
   ctx.globalAlpha = 0.6;
   drawPectoral(ctx, f, -near);
   ctx.globalAlpha = 1;
@@ -146,6 +147,8 @@ export function drawFish(ctx: CanvasRenderingContext2D, f: Fish, p: FishPalette)
   ctx.restore();
   drawFace(ctx, f, p, lw);
   ctx.fillStyle = p.fin; ctx.strokeStyle = p.ray; ctx.lineWidth = 0.8 * lw;
+  for (const fin of f.tr.fins) if (medianFinFacesCamera(f, fin.t0, fin.t1, fin.side))
+    drawMedianFin(ctx, f, fin.t0, fin.t1, fin.side, fin.h, fin.skew);
   ctx.globalAlpha = 0.85;
   drawPectoral(ctx, f, near);
   ctx.restore();

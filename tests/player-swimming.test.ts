@@ -26,33 +26,33 @@ test('diagonal input cannot travel faster than full horizontal input', () => {
   const full = swim(1, 0), diagonal = swim(1, 1);
   assert.ok(Math.hypot(diagonal.x - 10000, diagonal.y - 10000) <= (full.x - 10000) * 1.01);
 });
-test('rising and diving keep a gentle signed nose lift while retaining full vertical travel', () => {
-  const up = swim(0, -1), down = swim(0, 1);
-  assert.ok(up.pitch > 0.40 && up.pitch < 0.43);
-  assert.ok(down.pitch < -0.40 && down.pitch > -0.43);
-  assert.ok(10000 - up.y > 515 && 10000 - up.y < 517);
-  assert.ok(down.y - 10000 > 515 && down.y - 10000 < 517);
-  assert.ok(Math.abs(up.vy + 183.6) < 0.001);
-  assert.ok(Math.abs(down.vy - 183.6) < 0.001);
-});
-test('vertical effort controls nose lift and diagonal input stays gently tilted', () => {
-  const light = swim(0, -0.25), full = swim(0, -1);
-  assert.ok(light.pitch > 0.10 && light.pitch < 0.12);
-  assert.ok(light.pitch < full.pitch * 0.3);
-  const diagonal = swim(0.7, -0.7);
-  assert.ok(diagonal.pitch > 0.30 && diagonal.pitch < 0.33);
-  assert.ok(swim(0.7, 0.7).pitch < -0.30 && swim(0.7, 0.7).pitch > -0.33);
-});
-test('releasing vertical input eases the gentle pitch back toward level', () => {
-  for (const y of [-1, 1]) {
-    const player = swim(0, y), survival = createPlayerSurvival();
-    for (let i = 0; i < 30; i++) {
-      const before = Math.abs(player.pitch);
-      updatePlayerFish(player, { x: 0, y: 0, active: false, burst: false }, survival, 1 / 60, bounds, false);
-      assert.ok(Math.abs(player.pitch) > 0 && Math.abs(player.pitch) < before);
-    }
-    assert.ok(Math.abs(player.pitch) > 0.10 && Math.abs(player.pitch) < 0.13);
+test('straight dives hold the dorsal view from either prior side without changing travel', () => {
+  for (const dir of [1, -1]) {
+    const initial = {...fish(), dir, yaw: dir===1?0:Math.PI, yawBody:dir===1?0:Math.PI,yawTail:dir===1?0:Math.PI};
+    const down = swim(0, 1, 60, 5, initial);
+    for (const yaw of [down.yaw,down.yawBody,down.yawTail]) assert.ok(Math.abs(yaw-Math.PI/2)<0.01);
+    assert.ok(down.pitch < -1.34 && down.pitch > -1.36);
+    assert.ok(Math.sin(down.yawBody)*Math.sin(down.pitch)<-0.95, 'local back faces the camera');
+    assert.ok(Math.abs(down.vy-183.6)<0.001);
   }
+});
+test('climbs and diagonal dives have continuous depth rather than binary side facing', () => {
+  const up=swim(0,-1,60,5), right=swim(0.7,0.7,60,5), left=swim(-0.7,0.7,60,5);
+  assert.ok(up.pitch>1.34 && up.pitch<1.36);
+  assert.ok(Math.abs(up.yawBody-Math.PI/2)<0.01);
+  assert.ok(Math.abs(right.yawBody-Math.PI/4)<0.01);
+  assert.ok(Math.abs(left.yawBody-3*Math.PI/4)<0.01);
+  assert.ok(Math.abs(left.pitch-right.pitch)<0.001);
+  assert.ok(right.pitch < -0.78 && right.pitch > -0.79);
+});
+test('release levels the diving pose smoothly and preserves horizontal turn behaviour', () => {
+  const player=swim(0,1,60,5), survival=createPlayerSurvival();
+  for(let i=0;i<30;i++) {
+    const before=Math.abs(player.pitch);
+    updatePlayerFish(player,{x:0,y:0,active:false,burst:false},survival,1/60,bounds,false);
+    assert.ok(Math.abs(player.pitch)<before);
+  }
+  assert.ok(Math.abs(player.pitch)>0.37 && Math.abs(player.pitch)<0.40);
 });
 test('full-stick turns preserve head body and tail lag in both directions', () => {
   const left = swim(-1, 0, 60, 0.1);
@@ -141,4 +141,15 @@ test('vertical coasting drag is independent of frame rate', () => {
     return player.y;
   });
   assert.ok(Math.max(...destinations) - Math.min(...destinations) < 3);
+});
+
+test('light horizontal steering retains its facing after release in both directions', () => {
+  for(const dir of [-1,1]) {
+    const initial={...fish(),dir:-dir,yaw:dir===1?Math.PI:0,yawBody:dir===1?Math.PI:0,yawTail:dir===1?Math.PI:0};
+    const player=swim(dir*0.1,0,60,5,initial);
+    assert.equal(player.dir,dir);
+    const survival=createPlayerSurvival();
+    for(let i=0;i<60;i++) updatePlayerFish(player,{x:0,y:0,active:false,burst:false},survival,1/60,bounds,false);
+    assert.ok(dir===1?player.yawBody<0.05:player.yawBody>3.09);
+  }
 });

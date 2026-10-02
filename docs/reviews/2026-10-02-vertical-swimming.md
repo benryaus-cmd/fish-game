@@ -9,3 +9,7 @@ Restored the original gentle, effort-sensitive target in playerSurvival.ts using
 Worker saw seven pitch assertions fail before these two target changes. Updated tests cover gentle signed full-stick pitch, partial effort, diagonals, release/levelling, autonomous wander and unchanged displacement/velocity. Root full suite: 59 passed, one optional pose-sheet export skipped, no failures; scoped TypeScript and production build passed. Native rendering/fin attachment regressions remain green. Built Chromium journey verified full ascent/descent and safe resident control without runtime errors; inspected actual garden/home up/down screenshots. An initial fixture triggered a legitimate growth-choice modal, so the motion capture fixture now uses an adult with both adaptations; video capture was dropped after the headless recorder timed out. No physical-phone feel/FPS or audio claim.
 
 Only two product source files ship through updates/gentle-vertical-swim.json. No rendering rollback or unrelated progression work.
+
+## Subsequent clarification
+
+The four later recordings clarified that direct swimming needs a held back/depth view, rather than a shallow tilt alone. The controlled-pose targets described above are superseded by [the living-swimming review](2026-10-02-living-swimming.md). Passive residents retain a restrained attitude with restored lively fin/tail motion.

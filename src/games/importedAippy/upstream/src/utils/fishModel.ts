@@ -1,4 +1,4 @@
-import { mix } from '@/utils/colorUtils';
+import { mix, hexToRgb } from '@/utils/colorUtils';
 import { ctx2d, makeCanvas } from '@/utils/aquaTextures';
 import { LAST, N, STARTER, TAU, type SpeciesTraits } from '@/utils/fishSpecies';
 
@@ -149,12 +149,30 @@ export function makeColorfulPalette(base: string, accent: string): FishPalette {
   };
 }
 
+/** Palette colours are rgba strings; the shared mix utility accepts hex only. */
+function blendPaletteColor(a: string,b: string,t: number): string {
+  if(t===0)return a;
+  const channels=(c:string)=>c.startsWith('rgb') ? c.match(/[\d.]+/g)!.slice(0,3).map(Number) : hexToRgb(c);
+  const A=channels(a),B=channels(b);
+  return `rgb(${A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(',')})`;
+}
+
 export function bodyGradient(ctx: CanvasRenderingContext2D, p: FishPalette, f?: Fish): CanvasGradient {
   if (!p.grad || f) {
     const b = f ? fishFrame(f, Math.round(LAST * 0.5)) : { dx: 0, dy: 1 };
-    const g = ctx.createLinearGradient(-b.dx * p.gh, -b.dy * p.gh, b.dx * p.gh, b.dy * p.gh);
-    g.addColorStop(0, p.top); g.addColorStop(0.36, p.mid);
-    g.addColorStop(0.66, p.low); g.addColorStop(1, p.belly);
+    // The local down axis becomes depth in a dorsal view. Blend to width lighting
+    // instead of collapsing its gradient into a harsh belly-coloured stripe.
+    const frame = f ? fishFrame(f, Math.round(LAST * 0.5)) : null;
+    const view = frame ? Math.max(0,Math.min(1,(Math.abs(frame.dz)-0.25)/0.65)) : 0;
+    const radius = f ? f.tr.ww[Math.round(LAST*0.5)] * 1.4 : p.gh;
+    const gx = b.dx*p.gh*(1-view) + (frame?.lx ?? 0)*radius*view;
+    const gy = b.dy*p.gh*(1-view);
+    const g = ctx.createLinearGradient(-gx,-gy,gx,gy);
+    const dorsal = (frame?.dz ?? 0)<0;
+    const edge = dorsal ? p.top : p.low;
+    const centre = dorsal ? blendPaletteColor(p.mid,p.top,0.35) : p.belly;
+    g.addColorStop(0,blendPaletteColor(p.top,edge,view)); g.addColorStop(0.36,blendPaletteColor(p.mid,centre,view));
+    g.addColorStop(0.66,blendPaletteColor(p.low,centre,view)); g.addColorStop(1,blendPaletteColor(p.belly,edge,view));
     if (f) return g;
     p.grad = g;
   }

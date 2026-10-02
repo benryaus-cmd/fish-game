@@ -16,7 +16,7 @@ async function loadUrl(name: string): Promise<string> {
   return url;
 }
 const { createFish, computePose, makePalette, makeColorfulPalette, LAST } = await import(await loadUrl('fishModel'));
-const { drawMedianFin, drawTail, drawPectoral } = await import(await loadUrl('fishFins'));
+const { drawMedianFin, drawTail, drawPectoral, medianFinFacesCamera } = await import(await loadUrl('fishFins'));
 const { drawFish } = await import(await loadUrl('fishRender'));
 const { STARTER, COLORFUL } = await import(await loadUrl('fishSpecies'));
 const { getFishMouthPos } = await import(await loadUrl('survivalEcology'));
@@ -45,6 +45,14 @@ test('median roots stay on the local dorsal plane through climb, dive and revers
     close(ctx.moves[0], [f.px[i] + Math.cos(yaw) * Math.sin(pitch) * offset,
       f.py[i] + Math.cos(pitch) * offset], `median ${yaw}/${pitch}`);
   }
+});
+test('dorsal fins face the camera on a back-view dive and lower fins on a climb', () => {
+  for (const pitch of [-1.35, 1.35]) {
+    const f=fish(pitch,Math.PI/2);
+    for (const fin of f.tr.fins) assert.equal(medianFinFacesCamera(f,fin.t0,fin.t1,fin.side),pitch<0?fin.side===-1:fin.side===1);
+  }
+  const side=fish(0,0);
+  for(const fin of side.tr.fins) assert.equal(medianFinFacesCamera(side,fin.t0,fin.t1,fin.side),false);
 });
 test('tail root rotates with body thickness including feeding tilt', () => {
   for (const yaw of [0, Math.PI]) for (const pitch of [-1.2, 1.2]) {
@@ -139,4 +147,26 @@ test('write actual procedural pose sheet for visual review', { skip: !canvas || 
   }
   await mkdir('test-results', { recursive: true });
   await writeFile('test-results/fish-pose-sheet.png', sheet.toBuffer('image/png'));
+});
+
+test('write depth-swimming sequence for visual review', { skip: !canvas || !process.env.FISH_POSE_SHEET }, async () => {
+  const sheet=canvas.createCanvas(1200,900),ctx=sheet.getContext('2d');
+  ctx.fillStyle='#164550';ctx.fillRect(0,0,1200,900);
+  for(let row=0;row<3;row++)for(let col=0;col<5;col++) {
+    const f=fish(row===2?1.35:-1.35,col*Math.PI/4,150,row===1?COLORFUL:STARTER);
+    f.x=col*240+120;f.y=row*300+135;f.amp=.28;f.phase=col*.7;
+    drawFish(ctx,f,row===1?makeColorfulPalette('#368bc4','#edbf51'):makePalette('#f09340'));
+    ctx.fillStyle='#f4edde';ctx.font='14px sans-serif';ctx.fillText(`${row===2?'climb':'dive'} yaw ${(col*Math.PI/4).toFixed(2)}`,col*240+35,row*300+270);
+  }
+  await mkdir('test-results',{recursive:true});await writeFile('test-results/depth-swim-sheet.png',sheet.toBuffer('image/png'));
+});
+
+test('dorsal volume lighting preserves warm and cool fish palettes', { skip: !canvas }, () => {
+  for(const tr of [STARTER,COLORFUL]) {
+    const f=fish(-1.35,Math.PI/2,160,tr);
+    const p=tr===STARTER?makePalette('#f09340'):makeColorfulPalette('#368bc4','#edbf51');
+    const rgba=render(f,0,p).getContext('2d').getImageData(320,240,1,1).data;
+    assert.ok(rgba[3]>245,'back has solid body coverage');
+    assert.ok(tr===STARTER?rgba[0]-rgba[2]>30:rgba[2]-rgba[0]>15,'dorsal shading retains species colour instead of a grey fallback');
+  }
 });

@@ -1,0 +1,12 @@
+{
+  "update": "fish-living-swim-v1",
+  "baseUrl": "https://raw.githubusercontent.com/benryaus-cmd/fish-game/main/",
+  "files": [
+    "src/games/importedAippy/upstream/src/components/HomeTank.tsx",
+    "src/games/importedAippy/upstream/src/utils/fishFins.ts",
+    "src/games/importedAippy/upstream/src/utils/fishModel.ts",
+    "src/games/importedAippy/upstream/src/utils/fishRender.ts",
+    "src/games/importedAippy/upstream/src/utils/homeScene.ts",
+    "src/games/importedAippy/upstream/src/utils/playerSurvival.ts"
+  ]
+}

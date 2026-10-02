@@ -53,27 +53,28 @@ test('invalid controls cannot poison a safe home pose', () => {
   const moved=stepHomeResidents(residents,320,240,Infinity,'safe',{x:NaN,y:Infinity});
   assert.ok(Number.isFinite(moved[0].x)); assert.ok(Number.isFinite(moved[0].y));
 });
-test('controlled vertical travel uses a gentle signed pitch without slowing ascent or descent', () => {
+test('controlled vertical travel holds a depth pose without slowing ascent or descent', () => {
   const seed=createHomeResidents([fish('pose')],600,600,'pose'); seed[0].x=300; seed[0].y=300;
   let up=seed, down=seed;
   for(let i=0;i<20;i++) {
     up=stepHomeResidents(up,600,600,0.05,'pose',{x:0,y:-1});
     down=stepHomeResidents(down,600,600,0.05,'pose',{x:0,y:1});
   }
-  assert.ok(up[0].pitch>0.40 && up[0].pitch<0.43);
-  assert.ok(down[0].pitch < -0.40 && down[0].pitch > -0.43);
+  assert.ok(up[0].pitch>1.34 && up[0].pitch<1.36);
+  assert.ok(down[0].pitch < -1.34 && down[0].pitch > -1.36);
+  assert.ok(Math.abs(down[0].yawBody-Math.PI/2)<0.03);
   assert.equal(up[0].vy,-70); assert.equal(down[0].vy,70);
   assert.equal(up[0].y,230); assert.equal(down[0].y,370);
 });
-test('home pitch reflects vertical effort and remains gentle on diagonals', () => {
+test('home direction controls the depth pose while effort controls travel', () => {
   const seed=createHomeResidents([fish('effort')],600,600,'effort'); seed[0].x=300; seed[0].y=300;
   let light=seed, diagonal=seed;
   for(let i=0;i<20;i++) {
     light=stepHomeResidents(light,600,600,0.05,'effort',{x:0,y:-0.25});
     diagonal=stepHomeResidents(diagonal,600,600,0.05,'effort',{x:1,y:1});
   }
-  assert.ok(light[0].pitch>0.10 && light[0].pitch<0.12);
-  assert.ok(diagonal[0].pitch < -0.30 && diagonal[0].pitch > -0.33);
+  assert.ok(light[0].pitch>1.34 && light[0].pitch<1.36);
+  assert.ok(diagonal[0].pitch < -0.78 && diagonal[0].pitch > -0.79);
   assert.equal(light[0].vy,-17.5);
   assert.ok(Math.abs(Math.hypot(diagonal[0].vx,diagonal[0].vy)-70)<0.001);
 });
@@ -82,7 +83,7 @@ test('home vertical pitch eases to level after control release', () => {
   for(let i=0;i<20;i++) residents=stepHomeResidents(residents,600,600,0.05,'release',{x:0,y:-1});
   const before=residents[0].pitch;
   residents=stepHomeResidents(residents,600,600,0.1,'release',{x:0,y:0});
-  assert.ok(residents[0].pitch>0.22 && residents[0].pitch<0.24);
+  assert.ok(residents[0].pitch>0.73 && residents[0].pitch<0.75);
   assert.ok(residents[0].pitch<before);
   assert.equal(residents[0].vy,0);
 });
@@ -109,4 +110,41 @@ test('reversals retain bounded head body and tail lag without touching resident 
   for(let i=0;i<40;i++)residents=stepHomeResidents(i===0?[turn]:residents,600,600,0.05,'turn',{x:-1,y:0});
   for(const value of [residents[0].yaw,residents[0].yawBody,residents[0].yawTail])assert.ok(value>=0 && value<=Math.PI);
   assert.equal(JSON.stringify(specimen),before);
+});
+test('passive residents ease into size-relative relaxed cruising', () => {
+  const [initial]=createHomeResidents([fish('calm')],1200,900,null);
+  initial.x=900; initial.y=400; initial.seed=0; initial.elapsed=0;
+  initial.heading=initial.yaw=initial.yawBody=initial.yawTail=Math.PI;
+  const [first]=stepHomeResidents([initial],1200,900,0.1,null,{x:0,y:0});
+  assert.ok(Math.hypot(first.vx,first.vy)<2, 'passive acceleration begins gently');
+  for(const size of [24,60]) {
+    let residents=[{...initial,size}];
+    for(let i=0;i<100;i++)residents=stepHomeResidents(residents,1200,900,0.1,null,{x:0,y:0});
+    const speed=Math.hypot(residents[0].vx,residents[0].vy);
+    assert.ok(speed>size*0.10 && speed<size*0.28, `size ${size} cruises in body lengths per second`);
+  }
+});
+test('passive tail and pectoral fins beat in visible independent cycles', () => {
+  const [initial]=createHomeResidents([fish('beat')],600,600,null);
+  let residents=[initial];
+  for(let i=0;i<10;i++)residents=stepHomeResidents(residents,600,600,0.1,null,{x:0,y:0});
+  const moved=residents[0];
+  assert.ok(moved.phase-initial.phase>Math.PI*1.4, 'tail completes at least 0.7 cycles per second');
+  assert.ok(moved.phase-initial.phase<Math.PI*2.4, 'passive tail remains unhurried');
+  assert.ok(moved.amp>=0.2 && moved.amp<0.4, 'lateral flex remains visible');
+  assert.ok(moved.finPhase-initial.finPhase>Math.PI, 'pectoral fins keep paddling');
+  assert.ok(Math.abs((moved.finPhase-initial.finPhase)-(moved.phase-initial.phase)*0.8)>0.05, 'fins have their own rhythm');
+  assert.deepEqual(createHomeResidents([fish('beat')],600,600,null,residents)[0],moved);
+});
+test('passive reversals turn gradually with head body and tail following in order', () => {
+  const [initial]=createHomeResidents([fish('passive-turn')],1200,900,null);
+  initial.x=900; initial.y=400; initial.seed=0; initial.elapsed=0;
+  initial.heading=initial.yaw=initial.yawBody=initial.yawTail=0;
+  initial.vx=8;
+  const [turn]=stepHomeResidents([initial],1200,900,0.1,null,{x:0,y:0});
+  assert.equal(turn.heading,Math.PI);
+  assert.ok(turn.yaw>0 && turn.yaw<0.5, 'home reversal starts with a slow head turn');
+  assert.ok(turn.yaw>turn.yawBody && turn.yawBody>turn.yawTail);
+  assert.ok(turn.vx>0, 'momentum continues while the body begins to turn');
+  assert.deepEqual(createHomeResidents([fish('passive-turn')],1200,900,null,[turn])[0].yawTail,turn.yawTail);
 });

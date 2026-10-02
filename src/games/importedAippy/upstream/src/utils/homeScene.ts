@@ -3,7 +3,7 @@ import type { Specimen } from './boutique';
 /** Home pose is deliberately independent of health, hunger, growth and transactions. */
 export interface HomeResident {
   id: string; x: number; y: number; size: number; color: string; accent: string;
-  phase: number; heading: number; seed: number; elapsed: number;
+  phase: number; finPhase: number; amp: number; heading: number; seed: number; elapsed: number;
   vx: number; vy: number; pitch: number; yaw: number; yawBody: number; yawTail: number;
 }
 export interface HomeAxis { x: number; y: number }
@@ -35,7 +35,8 @@ export function createHomeResidents(specimens: Specimen[], width: number, height
       y: clamp(old?.y ?? bounds.top + (bounds.bottom - bounds.top) * ((seed * 29.73) % 1), bounds.top, bounds.bottom),
       vx: old?.vx ?? 0, vy: old?.vy ?? 0, pitch: old?.pitch ?? 0,
       yaw: old?.yaw ?? (seed < 0.5 ? 0 : Math.PI), yawBody: old?.yawBody ?? (seed < 0.5 ? 0 : Math.PI), yawTail: old?.yawTail ?? (seed < 0.5 ? 0 : Math.PI),
-      phase: old?.phase ?? seed * Math.PI * 2, heading: old?.heading ?? (seed < 0.5 ? 0 : Math.PI), elapsed: old?.elapsed ?? seed * 20 };
+      phase: old?.phase ?? seed * Math.PI * 2, finPhase: old?.finPhase ?? seed * Math.PI * 7,
+      amp: old?.amp ?? 0.22, heading: old?.heading ?? (seed < 0.5 ? 0 : Math.PI), elapsed: old?.elapsed ?? seed * 20 };
   });
 }
 export function stepHomeResidents(residents: HomeResident[], width: number, height: number, dt: number, controlledId: string | null, axis: HomeAxis): HomeResident[] {
@@ -46,27 +47,39 @@ export function stepHomeResidents(residents: HomeResident[], width: number, heig
     const elapsed = r.elapsed + seconds;
     const controlled = r.id === controlledId;
     const bounds = homeBounds(width, height, r.size);
-    let dx: number, dy: number;
+    const ease = (current: number, target: number, rate: number) => current + (target-current) * (1-Math.exp(-rate*seconds));
+    let dx: number, dy: number, cruise = 0;
     if (controlled) { dx = inputX / magnitude * 70; dy = inputY / magnitude * 70; }
     else {
-      const targetX = bounds.left + (bounds.right - bounds.left) * (0.5 + 0.44 * Math.sin(elapsed * 0.18 + r.seed * 9));
-      const targetY = bounds.top + (bounds.bottom - bounds.top) * (0.5 + 0.4 * Math.sin(elapsed * 0.23 + r.seed * 19));
+      const targetX = bounds.left + (bounds.right - bounds.left) * (0.5 + 0.44 * Math.sin(elapsed * 0.065 + r.seed * 9));
+      const targetY = bounds.top + (bounds.bottom - bounds.top) * (0.5 + 0.4 * Math.sin(elapsed * 0.09 + r.seed * 19));
       const distance = Math.hypot(targetX-r.x,targetY-r.y);
-      const speed = Math.min(distance * 0.55, 12 + r.seed * 13);
-      dx = distance > 0.1 ? (targetX-r.x) / distance * speed : 0;
-      dy = distance > 0.1 ? (targetY-r.y) / distance * speed : 0;
+      // Cruise in body lengths, with individual rhythm fixed to the saved identity.
+      cruise = Math.min(distance * 0.18, r.size * (0.17 + r.seed * 0.08));
+      dx = Math.abs(targetX-r.x) > r.size * 0.35 ? targetX-r.x : 0;
+      dy = clamp((targetY-r.y) * 0.12, -cruise * 0.45, cruise * 0.45);
     }
     const heading = Math.abs(dx) > 0.1 ? (dx >= 0 ? 0 : Math.PI) : r.heading;
-    const ease = (current: number, target: number, rate: number) => current + (target-current) * (1-Math.exp(-rate*seconds));
-    // The head leads a reversal; the existing rig projects the following spine and fins.
-    const yaw = ease(r.yaw, heading, 8);
-    const yawBody = ease(r.yawBody, yaw, 6);
-    const yawTail = ease(r.yawTail, yawBody, 5);
-    // Match the gentle effort-sensitive pose while preserving physical travel.
-    const targetPitch = Math.hypot(dx,dy)>0.1 ? clamp(-dy / 70 * 0.45, -0.42, 0.42) : 0;
+    // Home turns unfold slowly; direct player control keeps its responsive rig.
+    const goalYaw = controlled && Math.hypot(dx,dy)>0.1 ? Math.atan2(Math.abs(dy),dx) : heading;
+    const yaw = ease(r.yaw, goalYaw, controlled ? 8 : 1.4);
+    const yawBody = ease(r.yawBody, yaw, controlled ? 6 : 1);
+    const yawTail = ease(r.yawTail, yawBody, controlled ? 5 : 0.8);
+    if (!controlled) {
+      // Travel follows the turning body instead of instantly reversing under it.
+      dx = ease(r.vx, Math.cos(yawBody) * cruise, 0.9);
+      dy = ease(r.vy, dy, 0.8);
+    }
+    // Controlled dives expose the back; autonomous residents keep a relaxed attitude.
+    const targetPitch = Math.hypot(dx,dy)>0.1
+      ? controlled ? clamp(Math.atan2(-dy,Math.abs(dx)),-1.35,1.35) : clamp(-dy/70*0.45,-0.42,0.42)
+      : 0;
     return { ...r, elapsed, x: clamp(r.x + dx * seconds, bounds.left, bounds.right), y: clamp(r.y + dy * seconds, bounds.top, bounds.bottom),
-      vx: dx, vy: dy, heading, yaw, yawBody, yawTail, pitch: ease(r.pitch,targetPitch,6),
-      phase: r.phase + seconds * (2.2 + Math.hypot(dx,dy) * 0.045) };
+      vx: dx, vy: dy, heading, yaw, yawBody, yawTail, pitch: ease(r.pitch,targetPitch,controlled ? 6 : 1.5),
+      // Renderer phases are radians: express biological beat rates in full cycles.
+      phase: r.phase + Math.PI * 2 * seconds * (0.72 + r.seed * 0.12 + Math.hypot(dx,dy) / r.size * 0.9),
+      finPhase: (r.finPhase ?? r.phase * 0.8) + Math.PI * 2 * seconds * (0.55 + r.seed * 0.1 + Math.hypot(dx,dy) / r.size * 0.5),
+      amp: ease(r.amp ?? 0.22, clamp(0.22 + Math.hypot(dx,dy) / r.size * 0.3 + Math.sin(yawBody) * 0.05, 0.22, 0.48), 2) };
   });
 }
 export function pickHomeResident(residents: HomeResident[], x: number, y: number): string | null {
