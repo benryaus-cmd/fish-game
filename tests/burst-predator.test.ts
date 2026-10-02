@@ -33,7 +33,7 @@ test('release starts cooldown and halves moving and resting recharge',()=>{
 });
 test('holding burst reaches zero, locks until strictly above twenty and never charges at zero',()=>{
  const f=player(),s=createPlayerSurvival();let reachedZero=false;
- for(let i=0;i<40;i++){
+ for(let i=0;i<80;i++){
   updatePlayerFish(f,input,s,.05,bounds,false);
   if(s.stamina===0){reachedZero=true;assert.equal(s.isBursting,false);assert.equal(s.burstExhausted,true);break;}
  }
@@ -71,4 +71,29 @@ test('nursery and neutral view prevent predator bites',()=>{
  const pred=createPredatorFish(450,1500,100),s=createPlayerSurvival();pred.state='charge';pred.stateTimer=10;
  let hits=0;for(let i=0;i<120;i++){const p=player();p.x=pred.fish.x+42;p.y=pred.fish.y;updatePredator(pred,p,s,1/60,bounds.surfaceY,()=>hits++);}
  assert.equal(hits,0);assert.notEqual(pred.state,'charge');
+});
+test('predators only notice exposed fish within six hundred world units',()=>{
+ for(const [distance,expected] of [[599,'stalk'],[601,'patrol'],[700,'patrol']]){
+  const pred=createPredatorFish(1800,800,100),s=createPlayerSurvival();s.isInNursery=false;
+  const p=player();p.x=1800+distance;p.y=800;
+  updatePredator(pred,p,s,.01,bounds.surfaceY,()=>{});assert.equal(pred.state,expected);
+ }
+});
+test('ending a chase keeps its forward heading and a stable destination while slowing',()=>{
+ for(const direction of [-1,1]){
+  const pred=createPredatorFish(1800,800,100),s=createPlayerSurvival();s.isInNursery=true;
+  pred.state='charge';pred.stateTimer=1;pred.fish.tx=1800+direction*500;pred.fish.ty=800;
+  pred.fish.speed=300;const p=player();
+  updatePredator(pred,p,s,.01,bounds.surfaceY,()=>{});
+  assert.equal(pred.state,'disengage');assert.ok((pred.fish.tx-pred.fish.x)*direction>0);
+  const tx=pred.fish.tx,ty=pred.fish.ty,speed=pred.fish.speed;
+  for(let i=0;i<60;i++)updatePredator(pred,p,s,1/60,bounds.surfaceY,()=>{});
+  assert.equal(pred.fish.tx,tx);assert.equal(pred.fish.ty,ty);
+  assert.ok((pred.fish.tx-pred.fish.x)*direction>0);assert.ok(pred.fish.speed<speed);
+ }
+});
+test('a full default Burst lasts fifty percent longer before exhaustion',()=>{
+ const f=player(),s=createPlayerSurvival();let elapsed=0;
+ while(s.stamina>0&&elapsed<5){updatePlayerFish(f,input,s,.01,bounds,false);elapsed+=.01;}
+ assert.ok(Math.abs(elapsed-150/65)<.011,`full charge lasted ${elapsed}s`);
 });

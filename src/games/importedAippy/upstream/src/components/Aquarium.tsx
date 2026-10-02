@@ -512,7 +512,7 @@ const Aquarium = ({
     if (!displaySpecimen) for (const hunter of [predator, secondPredatorRef.current]) if(hunter) updatePredator(hunter, player, survival, dt, worldSurfaceY, () => {
       // Predator bite hit player!
       if (survival.invulnerableTime <= 0 && !survival.isDead) {
-        survival.health = Math.max(0, survival.health - 25);
+        survival.health = Math.max(0, survival.health - 8);
         survival.isDead = survival.health <= 0;
         survival.invulnerableTime = 1.8;
         survival.damageFlash = 1.0;

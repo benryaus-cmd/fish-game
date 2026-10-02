@@ -82,7 +82,7 @@ test('optional adaptations change speed and burst stamina while defaults remain 
   assert.ok(swift.speed > normal.speed * 1.19);
   const player = fish(), survival = createPlayerSurvival();
   updatePlayerFish(player, { x: 1, y: 0, active: true, burst: true }, survival, 0.05, bounds, false, { staminaDrainMultiplier: 1.2 });
-  assert.ok(Math.abs(survival.stamina - 96.1) < 0.001);
+  assert.ok(Math.abs(survival.stamina - 97.4) < 0.001);
 });
 
 const utilsRoot = new URL('../src/games/importedAippy/upstream/src/utils/', import.meta.url);

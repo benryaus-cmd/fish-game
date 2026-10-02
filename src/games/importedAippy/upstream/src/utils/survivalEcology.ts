@@ -235,7 +235,21 @@ export function updatePredator(
 
   // Line of sight check & nursery concealment
   const playerInNursery = playerSurvival.isInNursery;
-  const canSeePlayer = !playerInNursery && distToPlayer < 750 && !playerSurvival.isDead;
+  const canSeePlayer = !playerInNursery && distToPlayer < 600 && !playerSurvival.isDead;
+
+  // Keep the last pursuit heading instead of rerolling a retreat target each frame.
+  const disengage = (seconds: number) => {
+    const dx = f.tx - f.x;
+    const dy = f.ty - f.y;
+    const distance = Math.hypot(dx, dy);
+    const headingX = distance > 1 ? dx / distance : Math.cos(f.yawBody);
+    const headingY = distance > 1 ? dy / distance : -Math.sin(f.pitch);
+    f.tx = clamp(f.x + headingX * f.L * 5, 200, WORLD_WIDTH - 100);
+    f.ty = clamp(f.y + headingY * f.L * 5, 150, surfaceY(f.tx) - f.L * 0.6);
+    f.cruise = 0.65;
+    pred.state = 'disengage';
+    pred.stateTimer = seconds;
+  };
 
   switch (pred.state) {
     case 'patrol': {
@@ -259,8 +273,7 @@ export function updatePredator(
 
     case 'stalk': {
       if (playerInNursery || playerSurvival.isDead || distToPlayer > 850) {
-        pred.state = 'disengage';
-        pred.stateTimer = 2.5;
+        disengage(2.5);
         break;
       }
       f.tx = player.x;
@@ -273,16 +286,14 @@ export function updatePredator(
         pred.stateTimer = 1.4;
         f.cruise = 6.4;
       } else if (pred.stateTimer <= 0) {
-        pred.state = 'disengage';
-        pred.stateTimer = 2.0;
+        disengage(2.0);
       }
       break;
     }
 
     case 'charge': {
       if (playerInNursery || playerSurvival.isDead) {
-        pred.state = 'disengage';
-        pred.stateTimer = 2.5;
+        disengage(2.5);
         break;
       }
       f.tx = player.x;
@@ -294,21 +305,17 @@ export function updatePredator(
       if (mouthDist < player.L * 0.75 && pred.attackCooldown <= 0 && playerSurvival.invulnerableTime <= 0) {
         f.mouth = 1.0;
         pred.attackCooldown = 2.0; // safe window
-        pred.state = 'disengage';
-        pred.stateTimer = 2.5;
+        disengage(2.5);
         onBitePlayer();
       } else if (pred.stateTimer <= 0) {
-        pred.state = 'disengage';
-        pred.stateTimer = 2.0;
+        disengage(2.0);
       }
       break;
     }
 
     case 'disengage': {
-      // Turn away and swim into open water
-      f.tx = 1500 + (Math.random() - 0.5) * 600;
-      f.ty = 500 + (Math.random() - 0.5) * 400;
-      f.cruise = 0.8;
+      // Coast toward the fixed forward target while easing back to patrol speed.
+      f.cruise = 0.65;
       if (pred.stateTimer <= 0) {
         pred.state = 'patrol';
         pred.stateTimer = 4.0;

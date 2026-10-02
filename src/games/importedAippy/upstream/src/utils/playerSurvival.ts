@@ -112,7 +112,7 @@ export function updatePlayerFish(
   const wantsBurst = input.burst && !survival.isDead && !survival.burstExhausted
     && survival.burstCooldown <= 0 && (wasBursting || canStartBurst(survival));
   if (wantsBurst) {
-    survival.stamina = Math.max(0, survival.stamina - dt * 65 * staminaDrainMultiplier);
+    survival.stamina = Math.max(0, survival.stamina - dt * (65 / 1.5) * staminaDrainMultiplier);
     survival.isBursting = survival.stamina > 0;
     if (!survival.isBursting) {
       survival.burstExhausted = true;
