@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "ES2023"
+    ],
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "vite.config.ts",
+    "vite-plugin-aippy-source-import.ts",
+    "vite-plugin-project-manifest.ts",
+    "tailwind.config.ts"
+  ]
+}
