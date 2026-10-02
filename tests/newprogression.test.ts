@@ -22,9 +22,9 @@ test('legacy adult migration never awards forgotten milestones and persists six 
  const later=advanceSpecimenCare(old,t+300_000,'home'); assert.deepEqual(later.traits,old.traits); assert.deepEqual(later.care!.development!.resolvedStages,[35,75]);
  const loaded=loadBoutique({getItem:()=>JSON.stringify({...createBoutiqueSave(),kept:[later]})}); assert.deepEqual(loaded.kept[0].traits,later.traits); assert.ok(appraiseFish(later)>appraiseFish({...later,traits:[]}));
 });
-test('worthwhile meals add bounded age, overfeeding harms and never heals instantly',()=>{
+test('all eligible meals add bounded age, overfeeding trades health for growth credit',()=>{
  const base={...fry(),hunger:70,health:80}; const meal=feedSpecimen(base,'flake',t); assert.ok(meal.care!.healthySeconds>0); assert.equal(meal.health,80);
- const full={...fry(),health:80}; const over=feedSpecimen(full,'flake',t); assert.ok(over.health<80); assert.equal(over.care!.healthySeconds,0);
+ const full={...fry(),health:80}; const over=feedSpecimen(full,'flake',t); assert.ok(over.health<80); assert.equal(over.care!.healthySeconds,15);
  let spam=fry(); for(let i=0;i<40;i++) spam=feedSpecimen(spam,'flake',t); assert.ok(spam.growth<75);
  const credited={...fry(),care:{...fry().care!,healthySeconds:600,nutrition:100}}; assert.ok(advanceSpecimenCare(credited,t+449_000,'home').growth<75); assert.ok(advanceSpecimenCare(credited,t+450_000,'home').growth>=75);
 });

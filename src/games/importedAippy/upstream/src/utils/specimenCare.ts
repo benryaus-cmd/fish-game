@@ -63,7 +63,8 @@ export function feedSpecimen(fish: Specimen, kind: FoodKind, now = Date.now(), p
   const benefit = food.nutrition * (1 + vitality * .12) * (preference === 'any' || preference === phase ? 1 : .75);
   const mealKind = kind === 'pellet' ? 'flake' : kind;
   const overfed = original.hunger > 85;
-  const credit = overfed ? 0 : Math.min(15, Math.max(0, 600-care.healthySeconds));
+  // Full fish can trade health for the same bounded development credit.
+  const credit = Math.min(15, Math.max(0, ADULT_HEALTHY_SECONDS-care.healthySeconds));
   const health = overfed ? clamp(original.health - Math.min(6, Math.max(0, original.hunger + benefit - 85) * .2)) : original.health;
   return { ...original, ...(health <= 0 ? {deathAtMs: original.deathAtMs ?? Math.max(care.lastCareAtMs,timestamp(now))}: {}), hunger: clamp(original.hunger + benefit), health, care: { ...care, healthySeconds: care.healthySeconds + credit, nutrition: overfed ? care.nutrition : clamp(care.nutrition + benefit), meals: { ...care.meals, [mealKind]: care.meals[mealKind] + 1 } } };
 }
