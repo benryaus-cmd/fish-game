@@ -73,3 +73,12 @@ test('crab telegraph reaches the new higher hop band',()=>{
  }
  assert.ok(peak>200&&peak<=210);assert.equal(hits,1);
 });
+
+test('jump raises both articulated claws after its one-claw warning',()=>{
+ const state=createBottomEcology(),crab=state.crabs[0];
+ for(let i=0;i<30&&crab.phase!=='lunge';i++)updateBottomEcology(state,.05,player(crab.rig.x,1470),floor);
+ assert.equal(crab.phase,'lunge');
+ for(let i=0;i<4;i++)updateBottomEcology(state,.05,player(crab.rig.x,1470),floor);
+ assert.ok(crab.hopHeight>0);
+ for(const claw of crab.rig.claws){assert.ok(claw.y<-.15,'both wrists rise above the shell');assert.ok(claw.open>.3);}
+});

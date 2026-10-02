@@ -11,7 +11,8 @@ source=`
 import {createHomeResidents,stepHomeResidents} from '${homeURL}';
 const createFish=()=>({}); const applySpecimenAppearance=()=>({});
 const drawFish=(ctx,fish,palette)=>ctx.predators.push([fish,palette]);
-const drawFishShadow=()=>{},drawSpecimenFish=()=>{},drawPlant=()=>{},drawCastle=()=>{},drawCrab=()=>{},drawCastleBubbles=()=>{},drawFoodEcology=()=>{};
+const drawRock=()=>{},buildWorldScene=()=>({rocks:[],decorPlants:[]});
+const drawFishShadow=()=>{},drawSpecimenFish=()=>{},drawPlant=()=>{},drawCastle=()=>{},drawCrab=(ctx,crab)=>ctx.crabs.push(crab),drawCastleBubbles=()=>{},drawFoodEcology=()=>{};
 const makeCrabPalette=()=>({});
 const WORLD_WIDTH=3600,WORLD_HEIGHT=1800,CASTLE_LANDMARK={cx:3200};const worldSurfaceY=()=>1580;
 const drawWaterBackground=()=>{},drawSandCaustics=()=>{},drawCycleTint=()=>{},getCausticPattern=()=>null,drawWaterCaustics=()=>{};
@@ -36,7 +37,7 @@ test('zero animation delta freezes overview fish and suspended water motion',()=
  for(let i=0;i<20;i++)updateAquariumView(state,save,800,600,0);
  assert.equal(JSON.stringify(state.residents),before);assert.equal(state.waterTime,0);
 });
-function context(){return {predators:[],arcs:[],save(){},restore(){},beginPath(){},moveTo(){},lineTo(){},closePath(){},fill(){},translate(){},scale(){},arc(...args){this.arcs.push(args);}};}
+function context(){return {predators:[],crabs:[],arcs:[],save(){},restore(){},beginPath(){},moveTo(){},lineTo(){},closePath(){},fill(){},translate(){},scale(){},arc(...args){this.arcs.push(args);}};}
 test('overview renders both native predators with default shared palette and sparse specks',()=>{
  const state=createAquariumView(),save={kept:[]},first={fish:{x:1200,y:800,L:140}},second={fish:{x:2700,y:600,L:140}},palette={body:'#f00'},ctx=context();
  drawAquariumView(ctx,state,save,{crabs:[]},first,palette,800,600,4,1,second);
@@ -45,4 +46,10 @@ test('overview renders both native predators with default shared palette and spa
  state.waterTime=20;const still=context();drawAquariumView(still,state,save,{crabs:[]},first,palette,800,600,0,1,second);
  state.waterTime=40;const later=context();drawAquariumView(later,state,save,{crabs:[]},first,palette,800,600,0,1,second);
  assert.deepEqual(still.arcs,later.arcs);
+});
+
+test('View renders both neutral resident crabs',()=>{
+ const state=createAquariumView(),ctx=context(),crabs=[{rig:{cx:1200,cy:1550,S:100}},{rig:{cx:2800,cy:1520,S:100}}];
+ drawAquariumView(ctx,state,{kept:[]},{crabs},null,null,390,844,4,1);
+ assert.deepEqual(ctx.crabs,crabs.map(c=>c.rig));
 });

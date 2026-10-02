@@ -1,19 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as catalog from '../src/games/importedAippy/upstream/src/utils/stockCatalog.ts';
-import { createBoutiqueSave, createSpecimen, loadBoutique, writeBoutique } from '../src/games/importedAippy/upstream/src/utils/boutique.ts';
+import { createBoutiqueSave, createSpecimen, loadBoutique, writeBoutique, startStockRun, settleRun } from '../src/games/importedAippy/upstream/src/utils/boutique.ts';
 import { startBreeding, claimBreeding, breedingEligibility } from '../src/games/importedAippy/upstream/src/utils/breeding.ts';
 import * as care from '../src/games/importedAippy/upstream/src/utils/specimenCare.ts';
 const at = 1_000_000;
 const roundTrip = (save) => { let json=''; assert.ok(writeBoutique(save,{setItem:(_key,value)=>{json=value;}})); return loadBoutique({getItem:()=>json}); };
-test('authored stock exposes three bodies and persists all seven families', () => {
-  assert.equal(catalog.STOCK_CATALOG.length,7);
+test('authored stock exposes four bodies and persists all nine stocks', () => {
+  assert.equal(catalog.STOCK_CATALOG.length,9);
   const fish = catalog.STOCK_CATALOG.map(stock=>createSpecimen(stock.id,stock.id));
   const loaded=roundTrip({...createBoutiqueSave(),kept:fish});
   assert.deepEqual(loaded.kept,fish);
   assert.deepEqual(catalog.STOCK_CATALOG.slice(3).map(s=>[s.id,s.price,s.bodyShape,s.finStyle,s.colorPattern,s.species]),[
     ['rainbow',80,'colorful','triangle','rainbow','tropical'],['neon',110,'colorful','triangle','banded','tropical'],
     ['pearlangel',160,'angel','sail','banded','angelfish'],['koiangel',200,'angel','sail','koi','angelfish'],
+    ['seahorse',140,'seahorse','rounded','solid','seahorse'],['rainbowangel',220,'angel','sail','rainbow','angelfish'],
   ]);
 });
 test('hybrid draws each axis once, preserves it across reload and claims once', () => {
@@ -53,4 +54,41 @@ test('healthy care slowly reveals colour and condition dulling is reversible wit
   assert.deepEqual(roundTrip({...createBoutiqueSave(),kept:[fed]}).kept[0].care,fed.care);
   const old={...createSpecimen('ordinary','legacy'),inherited:{colorFamily:'silver',finForm:'short',parents:[]}};
   assert.equal(care.careColourQuality(old),1);
+});
+
+test('seahorses persist care and traits, group under Tropical and only breed with seahorses', () => {
+  const sea = createSpecimen('seahorse','sea');
+  assert.equal(catalog.stockFamily(sea.inherited!.bodyShape!), 'colorful');
+  const adult = (stock, id) => care.ensureSpecimenCare({...createSpecimen(stock,id),growth:80,traits:['ornate','swift','vital','vibrancy']},at);
+  const adults = [adult('seahorse','a'),adult('seahorse','b'),adult('ordinary','guppy'),adult('rainbow','tropical'),adult('rainbowangel','angel')];
+  const save = {...createBoutiqueSave(),kept:adults};
+  assert.deepEqual(roundTrip(save).kept, adults);
+  for (const other of ['guppy','tropical','angel']) {
+    assert.equal(breedingEligibility(save,'a',other,at).eligible,false);
+    assert.equal(startBreeding(save,'a',other,`blocked-${other}`,at),save);
+  }
+  assert.ok(breedingEligibility(save,'a','b',at).eligible);
+  const cycle = startBreeding(save,'a','b','sea-cycle',at);
+  assert.equal(cycle.breeding!.offspring.species,'seahorse');
+  assert.equal(cycle.breeding!.offspring.inherited!.bodyShape,'seahorse');
+  assert.equal(cycle.breeding!.offspring.name,'Seahorse fry');
+  assert.deepEqual(roundTrip(cycle).breeding,cycle.breeding);
+});
+
+test('new stocks purchase, continue and keep their actual species without reload rerolls', () => {
+  for (const id of ['seahorse','rainbowangel'] as const) {
+    const stock = catalog.getStock(id)!;
+    const before = {...createBoutiqueSave(),coins:500};
+    const bought = startStockRun(before,id,`${id}-owned`);
+    assert.equal(bought.coins,500-stock.price);
+    assert.equal(bought.activeRun!.specimen.species,stock.species);
+    const reloaded = roundTrip(bought);
+    assert.deepEqual(reloaded.activeRun,bought.activeRun);
+    reloaded.activeRun!.specimen.growth = 10;
+    const kept = settleRun(reloaded,`${id}-owned`,'keep');
+    assert.equal(kept.kept[0].species,stock.species);
+    assert.equal(kept.kept[0].inherited!.bodyShape,stock.bodyShape);
+    assert.deepEqual(roundTrip(kept).kept,kept.kept);
+    assert.equal(startStockRun(kept,id,`${id}-owned`),kept);
+  }
 });

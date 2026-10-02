@@ -86,8 +86,10 @@ export function updateBottomEcology(state:BottomEcology,dtRaw:number,player:Bott
    r.cy-=c.hopHeight;r.footY-=c.hopHeight;
    for(const foot of r.feet){foot.y-=c.hopHeight;foot.sy-=c.hopHeight;}
    if(c.phase==='windup'||c.phase==='lunge'){
-    const side=c.targetX>=r.x?1:0,claw=r.claws[side],k=1-Math.exp(-12*dt);
-    claw.x+=((side?1:-1)*.66-claw.x)*k;claw.y+=(-.17-claw.y)*k;claw.a+=(-1.25-claw.a)*k;claw.open+=(.8-claw.open)*k;r.eyeLift=.85;
+    const sides=c.phase==='lunge'?[0,1]:[c.targetX>=r.x?1:0],k=1-Math.exp(-12*dt);
+    for(const side of sides){const claw=r.claws[side];const jumping=c.phase==='lunge';
+     claw.x+=((side?1:-1)*(jumping?.56:.66)-claw.x)*k;claw.y+=((jumping?-.32:-.17)-claw.y)*k;claw.a+=(-1.25-claw.a)*k;claw.open+=(.8-claw.open)*k;
+    }r.eyeLift=.85;
    }
    if(enabled&&c.phase==='lunge'&&!c.hit&&!safe&&state.damageCooldown<=0&&Math.abs(player.x-r.cx)<r.S*1.15&&Math.abs(player.y-r.cy)<r.S*1.1){
     c.hit=true;c.cooldown=CRAB_DAMAGE_COOLDOWN;state.damageCooldown=CRAB_DAMAGE_COOLDOWN;event={kind:'crab',amount:8,x:r.cx,y:r.cy};

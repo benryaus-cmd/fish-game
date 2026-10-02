@@ -15,7 +15,7 @@ async function load(name:string):Promise<string> {
 }
 const {createFish,computePose,fishScale}=await import(await load('fishModel'));
 const {applySpecimenAppearance}=await import(await load('specimenAppearance'));
-const {drawSpecimenFish,specimenMouthPoint,specimenAngelPose,fitSpecimenPortrait}=await import(await load('specimenRender'));
+const {drawSpecimenFish,specimenMouthPoint,specimenAngelPose,specimenSeahorsePose,fitSpecimenPortrait}=await import(await load('specimenRender'));
 const {drawTail: drawAngelTail}=await import(await load('angelFins'));
 const {STOCK_CATALOG}=await import(await load('stockCatalog'));
 const {proj,P,setAngelPitch,NOSE,midY}=await import(await load('angelProject'));
@@ -92,7 +92,7 @@ test('original angel tail mesh inherits independent short, fan and veil proporti
   assert.ok(bounds.fan.h>bounds.veil.h*1.15 && bounds.veil.h>bounds.short.h*1.15,'fan width survives original tail mesh');
 });
 test('care and maturity develop colour without changing inherited pigments',{skip:!canvas},()=> {
-  for(const id of ['rainbow','neon','koiangel']) {
+  for(const id of ['rainbow','neon','koiangel','seahorse','rainbowangel']) {
     const s=specimen(STOCK_CATALOG.find((stock:any)=>stock.id===id));
     const dull={...s,health:30,hunger:10,growth:20,care:{colourQuality:0.2}};
     assert.ok(stats(render(s,66).c).saturation>stats(render(dull,66).c).saturation*1.2,`${id} well-cared colour`);
@@ -112,16 +112,34 @@ test('angel snout projects through pitch and yaw in 3D and matches eating contac
   specimenMouthPoint({...createFish(400,400,80),yaw:1.5,yawBody:1.5,yawTail:1.5,pitch:-1.35},s);proj(0.3,0.2,0.1,0.4);assert.equal(P.y,defaultY,'colony projection does not inherit controlled pitch');
 });
 test('stock portraits fit actual canvas and write review sheet',{skip:!canvas},async()=> {
-  const stocks=[...STOCK_CATALOG,STOCK_CATALOG[1]],sheet=canvas.createCanvas(720,220),ctx=sheet.getContext('2d');
-  ctx.fillStyle='#143640';ctx.fillRect(0,0,720,220);
+  const stocks=[...STOCK_CATALOG,STOCK_CATALOG[1]],sheet=canvas.createCanvas(720,330),ctx=sheet.getContext('2d');
+  ctx.fillStyle='#143640';ctx.fillRect(0,0,720,330);
   for(let i=0;i<stocks.length;i++) {
-    const s=specimen(stocks[i]);if(i===7)s.inherited={...s.inherited,bodyShape:'colorful',finStyle:'sail',colorPattern:'rainbow'};
+    const s=specimen(stocks[i]);if(i===stocks.length-1)s.inherited={...s.inherited,bodyShape:'colorful',finStyle:'sail',colorPattern:'rainbow'};
     const {c,f,p}=render(s,90); c.getContext('2d').clearRect(0,0,180,110); fitSpecimenPortrait(f,s); drawSpecimenFish(c.getContext('2d'),f,p,s); const bounds=stats(c);
     assert.ok(bounds.x0>3&&bounds.x1<177&&bounds.y0>3&&bounds.y1<107,`${s.name}: ${JSON.stringify(bounds)}`);
-    ctx.drawImage(c,(i%4)*180,Math.floor(i/4)*110);ctx.fillStyle='#f6ead1';ctx.font='10px sans-serif';ctx.fillText(i===7?'Rainbow sail hybrid':s.name,(i%4)*180+7,Math.floor(i/4)*110+103);
+    ctx.drawImage(c,(i%4)*180,Math.floor(i/4)*110);ctx.fillStyle='#f6ead1';ctx.font='10px sans-serif';ctx.fillText(i===stocks.length-1?'Rainbow sail hybrid':s.name,(i%4)*180+7,Math.floor(i/4)*110+103);
   }
   await mkdir('test-results',{recursive:true});await writeFile('test-results/exotic-portraits.png',sheet.toBuffer('image/png'));
   const dives=canvas.createCanvas(1000,600),dc=dives.getContext('2d');dc.fillStyle='#143640';dc.fillRect(0,0,1000,600);
   for(let row=0;row<2;row++)for(let col=0;col<5;col++) {const s=specimen(STOCK_CATALOG[5+row]);const {c}=render(s,145,col*Math.PI/4,row===0?-1.35:1.35,200,300);dc.drawImage(c,col*200,row*300);}
   await writeFile('test-results/angel-dives.png',dives.toBuffer('image/png'));
+});
+
+test('controlled seahorse preserves native articulation and EAT uses the drawn mouth centre',async()=> {
+  const {buildGeo}=await import(await load('seahorseGeom'));
+  const {drawMouth}=await import(await load('seahorseFace'));
+  const {yawAt}=await import(await load('seahorseTurn'));
+  const s=specimen(STOCK_CATALOG.find((stock:any)=>stock.id==='seahorse'));
+  for(const yaw of [0,Math.PI/4,Math.PI/2,Math.PI*.75,Math.PI])for(const pitch of [-.87,0,.87]) {
+    const f=createFish(400,400,100);Object.assign(f,{x:200,y:200,yaw,yawBody:yaw*.92,yawTail:yaw*.85,pitch,mouth:.7,phase:1,amp:.15});
+    const pose=specimenSeahorsePose(f,s),mouth=specimenMouthPoint(f,s);
+    assert.equal(yawAt(pose,0),f.yaw);assert.equal(yawAt(pose,.5),f.yawBody);assert.equal(yawAt(pose,1),f.yawTail);
+    buildGeo(pose); let local:any;
+    drawMouth({beginPath(){},ellipse(x:number,y:number){local={x,y};},fill(){},arc(){},stroke(){}},pose,{mouth:'#000',ripple:'#fff'},1);
+    const c=Math.cos(pose.rot),sn=Math.sin(pose.rot);
+    assert.ok(Math.hypot(mouth.x-(pose.x+(local.x*c-local.y*sn)*pose.H),mouth.y-(pose.y+pose.bob+(local.x*sn+local.y*c)*pose.H))<1e-7);
+    if(canvas)assert.ok(stats(render(s,100,yaw,pitch,400,400).c).n>350,'native body retains volume while diving and turning');
+  }
+  assert.ok(specimenSeahorsePose(createFish(400,400,100),{...s,traits:['ornate']}).finAmp>specimenSeahorsePose(createFish(400,400,100),s).finAmp);
 });

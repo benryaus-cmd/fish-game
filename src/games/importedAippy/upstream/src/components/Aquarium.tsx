@@ -472,7 +472,7 @@ const Aquarium = ({
           const afterCare=careSummary(specimenRef.current);
           const afterReady=nextStage==='juvenile' ? Math.max(0,280-afterCare.healthySeconds) : afterCare.adultReadyInSeconds;
           const savedSeconds=Math.max(0,Math.round(beforeReady-afterReady));
-          setMealNotice(specimenRef.current.health<beforeHealth ? 'Overfed · health lost. Let your fish digest.' : `${meal === 'prey' ? 'Shrimp eaten' : meal === 'algae' ? 'Algae grazed' : meal === 'pellet' ? 'Pellet eaten' : 'Flake eaten'} · nourishment ${Math.round(specimenRef.current.care?.nutrition ?? 0)}%${savedSeconds>0 ? ` · −${savedSeconds}s to ${nextStage}` : ''}`);
+          setMealNotice(specimenRef.current.health<beforeHealth ? `Overfed · −${Math.round(beforeHealth-specimenRef.current.health)} health · ${savedSeconds}s saved${specimenRef.current.growth<75 ? ` to ${nextStage}` : ''}. Let your fish digest.` : `${meal === 'prey' ? 'Shrimp eaten' : meal === 'algae' ? 'Algae grazed' : meal === 'pellet' ? 'Pellet eaten' : 'Flake eaten'} · nourishment ${Math.round(specimenRef.current.care?.nutrition ?? 0)}%${savedSeconds>0 ? ` · −${savedSeconds}s to ${nextStage}` : ''}`);
           spawnEatGlints(juice, mouth.x, mouth.y, player.L); playBiteSound();
         }
       }

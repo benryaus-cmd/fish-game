@@ -10,6 +10,7 @@ export function breedingEligibility(save: BoutiqueSave, a: string, b: string, no
   if (ownedFishCount(save) >= NURSERY_CAPACITY) return reject('The nursery is full.');
   const parents = [a,b].map(id=>save.kept.find(fish=>fish.id===id));
   if (parents.some(fish=>!fish)) return reject('Both parents must be in the viewing tank.');
+  if (parents.some(fish => fish!.species === 'seahorse') && parents.some(fish => fish!.species !== 'seahorse')) return reject('Seahorses need another seahorse parent.');
   for (const parent of parents) {
     const fish=advanceSpecimenCare(parent!,now,'home');
     if (fish.growth<75 || fish.care!.healthySeconds<ADULT_HEALTHY_SECONDS) return reject('Both parents need ten healthy minutes and adult growth.');
@@ -35,7 +36,7 @@ export function startBreeding(save: BoutiqueSave, a: string, b: string, cycleId:
     || specimenPattern(parentA) !== specimenPattern(parentB) || specimenFinStyle(parentA) !== specimenFinStyle(parentB)
     || parentA.color !== parentB.color || parentA.inherited?.finForm !== parentB.inherited?.finForm;
   const species = bodyShapeSpecies(bodyShape);
-  const child=ensureSpecimenCare({ ...createSpecimen('ordinary',childId), origin: 'legacy', species, name: hybrid ? 'Ornamental hybrid fry' : `${species === 'angelfish' ? 'Angel' : species === 'tropical' ? 'Tropical' : 'Guppy'} fry`, color:colorParent.color,accent:colorParent.accent, inherited:{ colorFamily:colorParent.inherited?.colorFamily??'silver',finForm:finParent.inherited?.finForm??'short',parents:[a,b],bodyShape,finStyle,colorPattern} },now + BREEDING_SECONDS * 1000);
+  const child=ensureSpecimenCare({ ...createSpecimen('ordinary',childId), origin: 'legacy', species, name: hybrid ? 'Ornamental hybrid fry' : `${species === 'seahorse' ? 'Seahorse' : species === 'angelfish' ? 'Angel' : species === 'tropical' ? 'Tropical' : 'Guppy'} fry`, color:colorParent.color,accent:colorParent.accent, inherited:{ colorFamily:colorParent.inherited?.colorFamily??'silver',finForm:finParent.inherited?.finForm??'short',parents:[a,b],bodyShape,finStyle,colorPattern} },now + BREEDING_SECONDS * 1000);
   return {...save,kept:save.kept.map(fish=>fish.id===a||fish.id===b?advanceSpecimenCare(fish,now,'home'):fish),breeding:{id:cycleId,parentIds:[a,b],startedAtMs:now,readyAtMs:now+BREEDING_SECONDS*1000,offspring:child}};
 }
 export function claimBreeding(save: BoutiqueSave, now = Date.now()): BoutiqueSave {

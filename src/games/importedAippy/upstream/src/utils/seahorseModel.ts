@@ -8,6 +8,7 @@ export interface SeaEnv { w: number; h: number; sandTop: number; surfaceY: (x: n
 /** Everything the renderer needs (live seahorse or shop preview). H = body height px; origin = mid-belly. */
 export interface SeaPose {
   x: number; y: number; bob: number; H: number; fade: number; rot: number;
+  controlledYaw?: [number, number, number];
   yawFrom: number; yawTo: number; turnP: number; look: number; head: number; suck: number; breath: number;
   bend: number; sway: number; curl: number; swing: number; wave: number; finPh: number; finAmp: number; pecPh: number; blink: number;
 }

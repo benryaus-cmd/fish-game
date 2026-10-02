@@ -1,3 +1,7 @@
+import { drawSeahorse } from '@/utils/seahorseRender';
+import { makeSeaPalette, type SeaPalette } from '@/utils/seahorsePalette';
+import { specimenSeahorsePose, seahorseMouthPoint } from '@/utils/specimenSeahorse';
+export { specimenSeahorsePose } from '@/utils/specimenSeahorse';
 import { computePose, fishScale, makeColorfulPalette, type Fish, type FishPalette } from '@/utils/fishModel';
 import { drawFish } from '@/utils/fishRender';
 import { drawAngelfish } from '@/utils/angelRender';
@@ -27,7 +31,7 @@ export function specimenAngelPose(f: Fish, specimen: Specimen): AngelPose {
     gape: f.mouth, recoil: 0, vary: [0,0,0,0,1],
   };
 }
-const palettes = new Map<string, { fish: FishPalette; angel: AngelPalette }>();
+const palettes = new Map<string, { fish: FishPalette; angel: AngelPalette; sea: SeaPalette }>();
 function appearance(specimen: Specimen) {
   const body = specimenColour(specimen, specimen.color);
   const accent = specimenColour(specimen, specimen.accent);
@@ -39,18 +43,23 @@ function appearance(specimen: Specimen) {
   const angel = makeAngelPalette(body);
   angel.pattern = pattern;
   angel.accent = accent;
-  const value = { fish: makeColorfulPalette(body, finAccent), angel };
+  const sea = makeSeaPalette(body);
+  sea.blush = finAccent;
+  sea.finEdge = finAccent;
+  const value = { fish: makeColorfulPalette(body, finAccent), angel, sea };
   if (palettes.size >= 128) palettes.delete(palettes.keys().next().value!);
   palettes.set(key, value);
   return value;
 }
 export function drawSpecimenFish(ctx: CanvasRenderingContext2D, fish: Fish, _palette: FishPalette, specimen: Specimen) {
   const pal = appearance(specimen);
-  if (specimenBodyShape(specimen) === 'angel') drawAngelfish(ctx, specimenAngelPose(fish,specimen),pal.angel);
+  if (specimenBodyShape(specimen) === 'seahorse') drawSeahorse(ctx, specimenSeahorsePose(fish, specimen), pal.sea);
+  else if (specimenBodyShape(specimen) === 'angel') drawAngelfish(ctx, specimenAngelPose(fish,specimen),pal.angel);
   else drawFish(ctx,fish,pal.fish,specimenPattern(specimen),careColourQuality(specimen));
 }
 /** Contact uses precisely the same projected angel snout as its rendered mouth. */
 export function specimenMouthPoint(fish: Fish, specimen: Specimen): { x: number; y: number } {
+  if (specimenBodyShape(specimen) === 'seahorse') return seahorseMouthPoint(specimenSeahorsePose(fish, specimen));
   if (specimenBodyShape(specimen) === 'angel') {
     mouthWorld(specimenAngelPose(fish,specimen));
     return { x: M.x, y: M.y };
@@ -61,6 +70,11 @@ export function specimenMouthPoint(fish: Fish, specimen: Specimen): { x: number;
 
 /** Fit the authored silhouette, including inherited long tails and hybrid sails, into 180×110. */
 export function fitSpecimenPortrait(fish: Fish, specimen: Specimen) {
+  if (specimenBodyShape(specimen) === 'seahorse') {
+    fish.L = 86 / (1 + specimen.traits.filter(trait => trait === 'ornate').length * .035);
+    fish.x = 82; fish.y = 53;
+    return;
+  }
   if (specimenBodyShape(specimen) === 'angel') {
     fish.L = (66 + specimen.growth * 0.035) / (1 + specimen.traits.filter(trait => trait === 'ornate').length * 0.12); fish.x = 93; fish.y = 55;
     return;

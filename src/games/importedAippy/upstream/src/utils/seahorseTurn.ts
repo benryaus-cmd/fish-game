@@ -1,7 +1,7 @@
 import type { Seahorse } from '@/utils/seahorseModel';
 
 /** One continuous turn value drives every body part: turnP 0 → original 3/4 profile, 0.5 → near-front, 1 → opposite profile. */
-export interface TurnPose { yawFrom: number; yawTo: number; turnP: number }
+export interface TurnPose { yawFrom: number; yawTo: number; turnP: number; controlledYaw?: [number, number, number] }
 
 const REST = 0.26;   // resting yaw: never a flat profile, always a slight 3/4 view
 const SPREAD = 0.4;  // how far the turn "travels" through the body (head first, tail last)
@@ -12,6 +12,10 @@ export const restYaw = (dir: number) => (dir > 0 ? REST : Math.PI - REST);
 
 /** Yaw of a body segment; lag 0 = head (leads), lag 1 = tail tip (finishes last). Slow-in / slow-out. */
 export function yawAt(s: TurnPose, lag: number) {
+  if (s.controlledYaw) {
+    const [head, body, tail] = s.controlledYaw;
+    return lag < .5 ? head + (body - head) * lag * 2 : body + (tail - body) * (lag - .5) * 2;
+  }
   const q = clamp01((s.turnP - lag * SPREAD) / (1 - SPREAD));
   return s.yawFrom + (s.yawTo - s.yawFrom) * ease5(q);
 }

@@ -273,6 +273,12 @@ export function buildWorldScene(): WorldScene {
     }
   }
 
+  // Low seagrass patches join the nursery to the castle without becoming shelter.
+  for(let x=900,i=0;x<CASTLE_LANDMARK.cx-120;x+=180,i++){
+    const rx=x+(rnd()-.5)*55;
+    decorPlants.push({x:rx,baseY:worldSurfaceY(rx)+3,kind:'grass',h:1.05+rnd()*.65,seed:2100+i*17,tone:i%3,S:38+rnd()*15});
+  }
+
   // Castle perimeter rocks
   rocks.push({
     x: CASTLE_LANDMARK.cx - 160,

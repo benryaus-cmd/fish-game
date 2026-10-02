@@ -4,13 +4,14 @@ import { drawFish, drawFishShadow } from '@/utils/fishRender';
 import { drawSpecimenFish } from '@/utils/specimenRender';
 import { applySpecimenAppearance } from '@/utils/specimenAppearance';
 import { createHomeResidents, stepHomeResidents, type HomeResident } from '@/utils/homeScene';
+import { drawRock } from '@/utils/rockRender';
 import { drawPlant } from '@/utils/plantRender';
 import { drawCastle } from '@/utils/castleRender';
 import { drawCrab } from '@/utils/crabRender';
 import { makeCrabPalette } from '@/utils/crabModel';
 import type { BottomEcology } from '@/utils/bottomEcology';
 import type { PredatorEntity } from '@/utils/survivalEcology';
-import { WORLD_WIDTH,WORLD_HEIGHT,CASTLE_LANDMARK,worldSurfaceY } from '@/utils/worldCamera';
+import { WORLD_WIDTH,WORLD_HEIGHT,CASTLE_LANDMARK,worldSurfaceY,buildWorldScene } from '@/utils/worldCamera';
 import { drawWaterBackground, drawSandCaustics, drawCycleTint, getTankPalette } from '@/utils/tankLighting';
 import { getCausticPattern, drawWaterCaustics } from '@/utils/aquaScene';
 import { drawCastleBubbles } from '@/utils/castleHealing';
@@ -53,6 +54,7 @@ export function updateAquariumView(state: AquariumViewState, profile: BoutiqueSa
   }
 }
 export function pickAquariumViewFish(state: AquariumViewState,x:number,y:number){let id:string|null=null,distance=Infinity;for(const [key,rig] of state.rigs){const d=Math.hypot(x-rig.fish.x,y-rig.fish.y);if(d<Math.max(24,rig.fish.L*.8)&&d<distance){id=key;distance=d;}}return id;}
+const overviewDecor=buildWorldScene();
 const crabPalette = makeCrabPalette('#bc7150');
 export function drawAquariumView(ctx: CanvasRenderingContext2D, state: AquariumViewState, profile: BoutiqueSave, bottom: BottomEcology, predator: PredatorEntity | null, predatorPalette: FishPalette | null, w: number,h:number,time:number,daylight:number, secondPredator:PredatorEntity|null=null, secondPredatorPalette:FishPalette|null=predatorPalette) {
   const palette = getTankPalette(Math.round(daylight*2)/2), sandY=h*.82;
@@ -76,13 +78,18 @@ export function drawAquariumView(ctx: CanvasRenderingContext2D, state: AquariumV
   if(pattern){drawWaterCaustics(ctx,pattern,time,0,0,w,h,.013*(.2+daylight*.8),h);drawSandCaustics(ctx,pattern,time,{x:0,y:0,width:w,height:h},surface,daylight,h);}
   const plantScale=Math.min(50,w*.11,h*.09);
   for(let i=0;i<7;i++){const x=w*(.015+i*.033);drawPlant(ctx,x,surface(x)+3,{kind:i%2?'leafy':'tall',h:1.7+i%3*.45,seed:43+i*7,tone:i%3},plantScale,palette.plant,time,.8,'back');}
-  const castle={cx:CASTLE_LANDMARK.cx/WORLD_WIDTH*w,baseY:surface(CASTLE_LANDMARK.cx/WORLD_WIDTH*w)+3,size:Math.min(45,w*.09)};
+  const overviewScale=Math.min(w/WORLD_WIDTH*2,h/WORLD_HEIGHT*.45);
+  for(const rock of overviewDecor.rocks){const x=rock.x/WORLD_WIDTH*w;if(x>w*.22&&x<w*.89)drawRock(ctx,x,surface(x)+2,rock,rock.S*overviewScale,palette.rock);}
+  for(const plant of overviewDecor.decorPlants){const x=plant.x/WORLD_WIDTH*w;drawPlant(ctx,x,surface(x)+2,{...plant,kind:'grass'},plant.S*overviewScale,palette.plant,time,.85,'back');}
+  const castle={cx:CASTLE_LANDMARK.cx/WORLD_WIDTH*w,baseY:surface(CASTLE_LANDMARK.cx/WORLD_WIDTH*w)+3,size:Math.min(45,w*.09)*1.7};
   drawCastle(ctx,castle.cx,castle.baseY,castle.size,'#a59c87',1,1);
   ctx.save();ctx.translate(castle.cx,castle.baseY);ctx.scale(castle.size/210,castle.size/210);drawCastleBubbles(ctx,time,{cx:0,baseY:0,size:210});ctx.restore();
   const dirt=profile.tankCare?.dirt ?? 0;
   if(dirt>15){ctx.save();ctx.globalAlpha=Math.min(.8,(dirt-15)/60);for(const right of [false,true]){ctx.save();if(right)ctx.translate(w-WORLD_WIDTH,0);const algae:FoodParticle[]=Array.from({length:13},(_,i)=>({x:right?WORLD_WIDTH-2:2,y:h*(.18+i*.047),size:13,kind:'algae',active:true,respawn:0,seed:i*2.13}));drawFoodEcology(ctx,algae,time);ctx.restore();}ctx.restore();}
-  const crab=bottom.crabs[0]?.rig;
+  for(const residentCrab of bottom.crabs){
+  const crab=residentCrab.rig;
   if(crab){const scale=Math.min(38,w*.09)/crab.S;ctx.save();ctx.translate(w*crab.cx/WORLD_WIDTH-crab.cx*scale,crab.cy/WORLD_HEIGHT*h*.94-crab.cy*scale);ctx.scale(scale,scale);drawCrab(ctx,crab,crabPalette);ctx.restore();}
+  }
   for(const [entity,colors] of [[predator,predatorPalette],[secondPredator,secondPredatorPalette]] as const){if(entity&&colors){const fish=entity.fish,scale=Math.min(55,w*.14)/fish.L;ctx.save();ctx.translate(fish.x/WORLD_WIDTH*w-fish.x*scale,fish.y/WORLD_HEIGHT*h*.94-fish.y*scale);ctx.scale(scale,scale);drawFish(ctx,fish,colors);ctx.restore();}}
   const owned=new Map(ownedAquariumFish(profile).map(f=>[f.id,f]));
   for(const r of [...state.residents].sort((a,b)=>a.y-b.y)){const rig=state.rigs.get(r.id),s=owned.get(r.id);if(!rig||!s)continue;ctx.save();if(s.health<=0){const rise=Math.max(0,Date.now()-(s.deathAtMs??Date.now()))/1000*55;ctx.translate(rig.fish.x,Math.max(30,rig.fish.y-rise));ctx.rotate(Math.PI);ctx.translate(-rig.fish.x,-rig.fish.y);}else drawFishShadow(ctx,rig.fish,surface);drawSpecimenFish(ctx,rig.fish,rig.palette,s);ctx.restore();}

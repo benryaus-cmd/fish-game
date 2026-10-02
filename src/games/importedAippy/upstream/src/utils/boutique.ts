@@ -146,14 +146,14 @@ function color(value: unknown, fallback: string): string {
   return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
 }
 function readSpecimen(value: unknown): Specimen | null {
-  if (!record(value) || !validId(value.id) || !['guppy', 'tropical', 'angelfish'].includes(value.species as string)) return null;
+  if (!record(value) || !validId(value.id) || !['guppy', 'tropical', 'angelfish', 'seahorse'].includes(value.species as string)) return null;
   const origin: StockId = getStock(value.origin)?.id ?? 'legacy';
   const inherited = record(value.inherited) && ['silver', 'warm', 'cool'].includes(value.inherited.colorFamily as string)
     && ['short', 'fan', 'veil'].includes(value.inherited.finForm as string)
     ? {
       colorFamily: value.inherited.colorFamily as ColorFamily,
       finForm: value.inherited.finForm as FinForm,
-      ...(['starter', 'colorful', 'angel'].includes(value.inherited.bodyShape as string) ? { bodyShape: value.inherited.bodyShape as BodyShape } : {}),
+      ...(['starter', 'colorful', 'angel', 'seahorse'].includes(value.inherited.bodyShape as string) ? { bodyShape: value.inherited.bodyShape as BodyShape } : {}),
       ...(['rounded', 'triangle', 'sail'].includes(value.inherited.finStyle as string) ? { finStyle: value.inherited.finStyle as FinStyle } : {}),
       ...(['solid', 'rainbow', 'banded', 'koi'].includes(value.inherited.colorPattern as string) ? { colorPattern: value.inherited.colorPattern as ColorPattern } : {}),
       parents: Array.isArray(value.inherited.parents) ? [...new Set(value.inherited.parents.filter(validId))].slice(0, 2) : [],
