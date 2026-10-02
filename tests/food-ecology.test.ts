@@ -74,3 +74,9 @@ test('most floating food occupies upper two thirds and healing bites are rare',(
  for(let i=0;i<3000;i++)updateFoodEcology(food,1/60);
  assert.ok(floating.filter(f=>f.y<=1200).length/floating.length>.85);
 });
+
+test('expanded floating supply retains rare healing beads and both wall algae',()=>{
+ const food=createFoodEcology();assert.equal(food.length,108);
+ assert.equal(food.filter(f=>f.kind==='flake').length,48);assert.equal(food.filter(f=>f.kind==='pellet').length,32);
+ assert.equal(food.filter(f=>f.kind==='blue').length,2);assert.equal(food.filter(f=>f.kind==='algae').length,26);
+});

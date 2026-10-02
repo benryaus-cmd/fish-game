@@ -22,8 +22,8 @@ function shrimpEnv(surfaceY:(x:number)=>number):ShrimpEnv {return {w:WORLD_WIDTH
 function crabEnv(surfaceY:(x:number)=>number):CrabEnv {return {w:WORLD_WIDTH,h:WORLD_HEIGHT,sandTop:1580,surfaceY,L:86,span:24,speed:1};}
 export function createBottomEcology():BottomEcology {
  const env=shrimpEnv(worldSurfaceY);
- const shrimps=[320,740,1160,1580,2000,2420,2840,3260].map((homeX,i)=>{
-  const rig=spawnShrimp(env,false,i,8);rig.x=rig.tx=homeX;rig.homeX=homeX/WORLD_WIDTH;rig.y=150+(i*431)%1300;rig.ty=rig.y;rig.mode='hover';rig.ground=0;rig.swim=1;
+ const shrimps=[320,740,1160,1580,2000,2420,2840,3260,...Array.from({length:8},(_,i)=>170+i*420)].map((homeX,i)=>{
+  const rig=spawnShrimp(env,false,i,16);rig.x=rig.tx=homeX;rig.homeX=homeX/WORLD_WIDTH;rig.y=150+(i*431)%1300;rig.ty=rig.y;rig.mode='hover';rig.ground=0;rig.swim=1;
   return {rig,active:true,respawn:0,homeX,homeY:rig.y,fleeCooldown:0};
  });
  const crabs=[1180,2940].map((homeX,i)=>{

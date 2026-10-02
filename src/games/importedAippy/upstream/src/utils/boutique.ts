@@ -273,3 +273,16 @@ export function finishDeath(save: BoutiqueSave, id: string, now=Date.now()): Bou
   if(active?.source==='resident' && active.visitId && !history.includes(active.visitId)) history.push(active.visitId);
   return {...save,kept:save.kept.filter(fish=>fish.id!==id),activeRun:active?null:save.activeRun,placements,breeding:save.breeding?.parentIds.includes(id) || save.breeding?.offspring.id===id ? null : save.breeding,completedRunIds:history.slice(-MAX_HISTORY)};
 }
+
+/** Naming changes identity text only; care, run state and breeding links stay intact. */
+export function renameOwnedFish(save:BoutiqueSave,id:string,proposed:string):BoutiqueSave {
+  const name=proposed.replace(/\s+/g,' ').trim().slice(0,40);
+  const fish=save.activeRun?.specimen.id===id?save.activeRun.specimen:save.kept.find(f=>f.id===id);
+  if(!name||!fish||fish.name===name)return save;
+  return {...save,kept:save.kept.map(f=>f.id===id?{...f,name}:f),activeRun:save.activeRun?.specimen.id===id?{...save.activeRun,specimen:{...save.activeRun.specimen,name}}:save.activeRun};
+}
+
+/** Leaderboard score is the wallet after a new sale, never growth or death. */
+export function creditScoreForSale(previous:BoutiqueSave,next:BoutiqueSave):number|null {
+  return next.sales>previous.sales&&Number.isFinite(next.coins)&&next.coins>=0?Math.floor(next.coins):null;
+}

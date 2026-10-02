@@ -10,8 +10,10 @@ interface Props {
   width: number; height: number; profile: BoutiqueSave; saved: boolean;
   onRaise: () => void; onContinue: () => void; onSound: () => void;
   sound: boolean; onInteract: () => void; paused?: boolean;
+  onSheetOpenChange?: (open:boolean)=>void;
   selectedFishId?: string | null; onClearSelection?: () => void;
   onCleanTank?: () => void; tankDirt?: number; pelletPrice?: number; cleanPrice?: number;
+  onRenameFish: (id:string,name:string) => boolean;
   onSellFish: (id: string) => void;
   onRaiseResident: (id: string) => void; onFeedResident: (id: string) => void; onBreed: () => void;
 }
@@ -25,7 +27,7 @@ export function useHomeSheet(open: boolean, onClose: () => void) {
     if (!open) return;
     const opener = document.activeElement as HTMLElement | null;
     const panel = ref.current;
-    const controls = () => Array.from(panel?.querySelectorAll<HTMLElement>('button:not(:disabled), [href], [tabindex="0"]') ?? []);
+    const controls = () => Array.from(panel?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), [href], [tabindex="0"]') ?? []);
     // Pointer-down opens the canvas care sheet before the browser's default
     // focus action completes. Focus afterwards so it cannot be reset to body.
     const focusFrame = window.requestAnimationFrame(() => (controls()[0] ?? panel)?.focus());
@@ -48,7 +50,7 @@ function condition(fish: Specimen) {
   return `${Math.round(fish.health)}% health · ${Math.round(fish.hunger)}% fed`;
 }
 
-export default function HomeScreen({ width, height, profile, saved, onRaise, onContinue, onSound, sound, onInteract, onSellFish, onRaiseResident, onFeedResident, onBreed, selectedFishId, onClearSelection, onCleanTank, tankDirt = 0, pelletPrice = 5, cleanPrice = 15 }: Props) {
+export default function HomeScreen({ width, height, profile, saved, onRaise, onContinue, onSound, sound, onInteract, onRenameFish, onSellFish, onRaiseResident, onFeedResident, onBreed, onSheetOpenChange, selectedFishId, onClearSelection, onCleanTank, tankDirt = 0, pelletPrice = 5, cleanPrice = 15 }: Props) {
   const [collection, setCollection] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [page, setPage] = useState(0);
@@ -57,9 +59,13 @@ export default function HomeScreen({ width, height, profile, saved, onRaise, onC
   const pages = Math.max(1, Math.ceil(owned.length / 6));
   const currentPage = Math.min(page, pages - 1);
   const selected = owned.find(fish => fish.id === selectedId);
+  const [nameDraft,setNameDraft]=useState('');
+  const [nameNotice,setNameNotice]=useState('');
+  useEffect(()=>{setNameDraft(selected?.name??'');setNameNotice('');},[selected?.id,selected?.name]);
   const selectedActive = !!selected && selected.id === active?.id;
   const reserved = !!selected && !!profile.breeding?.parentIds.includes(selected.id);
   const sheetOpen = collection || !!selected;
+  useEffect(()=>{onSheetOpenChange?.(sheetOpen);return()=>onSheetOpenChange?.(false);},[sheetOpen,onSheetOpenChange]);
   const closeSheet = () => { setCollection(false); setSelectedId(null); onClearSelection?.(); };
   const sheetRef = useHomeSheet(sheetOpen, closeSheet);
   useEffect(() => {
@@ -106,7 +112,7 @@ export default function HomeScreen({ width, height, profile, saved, onRaise, onC
       <div className={`home-sheet ${selected ? 'home-resident-sheet' : ''}`} ref={sheetRef} role="dialog" aria-modal="true" aria-label={selected ? 'Fish details' : 'Your collection'} tabIndex={-1}>
         <header className="home-sheet-header"><div><p className="home-eyebrow">{selected ? 'YOUR FISH' : 'YOUR COLLECTION'}</p><h2>{selected ? selected.name : 'Your little lives'}</h2></div><button className="home-icon" onClick={() => interact(closeSheet)} aria-label={selected ? 'Close fish details' : 'Close collection'}>×</button></header>
         <div className="home-sheet-scroll">
-          {selected ? <><FishPortrait specimen={selected} /><FishCarePanel specimen={selected} primaryAction={<button className="home-button home-full" disabled={reserved || selected.health <= 0} onClick={() => interact(() => { closeSheet(); if (selectedActive) onContinue(); else onRaiseResident(selected.id); })}>{selectedActive ? 'Continue Swim' : 'Swim as this fish'} <span aria-hidden="true">↗</span></button>} phase={profile.worldClock ? sampleWorldClock(profile.worldClock,Date.now()).phase : 'day'} />
+          {selected ? <><nav className="home-fish-navigation" aria-label="Browse owned fish"><button className="home-icon" aria-label="Previous fish" disabled={owned.length<2} onClick={()=>select(owned[(owned.findIndex(f=>f.id===selected.id)-1+owned.length)%owned.length].id)}>‹</button><span>{owned.findIndex(f=>f.id===selected.id)+1} / {owned.length}</span><button className="home-icon" aria-label="Next fish" disabled={owned.length<2} onClick={()=>select(owned[(owned.findIndex(f=>f.id===selected.id)+1)%owned.length].id)}>›</button></nav><form className="home-fish-name" onSubmit={event=>{event.preventDefault();interact(()=>{const success=onRenameFish(selected.id,nameDraft);setNameNotice(success?'Name saved':'Could not save this name. Try again.');});}}><label htmlFor="owned-fish-name">Fish name</label><div><input id="owned-fish-name" maxLength={40} value={nameDraft} onChange={event=>{setNameDraft(event.target.value);setNameNotice('');}} /><button className="home-button home-button-secondary" disabled={!saved||!nameDraft.trim()||nameDraft.trim()===selected.name} type="submit">Save name</button></div><small role="status">{nameNotice}</small></form><FishPortrait specimen={selected} /><FishCarePanel specimen={selected} primaryAction={<button className="home-button home-full" disabled={reserved || selected.health <= 0} onClick={() => interact(() => { closeSheet(); if (selectedActive) onContinue(); else onRaiseResident(selected.id); })}>{selectedActive ? 'Continue Swim' : 'Swim as this fish'} <span aria-hidden="true">↗</span></button>} phase={profile.worldClock ? sampleWorldClock(profile.worldClock,Date.now()).phase : 'day'} />
             <p className="home-note">View and Swim share this fish’s care, growth and story.</p>
             {reserved && <p className="home-notice">This parent is reserved until you welcome its offspring.</p>}
             {selected.hunger >= 85 && <p className="home-notice" role="status">Already well fed. Extra pellets can dirty the aquarium.</p>}

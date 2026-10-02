@@ -13,7 +13,7 @@ import {drawWaterAtmosphere} from '${waterURL}';
 import {createHomeResidents,stepHomeResidents} from '${homeURL}';
 const createFish=()=>({}); const applySpecimenAppearance=()=>({});
 const drawFish=(ctx,fish,palette)=>ctx.predators.push([fish,palette]);
-const drawAerator=()=>{},drawShrimp=()=>{},makeShrimpPalette=()=>({});
+const drawAerator=()=>{},drawShrimp=(ctx,rig)=>ctx.shrimps.push(rig),makeShrimpPalette=()=>({});
 const drawRock=()=>{},buildWorldScene=()=>({rocks:[],decorPlants:[]});
 const drawFishShadow=()=>{},drawSpecimenFish=()=>{},drawPlant=()=>{},drawCastle=()=>{},drawCrab=(ctx,crab)=>ctx.crabs.push(crab),drawCastleBubbles=()=>{},drawFoodEcology=()=>{};
 const makeCrabPalette=()=>({});
@@ -40,7 +40,7 @@ test('zero animation delta freezes overview fish and suspended water motion',()=
  for(let i=0;i<20;i++)updateAquariumView(state,save,800,600,0);
  assert.equal(JSON.stringify(state.residents),before);assert.equal(state.waterTime,0);
 });
-function context(){return {predators:[],crabs:[],arcs:[],save(){},restore(){},beginPath(){},moveTo(){},lineTo(){},closePath(){},fill(){},translate(){},scale(){},stroke(){},bezierCurveTo(){},arc(...args){this.arcs.push(args);}};}
+function context(){return {predators:[],crabs:[],arcs:[],shrimps:[],save(){},restore(){},beginPath(){},moveTo(){},lineTo(){},closePath(){},fill(){},translate(){},scale(){},stroke(){},bezierCurveTo(){},arc(...args){this.arcs.push(args);}};}
 test('overview renders both native predators with default shared palette and sparse specks',()=>{
  const state=createAquariumView(),save={kept:[]},first={fish:{x:1200,y:800,L:140}},second={fish:{x:2700,y:600,L:140}},palette={body:'#f00'},ctx=context();
  drawAquariumView(ctx,state,save,{crabs:[]},first,palette,800,600,4,1,second);
@@ -55,4 +55,12 @@ test('View renders both neutral resident crabs',()=>{
  const state=createAquariumView(),ctx=context(),crabs=[{rig:{cx:1200,cy:1550,S:100}},{rig:{cx:2800,cy:1520,S:100}}];
  drawAquariumView(ctx,state,{kept:[]},{crabs},null,null,390,844,4,1);
  assert.deepEqual(ctx.crabs,crabs.map(c=>c.rig));
+});
+
+test('overview stays at eight shrimp and thirty ambient fish when Swim ecology expands',()=>{
+ const ctx=context(),state=createAquariumView(),colors={body:'#abc'};
+ const ambient=Array.from({length:42},(_,i)=>({active:true,fish:{id:100+i,x:1000+i*30,y:700,L:40},palette:colors}));
+ const shrimps=Array.from({length:16},(_,i)=>({active:true,rig:{id:i,x:200+i*180,y:800,S:30}}));
+ drawAquariumView(ctx,state,{kept:[]},{crabs:[],shrimps},null,colors,800,600,1,.5,null,colors,ambient);
+ assert.equal(ctx.shrimps.length,8);assert.equal(ctx.predators.length,30);
 });

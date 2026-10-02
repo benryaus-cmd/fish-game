@@ -41,3 +41,8 @@
 
 /* Keep all four View actions clear of the host developer-access button. */
 .home-screen .home-dock{right:74px}.home-screen .home-dock button{padding-inline:4px}
+
+.home-header>div:first-child{padding-left:32px}
+.home-fish-navigation{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;color:#d7dfca;font-size:12px;letter-spacing:.1em}
+.home-fish-navigation .home-icon{width:40px;height:40px;font-size:25px}
+.home-fish-name{margin-bottom:12px}.home-fish-name label{display:block;font-size:11px;letter-spacing:.09em;color:#c9d2bd;margin-bottom:7px}.home-fish-name>div{display:flex;gap:8px}.home-fish-name input{min-width:0;flex:1;border:1px solid #d7dfca40;border-radius:13px;background:#092e32;color:#f5f1db;font:inherit;padding:10px 12px}.home-fish-name input:focus-visible{outline:2px solid #ddcd94;outline-offset:2px}.home-fish-name .home-button{padding:10px 12px;font-size:12px}.home-fish-name small{display:block;color:#c9d2bd;min-height:16px;margin-top:5px}

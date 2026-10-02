@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appraiseFish, createBoutiqueSave, createSpecimen, getStage, loadBoutique, settleRun, writeBoutique, sellOwnedFish, ownedFishCount, NURSERY_CAPACITY, purchaseStockRun, selectResidentRun, rewardShrimpCatch, startStockRun, startResidentRun } from '../src/games/importedAippy/upstream/src/utils/boutique.ts';
+import { appraiseFish, createBoutiqueSave, createSpecimen, getStage, loadBoutique, settleRun, writeBoutique, sellOwnedFish, ownedFishCount, NURSERY_CAPACITY, purchaseStockRun, selectResidentRun, rewardShrimpCatch, startStockRun, startResidentRun, renameOwnedFish, creditScoreForSale } from '../src/games/importedAippy/upstream/src/utils/boutique.ts';
 import type { BoutiqueSave } from '../src/games/importedAippy/upstream/src/utils/boutique.ts';
 
 function liveSave(growth = 80): BoutiqueSave {
@@ -201,4 +201,28 @@ test('shrimp reward checkpoints live care and exactly one credit without changin
  const storage=memoryStorage();writeBoutique(after,storage);assert.equal(loadBoutique(storage).coins,21);
  assert.equal(rewardShrimpCatch({...before,activeRun:null},active).activeRun,null);
  assert.equal(rewardShrimpCatch(before,{...active,visitId:'stale-visit'}),before);
+});
+
+test('renaming kept and active fish persists without changing care, money or identity',()=>{
+ const save=liveSave(),kept=createSpecimen('blueveil','kept-name');save.kept=[kept];
+ const before=JSON.stringify(save),active=save.activeRun.specimen;
+ const renamed=renameOwnedFish(save,active.id,'  Captain   Bubbles  ');
+ assert.equal(renamed.activeRun.specimen.name,'Captain Bubbles');
+ assert.equal(renamed.activeRun.specimen.id,active.id);assert.equal(renamed.activeRun.specimen.care,active.care);
+ assert.equal(renamed.coins,save.coins);assert.equal(renamed.activeRun.x,save.activeRun.x);assert.equal(JSON.stringify(save),before);
+ const next=renameOwnedFish(renamed,kept.id,'Moon');assert.equal(next.kept[0].name,'Moon');
+ const storage=memoryStorage();writeBoutique(next,storage);const loaded=loadBoutique(storage);
+ assert.equal(loaded.kept[0].name,'Moon');assert.equal(loaded.activeRun.specimen.name,'Captain Bubbles');
+ assert.equal(renameOwnedFish(next,kept.id,'   '),next);assert.equal(renameOwnedFish(next,'absent','Nope'),next);
+ assert.equal(renameOwnedFish(next,kept.id,'x'.repeat(100)).kept[0].name.length,40);
+});
+
+test('sale leaderboard reports new total credits for View and Swim, never death or repeated saves',()=>{
+ const save=liveSave();save.coins=43;
+ const sold=settleRun(save,save.activeRun.specimen.id,'sell');
+ assert.equal(creditScoreForSale(save,sold),sold.coins);assert.ok(sold.coins>43);
+ assert.equal(creditScoreForSale(sold,sold),null);assert.equal(creditScoreForSale(save,save),null);
+ const resident=createSpecimen('rainbow','sell-view'),view={...createBoutiqueSave(),coins:20,kept:[resident]};
+ const viewSale=sellOwnedFish(view,resident.id);assert.equal(creditScoreForSale(view,viewSale),viewSale.coins);
+ assert.equal(creditScoreForSale(save,{...save,activeRun:null}),null);
 });

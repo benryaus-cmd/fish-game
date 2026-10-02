@@ -12,8 +12,8 @@ export const BITE_INTERVAL_SECONDS = 0.42;
 export interface FoodParticle { x: number; y: number; size: number; kind: Exclude<FoodKind, 'prey'>; active: boolean; respawn: number; seed: number }
 export function createFoodEcology(): FoodParticle[] {
   const rnd = mulberry(39151);
-  const food: FoodParticle[] = Array.from({ length: 76 }, (_, i) => {
-    const kind = i === 46 || i === 49 ? 'blue' : i < 32 ? 'flake' : i < 50 ? 'pellet' : 'algae';
+  const food: FoodParticle[] = Array.from({ length: 108 }, (_, i) => {
+    const kind = i >= 76 ? (i % 2 === 0 ? 'flake' : 'pellet') : i === 46 || i === 49 ? 'blue' : i < 32 ? 'flake' : i < 50 ? 'pellet' : 'algae';
     const wallAlgae = kind === 'algae';
     const x = wallAlgae ? (i % 2 === 0 ? 2 : WORLD_WIDTH - 2) : kind === 'flake' ? 200 + rnd() * (WORLD_WIDTH - 400) : 55 + rnd() * (WORLD_WIDTH - 110);
     const y = wallAlgae ? 160 + rnd() * 1260 : 90 + rnd() * 1050;

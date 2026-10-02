@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useCallback, type PointerEvent } from 'rea
 import { vibrate } from '@aippy/runtime/device';
 import { drawWaterAtmosphere } from '@/utils/waterAtmosphere';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
-import { reportScore } from '@aippy/runtime/leaderboard';
 import type { AquariumAudio } from '@/hooks/useAquariumAudio';
 import tweaksConfig from '@/config/tweaksConfig.json';
 import { useGameLoop } from '@/hooks/useGameLoop';
@@ -18,7 +17,7 @@ import { drawRock } from '@/utils/rockRender';
 import { InputManager } from '@/utils/playerInput';
 import { createCamera, updateCamera, getCameraView, triggerCameraShake, worldSurfaceY, buildWorldScene, WORLD_WIDTH, WORLD_HEIGHT, NURSERY_ZONE, CASTLE_LANDMARK } from '@/utils/worldCamera';
 import { createPlayerSurvival, updatePlayerFish, canStartBurst, type PlayerSurvivalState } from '@/utils/playerSurvival';
-import { createPreyFish, createPredatorFish, updatePrey, updatePredator, type PreyEntity, type PredatorEntity } from '@/utils/survivalEcology';
+import { createMajesticAngel, updateMajesticAngel, type MajesticAngel, createPreyFish, createPredatorFish, updatePrey, updatePredator, type PreyEntity, type PredatorEntity } from '@/utils/survivalEcology';
 import { createSurvivalJuice, spawnBurstWake, spawnEatGlints, updateSurvivalJuice, drawSurvivalJuice } from '@/utils/survivalJuice';
 import { createSpecimen, appraiseFish, getStage, settleRun, finishDeath, rewardShrimpCatch, NURSERY_CAPACITY, type ActiveRun, type Adaptation, type BoutiqueSave, type Specimen } from '@/utils/boutique';
 import { applySpecimenAppearance, specimenModifiers } from '@/utils/specimenAppearance';
@@ -134,6 +133,7 @@ const Aquarium = ({
   const biteCooldownRef = useRef(0);
   const playerRef = useRef<Fish | null>(null);
   const preyListRef = useRef<PreyEntity[]>([]);
+  const majesticAngelRef = useRef<MajesticAngel | null>(null);
   const secondPredatorRef = useRef<PredatorEntity | null>(null);
   const predatorRef = useRef<PredatorEntity | null>(null);
 
@@ -285,21 +285,26 @@ const Aquarium = ({
     // Bounded ambient residents across the whole aquarium; none are edible fish.
     const prey: PreyEntity[] = [];
     const rnd = mulberry(55123);
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 42; i++) {
       const speciesId = i % 2 === 0 ? 'starter' : 'colorful';
       // Small background fish stay visually distinct from the owned individual.
       const preyL = startL * (0.42 + rnd() * 0.2);
       const px = i < 4 ? 320 + rnd() * 400 : 200 + rnd() * (WORLD_WIDTH - 400);
       const py = i < 4 ? 500 + rnd() * 450 : 160 + rnd() * 1160;
       const resident=createPreyFish(100 + i, px, py, preyL, speciesId);
-      if(i%3===0){
-        const stock=createSpecimen(i%6===0?'rainbow':'blueveil',`ambient-${i}`);
+      if(i%8!==7){
+        const stock=createSpecimen(i%2===0?'rainbow':i%3===1?'blueveil':'sunburst',`ambient-${i}`);
         resident.specimen={...stock,species:'guppy',growth:85,inherited:stock.inherited?{...stock.inherited,bodyShape:'starter'}:undefined};
         resident.palette=applySpecimenAppearance(resident.fish,resident.specimen);
       }
       prey.push(resident);
     }
     preyListRef.current = prey;
+    const angel=createMajesticAngel();
+    const angelStock=createSpecimen('pearlangel','ambient-majestic-angel');
+    angel.specimen={...angelStock,growth:100,health:100,hunger:100,traits:['ornate']};
+    angel.palette=applySpecimenAppearance(angel.fish,angel.specimen);
+    majesticAngelRef.current=angel;
     displayPalettesRef.current.clear();
     if (displaySpecimen) {
       preyListRef.current = profileRef.current.kept.filter(fish => fish.id !== displaySpecimen.id).slice(0, 20).map((fish, i) => {
@@ -415,6 +420,7 @@ const Aquarium = ({
     const juice = juiceRef.current;
     if (!player || !predator) return;
     if(mode==='view'){
+      if(majesticAngelRef.current)updateMajesticAngel(majesticAngelRef.current,player,predator,reducedMotion?0:dt,worldSurfaceY,false);
       updateAquariumView(viewStateRef.current,profileRef.current,vW,vH,reducedMotion?0:dt);
       updatePrey(preyListRef.current,{...player,x:-1000,y:0},predator,dt,0,0,WORLD_WIDTH,WORLD_HEIGHT,worldSurfaceY);
       updateBottomEcology(bottomRef.current,dt,{x:-1000,y:0,L:1,growth:0},worldSurfaceY,{damageEnabled:false});
@@ -525,6 +531,12 @@ const Aquarium = ({
       }
     }
 
+    const angel=majesticAngelRef.current;
+    if(angel&&updateMajesticAngel(angel,player,predator,dt,worldSurfaceY,!displaySpecimen&&!inShelter&&!survival.isDead&&survival.invulnerableTime<=0)){
+      survival.health=Math.max(0,survival.health-8);
+      survival.isDead=survival.health<=0;survival.invulnerableTime=1.8;survival.damageFlash=1;
+      triggerCameraShake(cam,.2);playDamageSound();void vibrate(45).catch(NOOP);
+    }
     // Update Prey
     const ecologyView = getCameraView(cam, vW, vH);
     updatePrey(preyListRef.current, player, predator, dt, ecologyView.x, ecologyView.y, ecologyView.width, ecologyView.height, worldSurfaceY);
@@ -554,7 +566,6 @@ const Aquarium = ({
       }
       player.speed=0;player.y=Math.max(70,player.y-dt*Math.min(90,vH/6));player.pitch=0;
       if(Date.now()-deathStartedRef.current>=4000&&!deathComplete){
-        if(!survival.scoreReported){survival.scoreReported=true;reportScore(Math.round(survival.growth));}
         endedRef.current=true;setDeathComplete(true);persistDefeat();
       }
     }
@@ -599,7 +610,7 @@ const Aquarium = ({
     const t = timeRef.current;
     const daylight = profileRef.current.worldClock ? sampleWorldClock(profileRef.current.worldClock, Date.now()).daylight : 1;
     if(mode==='view'){
-      drawAquariumView(ctx,viewStateRef.current,profileRef.current,bottomRef.current,predator,predatorPalRef.current,vW,vH,reducedMotion?0:t,daylight,secondPredatorRef.current,predatorPalRef.current,preyListRef.current);
+      drawAquariumView(ctx,viewStateRef.current,profileRef.current,bottomRef.current,predator,predatorPalRef.current,vW,vH,reducedMotion?0:t,daylight,secondPredatorRef.current,predatorPalRef.current,preyListRef.current,majesticAngelRef.current);
       return;
     }
     const tankPalette = getTankPalette(daylight);
@@ -723,6 +734,8 @@ const Aquarium = ({
       if (pal) { if(pr.specimen)drawSpecimenFish(ctx,f,pal,pr.specimen);else drawFish(ctx,f,pal); }
     }
 
+    const angel=majesticAngelRef.current;
+    if(angel?.specimen&&angel.palette&&angel.fish.x+angel.fish.L>=viewLeft&&angel.fish.x-angel.fish.L<=viewRight)drawSpecimenFish(ctx,angel.fish,angel.palette,angel.specimen);
     // Draw Predator Fish
     for (const hunter of [predator, secondPredatorRef.current]) if (!displaySpecimen && hunter && predatorPalRef.current) {
       const pf = hunter.fish;

@@ -1,7 +1,7 @@
 import { drawFilter } from '@/utils/filterRender';
 import type { FilterFx, FilterLayout } from '@/utils/waterFilter';
 
-export const AERATOR = { x: 60, y: 90, W: 88, H: 125 };
+export const AERATOR = { x: 0, y: 0, W: 88, H: 125 };
 const fx: FilterFx = {alpha:1,t:0,income:0,nextBubble:0,bubbles:[],texts:[]};
 export function inAeratorHealingPlume(x:number,y:number) {
   const centre=AERATOR.x+AERATOR.W*1.23;

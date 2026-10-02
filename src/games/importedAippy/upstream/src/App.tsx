@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { reportScore } from '@aippy/runtime/leaderboard';
 import WelcomeScreen from '@/components/WelcomeScreen';
 import AudioSettings from './components/AudioSettings';
 import Aquarium from '@/components/Aquarium';
 import HomeScreen from '@/components/HomeScreen';
 import StockSheet from '@/components/StockSheet';
 import BreedingSheet from '@/components/BreedingSheet';
-import { loadBoutique, writeBoutique, purchaseStockRun, selectResidentRun, sellOwnedFish, type BoutiqueSave } from '@/utils/boutique';
+import { loadBoutique, writeBoutique, purchaseStockRun, selectResidentRun, sellOwnedFish, renameOwnedFish, creditScoreForSale, type BoutiqueSave } from '@/utils/boutique';
 import { initialiseCareProfile, advanceProfileCare } from '@/utils/worldClock';
 import { startBreeding, claimBreeding } from '@/utils/breeding';
 import { buyTankPellets, cleanTank, PELLET_PRICE, CLEAN_PRICE } from '@/utils/tankCare';
@@ -23,14 +24,19 @@ const App = () => {
   const [welcomeOpen, setWelcomeOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [breedingOpen, setBreedingOpen] = useState(false);
+  const [homeSheetOpen,setHomeSheetOpen]=useState(false);
   const [selectedFishId, setSelectedFishId] = useState<string | null>(null);
   // Retain the ended outing through its receipt, as well as unsaved live motion at home.
   const [size, setSize] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
   const audio = useAquariumAudio();
   const commitProfile = useCallback((next: BoutiqueSave) => {
+    const score=creditScoreForSale(profileRef.current,next);
     const success = writeBoutique(next);
     setSaved(success);
-    if (success) { profileRef.current = next; setProfile(next); }
+    if (success) {
+      profileRef.current = next; setProfile(next);
+      if(score!==null){try{void Promise.resolve(reportScore(score)).catch(()=>{});}catch{/* A host failure must not undo a saved sale. */}}
+    }
     return success;
   }, []);
   const returnHome = useCallback(() => {
@@ -94,10 +100,12 @@ const App = () => {
     <div className="absolute inset-0">
       <Aquarium width={size.width} height={size.height} mode={raising ? 'swim' : 'view'} onSelectFish={setSelectedFishId}
         profile={profile} onProfileChange={commitProfile} onOpenShop={returnHome} onChooseStock={chooseNext}
-        paused={welcomeOpen || stockOpen || breedingOpen || settingsOpen || !!selectedFishId} displaySpecimen={null} saved={saved} audio={audio} />
+        paused={welcomeOpen || stockOpen || breedingOpen || settingsOpen || homeSheetOpen || !!selectedFishId} displaySpecimen={null} saved={saved} audio={audio} />
     </div>
     {!raising && <div inert={welcomeOpen || stockOpen || breedingOpen || settingsOpen} aria-hidden={welcomeOpen || stockOpen || breedingOpen || settingsOpen || undefined}><HomeScreen width={size.width} height={size.height} profile={profile} saved={saved} paused={welcomeOpen || stockOpen || breedingOpen || settingsOpen}
       onRaise={() => setStockOpen(true)} onContinue={() => { if (profileRef.current.activeRun) { setStockOpen(false); setRaising(true); void audio.initAudio(); } }}
+      onSheetOpenChange={setHomeSheetOpen}
+      onRenameFish={(id,name)=>{const current=profileRef.current,next=renameOwnedFish(current,id,name);return next===current?!!name.trim():commitProfile(next);}}
       onSellFish={sellResident} onRaiseResident={raiseResident} onFeedResident={feedResident} onBreed={() => setBreedingOpen(true)}
       selectedFishId={selectedFishId} onClearSelection={() => setSelectedFishId(null)}
       onCleanTank={() => { const current=profileRef.current,next=cleanTank(current,true,Date.now());if(next!==current)commitProfile(next); }}

@@ -14,7 +14,7 @@ async function moduleURL(name) {
   memo.set(name, result); return result;
 }
 const { createPlayerSurvival, updatePlayerFish } = await import(await moduleURL('playerSurvival'));
-const { createPredatorFish, updatePredator } = await import(await moduleURL('survivalEcology'));
+const { createPredatorFish, updatePredator, createMajesticAngel, updateMajesticAngel } = await import(await moduleURL('survivalEcology'));
 const { createFish } = await import(await moduleURL('fishModel'));
 const { SPECIES } = await import(await moduleURL('fishSpecies'));
 const bounds = { w:3600,h:1800,surfaceY:()=>1780 };
@@ -72,8 +72,8 @@ test('nursery and neutral view prevent predator bites',()=>{
  let hits=0;for(let i=0;i<120;i++){const p=player();p.x=pred.fish.x+42;p.y=pred.fish.y;updatePredator(pred,p,s,1/60,bounds.surfaceY,()=>hits++);}
  assert.equal(hits,0);assert.notEqual(pred.state,'charge');
 });
-test('predators only notice exposed fish within four hundred eighty world units',()=>{
- for(const [distance,expected] of [[479,'stalk'],[481,'patrol'],[700,'patrol']]){
+test('predators only notice exposed fish within the newly reduced 384 world units',()=>{
+ for(const [distance,expected] of [[383,'stalk'],[385,'patrol'],[479,'patrol'],[700,'patrol']]){
   const pred=createPredatorFish(1800,800,100),s=createPlayerSurvival();s.isInNursery=false;
   const p=player();p.x=1800+distance;p.y=800;
   updatePredator(pred,p,s,.01,bounds.surfaceY,()=>{});assert.equal(pred.state,expected);
@@ -108,4 +108,22 @@ test('a successful predator bite blocks another attack for at least nine seconds
 test('predator ordinary patrol destinations favour the upper half',()=>{
  const pred=createPredatorFish(1800,800,100),s=createPlayerSurvival();s.isInNursery=true;
  for(let i=0;i<30;i++){pred.state='patrol';pred.stateTimer=0;updatePredator(pred,player(),s,.01,bounds.surfaceY,()=>{});assert.ok(pred.fish.ty<900);}
+});
+
+test('majestic angel cruises without hunting; touch hurts once then provokes escape',()=>{
+ const a=createMajesticAngel(),p=player(),pred=createPredatorFish(2500,400,120);
+ p.x=a.fish.x-30;p.y=a.fish.y;
+ assert.equal(updateMajesticAngel(a,p,pred,.05,bounds.surfaceY,false),false);
+ assert.equal(a.fleeSeconds,0);
+ assert.equal(updateMajesticAngel(a,p,pred,.05,bounds.surfaceY,true),true);
+ assert.equal(a.fleeSeconds,3);assert.ok(a.fish.tx>a.fish.x);
+ assert.equal(updateMajesticAngel(a,p,pred,.05,bounds.surfaceY,true),false);
+ for(let i=0;i<80;i++)updateMajesticAngel(a,{...p,x:20,y:1500},pred,.05,bounds.surfaceY,true);
+ assert.equal(a.fleeSeconds,0);assert.equal(a.fish.pSpeed,.55);
+});
+test('angelfish contact is bounded to its body/fins, not nearby swimming',()=>{
+ const a=createMajesticAngel(),p=player(),pred=createPredatorFish(2500,400,120);
+ p.x=a.fish.x+200;p.y=a.fish.y;
+ assert.equal(updateMajesticAngel(a,p,pred,.05,bounds.surfaceY,true),false);
+ assert.equal(a.contactCooldown,0);
 });

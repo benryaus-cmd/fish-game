@@ -16,7 +16,7 @@ const floor=()=>1580;
 const player=(x,y=1550)=>({x,y,L:72,growth:40});
 test('shrimp prey obeys growth and mouth size, and respawns in a bounded population',()=>{
  const state=createBottomEcology(); const s=state.shrimps[0]; const count=state.shrimps.length;
- assert.ok(count>=6&&count<=10); assert.equal(biteShrimp(state,s.rig,{L:72},34.9),false);
+ assert.equal(count,16); assert.equal(biteShrimp(state,s.rig,{L:72},34.9),false);
  assert.equal(biteShrimp(state,s.rig,{L:10},40),false);
  assert.equal(biteShrimp(state,s.rig,{L:72},40),true); assert.equal(s.active,false);
  updateBottomEcology(state,1,player(450),floor); assert.equal(s.active,false);
@@ -47,7 +47,7 @@ test('neutral viewing disables crab attacks while allowing roaming beyond old ho
  assert.equal(c.phase,'idle');assert.ok(c.rig.x>start+105);
 });
 test('shrimp occupy the water column and dodge quickly away from an approaching fish',()=>{
- const state=createBottomEcology();assert.ok(state.shrimps.some(s=>s.rig.y<500));assert.ok(state.shrimps.some(s=>s.rig.y>1200));
+ const state=createBottomEcology();assert.equal(state.shrimps.length,16);assert.ok(state.shrimps.some(s=>s.rig.y<500));assert.ok(state.shrimps.some(s=>s.rig.y>1200));
  const s=state.shrimps[0];const x=s.rig.x,y=s.rig.y;
  updateBottomEcology(state,.1,player(x-20,y),floor);
  assert.ok(s.rig.x>x+15);assert.ok(Math.hypot(s.rig.vx,s.rig.vy)>120);

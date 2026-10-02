@@ -237,7 +237,7 @@ export function updatePredator(
 
   // Line of sight check & nursery concealment
   const playerInNursery = playerSurvival.isInNursery;
-  const canSeePlayer = !playerInNursery && distToPlayer < 480 && !playerSurvival.isDead;
+  const canSeePlayer = !playerInNursery && distToPlayer < 384 && !playerSurvival.isDead;
 
   // Keep the last pursuit heading instead of rerolling a retreat target each frame.
   const disengage = (seconds: number) => {
@@ -274,7 +274,7 @@ export function updatePredator(
     }
 
     case 'stalk': {
-      if (playerInNursery || playerSurvival.isDead || distToPlayer > 680) {
+      if (playerInNursery || playerSurvival.isDead || distToPlayer > 544) {
         disengage(2.5);
         break;
       }
@@ -283,7 +283,7 @@ export function updatePredator(
       f.cruise = 2.4;
 
       // When close enough, charge!
-      if ((distToPlayer < 520 || pred.stateTimer <= 0) && pred.attackCooldown <= 0) {
+      if ((distToPlayer < 416 || pred.stateTimer <= 0) && pred.attackCooldown <= 0) {
         pred.state = 'charge';
         pred.stateTimer = 1.4;
         f.cruise = 6.4;
@@ -371,4 +371,25 @@ export function updatePredator(
   if (f.phase > TAU * 1000) f.phase -= TAU * 1000;
   f.finPhase += TAU * (0.6 + norm * 0.6) * dt;
   if (f.finPhase > TAU * 1000) f.finPhase -= TAU * 1000;
+}
+
+/** One neutral, unowned angelfish. Only physical contact provokes escape. */
+export interface MajesticAngel extends PreyEntity { contactCooldown: number; fleeSeconds: number; }
+export function createMajesticAngel(): MajesticAngel {
+  const resident=createPreyFish(88001,1100,650,145);
+  resident.fish.pSpeed=.55;
+  return {...resident,contactCooldown:0,fleeSeconds:0};
+}
+export function updateMajesticAngel(angel:MajesticAngel,player:Fish,predator:PredatorEntity,dt:number,surfaceY:(x:number)=>number,canHurt:boolean):boolean {
+  angel.contactCooldown=Math.max(0,angel.contactCooldown-dt);
+  angel.fleeSeconds=Math.max(0,angel.fleeSeconds-dt);
+  const f=angel.fish;
+  // Tall sail fins are contact hazards, not a detection/attack radius.
+  const touching=Math.hypot((player.x-f.x)/(f.L*.34+player.L*.25),(player.y-f.y)/(f.L*.52+player.L*.2))<1;
+  const hit=canHurt&&touching&&angel.contactCooldown===0;
+  if(hit){angel.contactCooldown=3;angel.fleeSeconds=3;f.turnCool=0;}
+  const neutral={...player,x:-10000,y:-10000};
+  f.pSpeed=angel.fleeSeconds>0?1.6:.55;
+  updatePrey([angel],angel.fleeSeconds>0?player:neutral,{...predator,fish:neutral},dt,0,0,WORLD_WIDTH,1800,surfaceY);
+  return hit;
 }
