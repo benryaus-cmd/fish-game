@@ -1,0 +1,145 @@
+{
+  "waterTopColor": {
+    "index": 0,
+    "name": "Top Water",
+    "description": "Soft turquoise tone near the surface",
+    "group": "water",
+    "type": "color",
+    "value": "#8fd8d6"
+  },
+  "waterMidColor": {
+    "index": 1,
+    "name": "Mid Water",
+    "description": "Clear calm blue in the middle of the scene",
+    "group": "water",
+    "type": "color",
+    "value": "#4aa6c8"
+  },
+  "waterDeepColor": {
+    "index": 2,
+    "name": "Deep Water",
+    "description": "Gentle blue-green tone near the floor",
+    "group": "water",
+    "type": "color",
+    "value": "#2f7f98"
+  },
+  "sandColor": {
+    "index": 3,
+    "name": "Sand",
+    "description": "Base color of the sandy floor",
+    "group": "floor",
+    "type": "color",
+    "value": "#e6d3ae"
+  },
+  "lightRayIntensity": {
+    "index": 4,
+    "name": "Light Rays",
+    "description": "Brightness of the soft light rays from above",
+    "group": "light",
+    "type": "number",
+    "value": 1,
+    "min": 0,
+    "max": 2,
+    "step": 0.1
+  },
+  "causticIntensity": {
+    "index": 5,
+    "name": "Caustics",
+    "description": "Strength of the shimmering light patterns",
+    "group": "light",
+    "type": "number",
+    "value": 1,
+    "min": 0,
+    "max": 2,
+    "step": 0.1
+  },
+  "bubbleAmount": {
+    "index": 6,
+    "name": "Bubbles",
+    "description": "How often bubbles rise",
+    "group": "life",
+    "type": "number",
+    "value": 1,
+    "min": 0,
+    "max": 2,
+    "step": 0.1
+  },
+  "particleAmount": {
+    "index": 7,
+    "name": "Particles",
+    "description": "Amount of floating underwater particles",
+    "group": "life",
+    "type": "number",
+    "value": 1,
+    "min": 0,
+    "max": 2,
+    "step": 0.1
+  },
+  "animationSpeed": {
+    "index": 8,
+    "name": "Motion",
+    "description": "Overall speed of all environmental movement",
+    "group": "life",
+    "type": "number",
+    "value": 1,
+    "min": 0.25,
+    "max": 2,
+    "step": 0.05
+  },
+  "showSoundButton": {
+    "index": 9,
+    "name": "Sound Btn",
+    "description": "Show the small sound toggle in the corner",
+    "group": "ui",
+    "type": "boolean",
+    "value": true
+  },
+  "fishColor": {
+    "index": 10,
+    "name": "Prey Color",
+    "description": "Main body color of the starter prey fish",
+    "group": "fish",
+    "type": "color",
+    "value": "#f0a25e"
+  },
+  "colorfulFishColor": {
+    "index": 11,
+    "name": "Prey Blue",
+    "description": "Main body color of the colorful prey fish",
+    "group": "fish",
+    "type": "color",
+    "value": "#4f98c4"
+  },
+  "colorfulAccentColor": {
+    "index": 12,
+    "name": "Prey Gold",
+    "description": "Golden accent of colorful prey fish",
+    "group": "fish",
+    "type": "color",
+    "value": "#eebd68"
+  },
+  "castleColor": {
+    "index": 13,
+    "name": "Castle",
+    "description": "Stone color of the Small Castle landmark",
+    "group": "decor",
+    "type": "color",
+    "value": "#c9bea8"
+  },
+  "rockColor": {
+    "index": 14,
+    "name": "Rock",
+    "description": "Base stone color of the aquarium rocks",
+    "group": "decor",
+    "type": "color",
+    "value": "#8f8a80"
+  },
+  "plantColor": {
+    "index": 15,
+    "name": "Plants",
+    "description": "Base leaf color of the aquatic plants",
+    "group": "decor",
+    "type": "color",
+    "value": "#6f8a4e"
+  }
+}
