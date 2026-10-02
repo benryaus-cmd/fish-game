@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AUDIO_SETTINGS_KEY, LEGACY_AUDIO_SETTINGS_KEY, loadAudioSettings, normalizeAudioSettings, normalizeVolume, sfxVolumeDb, writeAudioSettings } from '../src/games/importedAippy/upstream/src/utils/audioSettings.ts';
+import { AUDIO_SETTINGS_KEY, LEGACY_AUDIO_SETTINGS_KEY, loadAudioSettings, musicPlaybackGain, normalizeAudioSettings, normalizeVolume, sfxVolumeDb, writeAudioSettings } from '../src/games/importedAippy/upstream/src/utils/audioSettings.ts';
 function storage() {
   const entries = new Map<string, string>();
   return { entries, getItem: (key: string) => entries.get(key) ?? null, setItem: (key: string, value: string) => { entries.set(key, value); } };
@@ -29,7 +29,14 @@ test('legacy audio migration preserves the old key and unrelated profile', () =>
   assert.equal(memory.entries.get('aqualume.boutique.v1'), 'profile');
 });
 test('effect volume multiplies authored gain and keeps zero finite for mute', () => {
-  assert.equal(sfxVolumeDb(-4, 1), -4);
-  assert.ok(Math.abs(sfxVolumeDb(-6, .5) - (-12.020599913279625)) < 1e-10);
+  assert.ok(Math.abs(sfxVolumeDb(-4, 1) - (-7.098039199714864)) < 1e-10);
+  assert.ok(Math.abs(sfxVolumeDb(-6, .5) - (-15.118639112994487)) < 1e-10);
   assert.equal(sfxVolumeDb(-2, 0), -2);
+});
+
+test('music initial and live gains use seventy percent of previous amplitude', () => {
+  assert.ok(Math.abs(musicPlaybackGain(.8)-.252)<1e-12);
+  assert.ok(Math.abs(musicPlaybackGain(1)-.315)<1e-12);
+  assert.equal(musicPlaybackGain(0),0);
+  assert.equal(musicPlaybackGain(NaN),musicPlaybackGain(.8));
 });

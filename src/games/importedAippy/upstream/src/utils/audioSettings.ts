@@ -1,5 +1,6 @@
 /** SWIM audio preferences are independent of the saved aquarium profile. */
 export interface AudioSettings { version: 1; musicVolume: number; sfxVolume: number }
+export const MASTER_AUDIO_GAIN = .7;
 export const AUDIO_SETTINGS_KEY = 'swim.audio.v1';
 export const LEGACY_AUDIO_SETTINGS_KEY = 'aqualume.audio.v1';
 export const DEFAULT_AUDIO_SETTINGS: AudioSettings = { version: 1, musicVolume: .8, sfxVolume: .6 };
@@ -28,5 +29,10 @@ export function loadAudioSettings(storage?: AudioStorage): AudioSettings {
 }
 /** Linear effects gain preserves each synth's authored relative level. Zero uses mute. */
 export function sfxVolumeDb(baseDb: number, volume: number): number {
-  return volume > 0 ? baseDb + 20 * Math.log10(volume) : baseDb;
+  return volume > 0 ? baseDb + 20 * Math.log10(volume * MASTER_AUDIO_GAIN) : baseDb;
+}
+
+/** Shared level for initial playback and live music slider changes. */
+export function musicPlaybackGain(volume: number): number {
+  return .45 * MASTER_AUDIO_GAIN * normalizeVolume(volume, DEFAULT_AUDIO_SETTINGS.musicVolume);
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import WelcomeScreen from '@/components/WelcomeScreen';
-import AudioSettings from '@/components/AudioSettings';
+import AudioSettings from './components/AudioSettings';
 import Aquarium from '@/components/Aquarium';
 import HomeScreen from '@/components/HomeScreen';
 import StockSheet from '@/components/StockSheet';
@@ -10,7 +10,7 @@ import { initialiseCareProfile, advanceProfileCare } from '@/utils/worldClock';
 import { startBreeding, claimBreeding } from '@/utils/breeding';
 import { buyTankPellets, cleanTank, PELLET_PRICE, CLEAN_PRICE } from '@/utils/tankCare';
 import type { StockId } from '@/utils/stockCatalog';
-import { useAquariumAudio } from '@/hooks/useAquariumAudio';
+import { useAquariumAudio } from './hooks/useAquariumAudio';
 import '@/components/GardenUI.css';
 import '@/components/HomeUI.css';
 

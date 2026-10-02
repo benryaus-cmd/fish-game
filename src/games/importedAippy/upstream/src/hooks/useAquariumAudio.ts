@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAudioContext } from '@aippy/runtime/audio';
 import * as Tone from 'tone';
 import assetsData from '@/config/assets';
-import { loadAudioSettings, normalizeVolume, sfxVolumeDb, writeAudioSettings } from '@/utils/audioSettings';
+import { loadAudioSettings, musicPlaybackGain, normalizeVolume, sfxVolumeDb, writeAudioSettings } from '../utils/audioSettings';
 
 /** One audio owner for SWIM home, sheets and the currently raised fish. */
 export function useAquariumAudio() {
@@ -65,7 +65,7 @@ export function useAquariumAudio() {
           if (!isCurrent() || music.current) return;
           const source = ctx.createBufferSource(), gain = ctx.createGain();
           source.buffer = decoded; source.loop = true;
-          gain.gain.value = .45 * settingsRef.current.musicVolume;
+          gain.gain.value = musicPlaybackGain(settingsRef.current.musicVolume);
           source.connect(gain); gain.connect(ctx.destination);
           music.current = source; musicGain.current = gain; source.start();
         }
@@ -83,7 +83,7 @@ export function useAquariumAudio() {
       const now = gain.context.currentTime;
       gain.gain.cancelScheduledValues(now);
       if (musicVolume === 0) gain.gain.setValueAtTime(0, now);
-      else gain.gain.setTargetAtTime(.45 * musicVolume, now, .025);
+      else gain.gain.setTargetAtTime(musicPlaybackGain(musicVolume), now, .025);
     }
   }, []);
   const setSfxVolume = useCallback((value: number) => {

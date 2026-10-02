@@ -33,3 +33,5 @@ Default Burst endurance is 50% longer (normalized drain 65/1.5 per second); reta
 Launch welcomes players with V0.9, the native Rainbow portrait and a concise how-to-play card. Dismiss into View; returning from Swim does not reopen it. Browser journeys should dismiss Let’s begin before interacting with Home.
 
 A successful predator hit gives at least seven seconds without another predator hit, shared by both hunters; crab grace timing is independent.
+
+Audio integration uses explicit relative imports for the owner/settings path to avoid host-hook alias collisions. Music and SFX share a 0.7 master gain; saved percentages and 80/60 defaults remain.

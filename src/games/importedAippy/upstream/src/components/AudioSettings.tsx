@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import { useHomeSheet } from '@/components/HomeScreen';
-import type { AquariumAudio } from '@/hooks/useAquariumAudio';
+import type { AquariumAudio } from '../hooks/useAquariumAudio';
 import './HomeUI.css';
 
 interface Props { audio: AquariumAudio; onClose: () => void }

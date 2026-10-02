@@ -122,3 +122,5 @@ Predator/crab balance: both deal 8 health out of 100 per hit. Predator detection
 Default Burst endurance is 50% longer (normalized drain 65/1.5 per second); retain the saved 0–100 stamina scale and existing recovery/cooldown thresholds.
 
 A successful predator hit gives at least seven seconds without another predator hit, shared by both hunters; crab grace timing is independent.
+
+Audio master gain is 70% of the previous level for both channels, independent of the saved music/SFX percentages. Keep one audio owner and explicit imports for its settings contract.
