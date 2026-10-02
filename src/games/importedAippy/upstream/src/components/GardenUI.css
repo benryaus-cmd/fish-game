@@ -100,3 +100,14 @@
 .dialog-actions{gap:8px;margin-top:12px}.dialog-actions>p{margin:0 0 5px}
 @media(max-width:360px){.garden-stats{left:12px;right:12px}.garden-condition{width:145px}.garden-growth{min-width:72px;padding:7px 8px}.garden-joystick{width:90px;height:90px;left:12px}.garden-burst{right:66px;width:66px;height:66px}.nursery-action{left:108px;right:138px}.nursery-button{min-width:76px;max-width:78px;font-size:9px}}
 @media(max-height:600px){.garden-topbar{padding-top:8px}.garden-stats{top:58px}.garden-status{top:106px}.garden-joystick{width:92px;height:92px;bottom:16px}.garden-burst{bottom:22px}.nursery-action{bottom:16px}.garden-first-hint{bottom:112px}.garden-modal{padding:12px}.garden-dialog{padding:14px}.garden-dialog .fish-portrait{height:78px}.garden-dialog h2{font-size:23px}.garden-dialog p{font-size:10px}.dialog-actions{gap:6px}}
+
+/* Deliberate feeding and a compact shared clock, outside the swimming centre. */
+.world-time{display:inline-flex;align-items:center;gap:5px;color:#e6dcb4;font-size:10px;line-height:1.35;white-space:nowrap;font-variant-numeric:tabular-nums}
+.world-time>span:first-child{font-size:14px}.world-time small{font-size:9px;color:#c8d8c9;margin-left:4px}
+.garden-topbar .world-time{margin-top:3px}.garden-topbar>div>span.world-time{display:inline-flex;font-size:10px}
+.garden-eat{position:absolute;right:max(78px,calc(env(safe-area-inset-right) + 66px));bottom:max(34px,env(safe-area-inset-bottom));width:72px;height:72px;border-radius:50%;padding:3px;z-index:30;border:1px solid #efe2b27a;background:linear-gradient(140deg,#e4d5a1,#87966d);box-shadow:0 6px 24px #072d3766;touch-action:none;cursor:pointer}
+.garden-eat>span{display:flex;height:100%;border-radius:50%;background:radial-gradient(circle at 35% 20%,#536854,#193d40 75%);flex-direction:column;justify-content:center;color:#fff0c6;border:1px solid #faf4d63a;box-shadow:inset 0 2px 4px #d4e6dc22}
+.garden-eat b{font-size:12px;letter-spacing:.12em}.garden-eat small{font-size:7px;color:#dce4c8;margin-top:4px}.garden-eat:active{transform:scale(.96)}
+.garden-burst{right:max(20px,env(safe-area-inset-right));bottom:calc(max(24px,env(safe-area-inset-bottom)) + 110px);width:60px;height:60px}
+@media(max-width:360px){.garden-eat{right:66px;width:66px;height:66px}.garden-burst{right:16px;width:56px;height:56px}}
+@media(max-height:600px){.garden-eat{bottom:22px}.garden-burst{bottom:112px}.garden-topbar .world-time{font-size:9px}.garden-first-hint{bottom:114px;right:82px}}

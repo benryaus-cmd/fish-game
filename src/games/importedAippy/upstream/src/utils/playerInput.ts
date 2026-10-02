@@ -3,6 +3,7 @@ export interface JoystickInput {
   y: number; // -1 to 1
   active: boolean;
   burst: boolean;
+  eat?: boolean;
 }
 
 export class InputManager {
@@ -18,6 +19,9 @@ export class InputManager {
 
   private joyActive = false;
   private burstActive = false;
+  private eatPointerId: number | null = null;
+  private eatActive = false;
+  private eatQueued = false;
 
   constructor(private readonly acceptsKeyboard: () => boolean = () => true) {
     this.handleKeyDown = this.handleKeyDown.bind(this);
@@ -40,8 +44,9 @@ export class InputManager {
 
   private handleKeyDown(e: KeyboardEvent) {
     if (!this.acceptsKeyboard() || (e.target instanceof HTMLElement && e.target.closest('button,input,textarea,select,[contenteditable="true"]'))) return;
+    if (e.code === 'KeyE' && !this.keys.has(e.code)) this.eatQueued = true;
     this.keys.add(e.code);
-    if (e.code === 'Space') {
+    if (e.code === 'Space' || e.code === 'KeyE') {
       e.preventDefault();
     }
   }
@@ -66,6 +71,8 @@ export class InputManager {
     this.joyPointerId = null;
     this.burstActive = false;
     this.burstPointerId = null;
+    this.eatPointerId = null;
+    this.eatActive = this.eatQueued = false;
   }
 
   // Pointer joystick integration
@@ -102,6 +109,23 @@ export class InputManager {
     if (this.burstPointerId === pointerId) {
       this.burstPointerId = null;
       this.burstActive = false;
+    }
+  }
+
+  // Native keyboard / switch activation has detail 0. Pointer taps are queued on down.
+  onEatClick(detail: number) {
+    if (detail === 0) this.eatQueued = true;
+  }
+
+  onEatStart(pointerId: number) {
+    this.eatPointerId = pointerId;
+    this.eatActive = this.eatQueued = true;
+  }
+
+  onEatEnd(pointerId: number) {
+    if (this.eatPointerId === pointerId) {
+      this.eatPointerId = null;
+      this.eatActive = false;
     }
   }
 
@@ -150,7 +174,10 @@ export class InputManager {
       dy /= len;
     }
 
+    const eat = this.eatActive || this.keys.has('KeyE') || this.eatQueued;
+    this.eatQueued = false;
     return {
+      eat,
       x: dx,
       y: dy,
       active: len > 0.05,

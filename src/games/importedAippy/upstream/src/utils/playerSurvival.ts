@@ -84,19 +84,6 @@ export function updatePlayerFish(
     survival.growthPulse = Math.max(0, survival.growthPulse - dt * 1.5);
   }
 
-  // Hunger drains slowly over ~3.5 minutes (100 -> 0 in ~210s)
-  survival.hunger = Math.max(0, survival.hunger - (dt * 100) / 210);
-
-  // Starvation damage when hunger is zero
-  if (survival.hunger <= 0) {
-    survival.health = Math.max(0, survival.health - dt * 4.5);
-  }
-
-  // Healing in nursery if fed (hunger > 35)
-  if (inShelter && survival.hunger > 35 && survival.health < 100) {
-    survival.health = Math.min(100, survival.health + dt * 6.5);
-  }
-
   // Check dead
   if (survival.health <= 0) {
     survival.health = 0;

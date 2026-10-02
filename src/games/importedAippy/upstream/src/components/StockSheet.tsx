@@ -27,8 +27,8 @@ export default function StockSheet({ profile, saved, onChoose, onClose }: Props)
           return <article className="home-stock-card" key={stock.id}>
             <div className="home-stock-portrait"><FishPortrait specimen={specimen} /><span className="home-stock-price">{stock.price === 0 ? 'Free' : `◈ ${stock.price}`}</span></div>
             <div className="home-stock-copy"><p className="home-eyebrow">FRY · {stock.finForm.toUpperCase()} FINS</p><h3>{stock.name}</h3><p>{stock.description}</p>
-              <dl className="home-stock-facts"><div><dt>Potential</dt><dd>{stock.potential}</dd></div><div><dt>Starting condition</dt><dd>0% growth · 100% health · fully fed</dd></div><div><dt>Diet</dt><dd>Small fish found in the garden</dd></div><div><dt>Destination</dt><dd>Guppy Garden</dd></div></dl>
-              <p className="home-stock-clarifier">Swift and Ornamental are acquired while raising.</p>
+              <dl className="home-stock-facts"><div><dt>Potential</dt><dd>{stock.potential}</dd></div><div><dt>Starting condition</dt><dd>0% growth · 100% health · fully fed</dd></div><div><dt>Diet</dt><dd>Flakes and algae; tiny prey after juvenile growth</dd></div><div><dt>Destination</dt><dd>Growing tank · minimum 10 healthy minutes to adulthood</dd></div></dl>
+              <p className="home-stock-clarifier">Ornamental, Athletic and Vitality develop while raising.</p>
               <button className="home-button home-full" disabled={disabled} onClick={() => { if (disabled) return; onChoose(stock.id); }} aria-label={stock.id === 'ordinary' ? 'Raise ordinary guppy' : `Buy ${stock.name} guppy`}>{stock.price === 0 ? 'Raise ordinary guppy' : `Buy ${stock.name} guppy`} <span aria-hidden="true">↗</span></button>
               {!affordable && <p className="home-stock-shortfall">{stock.price - profile.coins} more credits needed</p>}
             </div>

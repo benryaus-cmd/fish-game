@@ -14,17 +14,17 @@ function advance(cam = createCamera(), hints = {}, seconds = 4, fps = 60, target
   return cam;
 }
 
-test('ordinary cruise and legacy callers preserve normal framing', () => {
-  assert.equal(createCamera().zoom, 1);
-  assert.equal(advance(undefined, { speed: 245, bodyLength: 72 }).zoom, 1);
+test('fry cruise starts close while camera limits still allow normal framing', () => {
+  assert.equal(createCamera().zoom, 1.18);
+  assert.equal(advance(undefined, { speed: 245, bodyLength: 72 }).zoom, 1.18);
   const cam = createCamera();
   updateCamera(cam, 1200, 900, 600, 450, 1);
-  assert.equal(cam.zoom, 1);
+  assert.equal(cam.zoom, 1.18);
 });
 
 test('sustained fast travel reveals space without reacting instantly to a brief burst', () => {
   const brief = advance(undefined, { speed: 500 }, 0.1);
-  assert.ok(brief.zoom > 0.95 && brief.zoom < 1);
+  assert.ok(brief.zoom > 1 && brief.zoom < 1.18);
   const fast = advance(undefined, { speed: 500 });
   assert.ok(fast.zoom >= 0.75 && fast.zoom < 0.76);
 });
@@ -40,9 +40,9 @@ test('zoom recovers smoothly and more slowly after travel stops', () => {
   const cam = advance(undefined, { speed: 500 });
   const initial = cam.zoom;
   advance(cam, { speed: 0 }, 0.5);
-  assert.ok(cam.zoom > initial && cam.zoom < 0.86);
+  assert.ok(cam.zoom > initial && cam.zoom < 0.9);
   advance(cam, { speed: 0 }, 8);
-  assert.ok(cam.zoom > 0.995 && cam.zoom <= 1);
+  assert.ok(cam.zoom > 1.17 && cam.zoom <= 1.18);
 });
 
 test('hysteresis avoids zoom pulsing around the speed threshold', () => {
@@ -54,7 +54,7 @@ test('hysteresis avoids zoom pulsing around the speed threshold', () => {
     samples.push(cam.zoom);
   }
   assert.ok(Math.max(...samples) - Math.min(...samples) < 0.005);
-  assert.ok(cam.zoom < 0.98);
+  assert.ok(cam.zoom < 1.13);
 });
 
 test('zoom and follow agree at 30, 60 and 120 fps', () => {
@@ -85,8 +85,8 @@ test('zoomed framing and resizing stay within all four world edges immediately',
 
 test('a viewport larger than the world centres the world rather than pinning one corner', () => {
   const cam = advance(undefined, {}, 1, 60, [3000, 2500], [3000, 2400]);
-  assert.equal(cam.x, -300);
-  assert.equal(cam.y, -300);
+  assert.ok(Math.abs(cam.x - (2400 - 3000 / cam.zoom) / 2) < 0.01);
+  assert.ok(Math.abs(cam.y - (1800 - 2400 / cam.zoom) / 2) < 0.01);
 });
 
 test('reduced motion turns off dynamic zoom, travel lead and shake immediately', () => {
@@ -120,6 +120,6 @@ test('shake does not expose outside the world at a clamped edge', () => {
 test('invalid motion hints and time cannot poison an otherwise valid camera', () => {
   const cam = createCamera();
   updateCamera(cam, 1200, 900, 600, 450, NaN, 0, 0, { speed: Infinity, bodyLength: NaN });
-  assert.equal(cam.zoom, 1);
+  assert.equal(cam.zoom, 1.18);
   for (const value of Object.values(cam)) assert.ok(Number.isFinite(value));
 });

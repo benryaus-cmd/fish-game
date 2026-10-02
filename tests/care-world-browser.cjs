@@ -1,0 +1,56 @@
+const assert = require('node:assert/strict'), fs = require('node:fs'), http = require('node:http');
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
+const key='aqualume.boutique.v1';
+const adult=(id,name,color,form)=>({id,name,species:'guppy',growth:80,health:100,hunger:100,traits:['ornate','vital'],color,accent:'#ffd36e',raisedSeconds:650,origin:'legacy',inherited:{colorFamily:color==='#368bc4'?'cool':'warm',finForm:form,parents:[]}});
+const profile={version:1,coins:100,sales:0,kept:[adult('coral','Coral','#f47f69','fan'),adult('azure','Azure','#368bc4','veil')],activeRun:null,completedRunIds:['coral','azure']};
+(async()=>{
+ const server=http.createServer((req,res)=>{res.setHeader('Content-Type','text/html');res.end(fs.readFileSync('dist/index.html'));});
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));let browser;
+ try {
+  browser=await chromium.launch({executablePath:process.env.CHROMIUM_EXECUTABLE,headless:true,args:[...require(process.env.CHROMIUM_ARGS_MODULE).default.args.filter(a=>a!=='--single-process'),'--disable-audio-output']});
+  const page=await browser.newPage({viewport:{width:390,height:680}});page.setDefaultTimeout(30000);
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.addInitScript(({profile,key})=>{if(!sessionStorage.getItem('care.seeded')){const now=Date.now();profile.worldClock={startedAtMs:now-60000,lastSeenMs:now};localStorage.setItem(key,JSON.stringify(profile));sessionStorage.setItem('care.seeded','yes');}window.careTestNow=Number(sessionStorage.getItem('care.testNow'))||Date.now();Date.now=()=>window.careTestNow;},{profile,key});
+  const click=name=>page.getByRole('button',{name,exact:true}).click();
+  const read=()=>page.evaluate(key=>JSON.parse(localStorage.getItem(key)),key);
+  const capture=async name=>{if(process.env.SCREENSHOTS)await page.screenshot({path:'test-results/care-'+name+'.png',timeout:60000});};
+  await page.goto('http://127.0.0.1:'+server.address().port,{waitUntil:'domcontentloaded'});
+  await page.getByLabel('World time').waitFor();await capture('home-day');
+  await click('Collection');await page.getByRole('button',{name:/View Coral,/}).click();
+  await page.getByText('Vitality',{exact:true}).waitFor();
+  await click('Raise in growing tank');
+  await page.getByRole('button',{name:'Eat food',exact:true}).waitFor();
+  let save=await read();assert.equal(save.activeRun.specimen.id,'coral');assert.equal(save.activeRun.source,'resident');assert.equal(save.kept.length,1);
+  await capture('growing');
+  await click('Open boutique');await click('Continue raising');
+  await page.getByRole('button',{name:'Eat food',exact:true}).waitFor();
+  await click('Return to viewing tank');await click('Return to viewing tank');await click('Return home');
+  save=await read();assert.equal(save.activeRun,null);assert.equal(save.kept.length,2);assert.equal(save.kept.filter(f=>f.id==='coral').length,1);
+  await click('Breed');await page.getByRole('dialog',{name:'Breed guppies'}).waitFor();
+  await click('Select Coral as a parent');await click('Select Azure as a parent');await capture('breeding-pair');
+  await page.getByRole('button',{name:/^Start breeding/}).click();save=await read();const childId=save.breeding.offspring.id;
+  assert.deepEqual([...save.breeding.parentIds].sort(),['azure','coral']);assert.equal(save.kept.length,2);
+  await page.evaluate(()=>{window.careTestNow+=121000;sessionStorage.setItem('care.testNow',String(window.careTestNow));});
+  await page.getByRole('button',{name:/^Welcome your guppy/}).waitFor({state:'visible'});await page.getByRole('button',{name:/^Welcome your guppy/}).click();
+  save=await read();assert.equal(save.kept.length,3);assert.ok(save.kept.some(f=>f.id===childId));assert.equal(save.breeding,null);
+  await click('Close breeding');await click('Collection');
+  await page.getByRole('button',{name:/View Guppy fry,/i}).click();await click('Raise in growing tank');
+  await page.getByRole('button',{name:'Eat food',exact:true}).waitFor();
+  await page.waitForTimeout(500);await click('Open boutique');save=await read();
+  assert.equal(save.activeRun.specimen.id,childId);assert.equal(save.activeRun.specimen.care.meals.flake,0,'overlapping food does not automatically eat');
+  await click('Continue raising');await page.getByRole('button',{name:'Eat food',exact:true}).focus();await page.keyboard.press('Enter');await page.waitForTimeout(500);
+  await click('Open boutique');save=await read();assert.equal(save.activeRun.specimen.care.meals.flake,1,'keyboard activation of Eat food eats one tutorial flake');
+  await click('Continue raising');
+  await click('Return to viewing tank');
+  await click('Return to viewing tank');await click('Return home');
+  save=await read();assert.equal(save.kept.length,3);assert.ok(save.kept.find(f=>f.id===childId).growth<75,'immature kept fish may safely return home');
+  await page.evaluate(()=>{window.careTestNow+=200000;sessionStorage.setItem('care.testNow',String(window.careTestNow));});
+  await page.waitForFunction(()=>document.querySelector('[aria-label="World time"]')?.textContent?.includes('Night'));
+  await capture('home-night');
+  await page.reload({waitUntil:'domcontentloaded'});save=await read();assert.equal(save.kept.length,3);assert.equal(save.kept.filter(f=>f.id===childId).length,1);
+  // A short Aippy-sized viewport must keep breeding actions in a scrollable sheet.
+  await page.setViewportSize({width:320,height:420});await click('Breed');await capture('breeding-short');await click('Close breeding');
+  assert.deepEqual(errors,[]);console.log('PASS shared world clock, resident raise/return, care details, persisted free breeding, explicit newborn eating and short-screen sheets');
+  await page.close();
+ }finally{if(browser)await Promise.race([browser.close(),new Promise(r=>setTimeout(r,1500))]);server.closeAllConnections();await new Promise(r=>server.close(r));}
+})().then(()=>process.exit(0),e=>{console.error(e);process.exit(1);});

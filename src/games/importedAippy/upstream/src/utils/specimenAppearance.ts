@@ -24,5 +24,6 @@ export function applySpecimenAppearance(fish: Fish, specimen: Specimen) {
 
 export function specimenModifiers(specimen: Specimen) {
   const swift = specimen.traits.filter(trait => trait === 'swift').length;
-  return { speedMultiplier: 1 + swift * 0.12, staminaDrainMultiplier: 1 + swift * 0.08 };
+  const vital = specimen.traits.filter(trait => trait === 'vital').length;
+  return { foodEfficiency: 1 + vital * 0.12, recoveryMultiplier: 1 + vital * 0.2, speedMultiplier: 1 + swift * 0.12, staminaDrainMultiplier: 1 + swift * 0.08 };
 }

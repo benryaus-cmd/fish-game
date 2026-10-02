@@ -23,7 +23,7 @@ const fixture = (coins = 0, activeRun = null, kept = []) => ({ version: 1, coins
       window.outingFrames = 0;
       const scale = CanvasRenderingContext2D.prototype.scale;
       CanvasRenderingContext2D.prototype.scale = function(x, y) {
-        if (this.canvas.className === 'block w-full h-full' && x === y && x >= .74 && x <= 1) window.outingFrames++;
+        if (this.canvas.className === 'block w-full h-full' && x === y && x >= .74 && x <= 1.18) window.outingFrames++;
         return scale.call(this, x, y);
       };
     });

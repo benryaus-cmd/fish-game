@@ -1,4 +1,6 @@
 import { useEffect, useState, type PointerEvent, type ReactNode, type RefObject } from 'react';
+import WorldTimeBadge from '@/components/WorldTimeBadge';
+import type { WorldClock } from '@/utils/worldClock';
 interface Hud { health: number; hunger: number; stamina: number; growth: number; inShelter: boolean; isDead: boolean; threat?: boolean }
 interface Props {
   hud: Hud; coins: number; value: number; stage: string; display: boolean; controls: boolean;
@@ -7,6 +9,10 @@ interface Props {
   knobRef: RefObject<HTMLDivElement>;
   joyDown: (e: PointerEvent<HTMLDivElement>) => void; joyMove: (e: PointerEvent<HTMLDivElement>) => void; joyUp: (e: PointerEvent<HTMLDivElement>) => void;
   burstDown: (e: PointerEvent<HTMLButtonElement>) => void; burstUp: (e: PointerEvent<HTMLButtonElement>) => void;
+  eatDown?: (e: PointerEvent<HTMLButtonElement>) => void; eatUp?: (e: PointerEvent<HTMLButtonElement>) => void;
+  worldClock?: WorldClock;
+  resident?: boolean;
+  eatClick?: (detail: number) => void;
   children?: ReactNode;
 }
 export default function GardenHUD(p: Props) {
@@ -16,7 +22,7 @@ export default function GardenHUD(p: Props) {
   useEffect(() => { const timer = window.setTimeout(() => setIntro(false), 8000); return () => window.clearTimeout(timer); }, []);
   const toggleDetails = () => setDetails(value => !value);
   return <>
-    <header className="garden-topbar"><div><p className="garden-eyebrow">AQUALUME</p><span>{p.display ? 'Personal display' : 'Guppy Garden'}</span></div>
+    <header className="garden-topbar"><div><p className="garden-eyebrow">AQUALUME</p><span>{p.display ? 'Viewing tank' : 'Growing tank'}</span><WorldTimeBadge clock={p.worldClock} /></div>
       <div className="garden-top-actions"><button className="garden-wallet garden-glass" onClick={p.onShop} aria-label="Open boutique">◈ {p.coins.toLocaleString()}</button>
         <button className="garden-round garden-glass" aria-label={p.sound ? 'Mute audio' : 'Enable audio'} onClick={p.onSound}>{p.sound ? '♪' : '♩'}</button></div>
     </header>
@@ -36,21 +42,22 @@ export default function GardenHUD(p: Props) {
       {details && <section className="garden-detail-panel garden-glass" aria-label="Fish details">
         <div><p className="garden-eyebrow">{p.stage} GUPPY</p><button className="garden-detail-close" aria-label="Close fish details" onClick={toggleDetails}>×</button></div>
         <p>Health <b>{hud.health}%</b> · Food <b>{hud.hunger}%</b></p><p>Growth <b>{hud.growth}%</b> · Nursery value <b>◈ {p.value}</b></p>
-        <p className="garden-detail-note">Feed on smaller fish. Return to the leafy nursery to sell or keep.</p>
+        <p className="garden-detail-note">Hold Eat near flakes or algae. Tiny prey unlocks as you grow. Tap your fish for its care and paths.</p>
       </section>}
     </>}
     {!p.saved && <p className="garden-save-warning" role="status">Saving unavailable</p>}
     {p.controls && <>
       {!p.display && !hud.isDead && <div className="nursery-action">
-        {hud.inShelter ? <button className="garden-button garden-glass nursery-button" aria-label={hud.growth >= 10 ? 'Appraise your fish' : 'Nursery · Feed to grow'} onClick={p.onAppraise}>{hud.growth >= 10 ? 'Appraise' : 'Feed to grow'} <span>↗</span></button> :
+        {hud.inShelter ? <button className="garden-button garden-glass nursery-button" aria-label={p.resident ? 'Return to viewing tank' : hud.growth >= 10 ? 'Appraise your fish' : 'Nursery · Feed to grow'} onClick={p.onAppraise}>{p.resident ? 'Return fish' : hud.growth >= 10 ? 'Appraise' : 'Feed to grow'} <span>↗</span></button> :
           <span className="nursery-direction" aria-label={'Nursery ' + (p.refuge?.distance ?? 0) + ' units away'}><i style={{ transform: 'rotate(' + (p.refuge?.angle ?? 0) + 'rad)' }}>➜</i><span>Nursery<small>{p.refuge?.distance ?? 0} away</small></span></span>}
       </div>}
-      {!p.display && intro && hud.growth < 10 && <p className="garden-first-hint">Eat small fish · Return here to sell or keep</p>}
+      {!p.display && intro && hud.growth < 10 && <p className="garden-first-hint">Hold Eat near food · Tap your fish for care</p>}
       {p.display && <div className="nursery-action"><span className="nursery-direction">♡ Safe home</span></div>}
       <div className="garden-joystick" onPointerDown={p.joyDown} onPointerMove={p.joyMove} onPointerUp={p.joyUp} onPointerCancel={p.joyUp} aria-label="Swim joystick">
         <div className="joystick-inner" /><div className="joystick-knob" ref={p.knobRef}><span /></div>
       </div>
       <button className="garden-burst" aria-label="Burst speed" onPointerDown={p.burstDown} onPointerUp={p.burstUp} onPointerCancel={p.burstUp} style={{ background: 'conic-gradient(#e5d59d ' + hud.stamina * 3.6 + 'deg, rgba(225,235,223,0.12) 0)' }}><span><b>BURST</b><small>hold / space</small></span></button>
+      {!p.display && <button className="garden-eat" aria-label="Eat food" onClick={e => p.eatClick?.(e.detail)} onPointerDown={p.eatDown} onPointerUp={p.eatUp} onPointerCancel={p.eatUp}><span><b>EAT</b><small>tap / hold / E</small></span></button>}
     </>}
     {p.children}
   </>;

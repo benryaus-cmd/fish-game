@@ -5,16 +5,21 @@ import { drawFish, drawFishShadow } from '@/utils/fishRender';
 import { applySpecimenAppearance } from '@/utils/specimenAppearance';
 import { drawPlant, type PlantDef } from '@/utils/plantRender';
 import { drawRock } from '@/utils/rockRender';
+import { drawWaterCaustics, getCausticPattern } from '@/utils/aquaScene';
+import { drawSandCaustics, drawCycleTint } from '@/utils/tankLighting';
+import { sampleWorldClock, type WorldClock } from '@/utils/worldClock';
 import { canvasHomePoint, createHomeResidents, pickHomeResident, stepHomeResidents, type HomeAxis, type HomeResident } from '@/utils/homeScene';
 
 export interface HomeTankProps {
   width: number; height: number; specimens: Specimen[]; controlledId: string | null;
-  onSelect: (id: string) => void; paused?: boolean;
+  onSelect: (id: string) => void; paused?: boolean; worldClock?: WorldClock;
 }
 interface Rig { fish: Fish; palette: FishPalette; appearance: string }
 const plants: PlantDef[] = Array.from({ length: 13 }, (_, i) => ({ kind: i % 3 === 0 ? 'leafy' : i % 3 === 1 ? 'tall' : 'grass', h: 1.4 + (i % 4) * 0.5, seed: 43 + i * 7, tone: i % 3 }));
 
-export default function HomeTank({ width, height, specimens, controlledId, onSelect, paused = false }: HomeTankProps) {
+export default function HomeTank({ width, height, specimens, controlledId, onSelect, paused = false, worldClock }: HomeTankProps) {
+  const clockRef = useRef(worldClock), visualTime = useRef(0);
+  clockRef.current = worldClock;
   const container = useRef<HTMLDivElement>(null), canvas = useRef<HTMLCanvasElement>(null);
   const residents = useRef<HomeResident[]>([]), rigs = useRef(new Map<string, Rig>());
   const axis = useRef<HomeAxis>({ x: 0, y: 0 }), thumb = useRef<HTMLSpanElement>(null);
@@ -53,8 +58,9 @@ export default function HomeTank({ width, height, specimens, controlledId, onSel
     for (const id of rigs.current.keys()) if (!residents.current.some(r => r.id === id)) rigs.current.delete(id);
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     const keys = new Set<string>();
-    let frame = 0, last = 0, sceneTime = 0;
-    const sandY = h * 0.86;
+    let frame = 0, staticTimer = 0, last = 0;
+    const pattern = getCausticPattern(ctx);
+    const sandY = h * 0.80;
     const surface = (x: number) => sandY + Math.sin(x / w * 6 + 0.5) * 6;
     const decorScale = Math.min(65, w * 0.12, h * 0.17);
     const background = document.createElement('canvas'); background.width = el.width; background.height = el.height;
@@ -76,22 +82,28 @@ export default function HomeTank({ width, height, specimens, controlledId, onSel
       const x = (i * 73.31 % w), y = sandY + (i * 19.17 % Math.max(1,h-sandY));
       bg.fillStyle = i % 3 === 0 ? 'rgba(244,230,191,.23)' : 'rgba(58,69,55,.15)'; bg.fillRect(x,y,1.2,0.8);
     }
-    for (let i = 0; i < 5; i++) {
-      const x = w * [0.08,0.19,0.75,0.89,0.95][i];
-      drawRock(bg,x,surface(x)+5,{w:1.2+(i%2)*0.6,h:0.65+(i%3)*0.19,seed:11+i*4,tone:i%3},decorScale,'#899887');
-    }
     const render = (now: number) => {
       frame = 0;
       if (document.hidden) return;
       const dt = last ? Math.min(0.1,(now-last)/1000) : 0; last = now;
       const keyAxis = { x: Number(keys.has('arrowright') || keys.has('d')) - Number(keys.has('arrowleft') || keys.has('a')), y: Number(keys.has('arrowdown') || keys.has('s')) - Number(keys.has('arrowup') || keys.has('w')) };
       const input = keys.size ? keyAxis : axis.current;
-      if (!reduced.matches) sceneTime += dt;
+      if (!reduced.matches && !paused) visualTime.current += dt;
+      const sceneTime = visualTime.current;
+      const daylight = clockRef.current ? sampleWorldClock(clockRef.current, Date.now()).daylight : 1;
       // Reduced motion freezes autonomous swimming and planting, while deliberate control stays usable.
-      if (!reduced.matches) residents.current = stepHomeResidents(residents.current,w,h,dt,controlledId,input);
-      else if (controlledId) residents.current = residents.current.map(r => r.id === controlledId ? stepHomeResidents([r],w,h,dt,controlledId,input)[0] : r);
+      if (!paused && !reduced.matches) residents.current = stepHomeResidents(residents.current,w,h,dt,controlledId,input);
+      else if (!paused && controlledId) residents.current = residents.current.map(r => r.id === controlledId ? stepHomeResidents([r],w,h,dt,controlledId,input)[0] : r);
       ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(background,0,0);
       ctx.setTransform(dpr,0,0,dpr,0,0);
+      if (pattern) {
+        drawWaterCaustics(ctx, pattern, sceneTime, 0, 0, w, h, 0.016 * (0.2 + daylight * 0.8), h);
+        drawSandCaustics(ctx, pattern, sceneTime, { x: 0, y: 0, width: w, height: h }, surface, daylight, h);
+      }
+      for (let i = 0; i < 5; i++) {
+        const x = w * [0.08,0.19,0.75,0.89,0.95][i];
+        drawRock(ctx,x,surface(x)+5,{w:1.2+(i%2)*0.6,h:0.65+(i%3)*0.19,seed:11+i*4,tone:i%3},decorScale,'#899887');
+      }
       const plantX = (i: number) => w * (i < 7 ? 0.015+i*0.047 : 0.73+(i-7)*0.05);
       plants.forEach((p,i) => drawPlant(ctx,plantX(i),surface(plantX(i))+3,p,decorScale,'#688e61',sceneTime, i<7 ? 0.7 : 0.86,'back'));
       for (const r of [...residents.current].sort((a,b)=>a.y-b.y)) {
@@ -107,10 +119,12 @@ export default function HomeTank({ width, height, specimens, controlledId, onSel
         const x = (i*79.31+sceneTime*1.4)%w, y = (i*47.7+sceneTime*2)%sandY;
         ctx.fillStyle='rgba(232,241,211,.15)'; ctx.beginPath(); ctx.arc(x,y,i%3===0?1.3:0.7,0,Math.PI*2); ctx.fill();
       }
+      drawCycleTint(ctx, w, h, daylight);
       if (!paused && (!reduced.matches || controlledId)) frame=requestAnimationFrame(render);
+      else staticTimer=window.setTimeout(() => render(performance.now()), 1000);
     };
     const clearInput = () => { keys.clear(); axis.current={x:0,y:0}; if(thumb.current) thumb.current.style.transform='translate(0px, 0px)'; };
-    const visibility = () => { cancelAnimationFrame(frame); frame=0; last=0; clearInput(); if(!document.hidden&&!paused) frame=requestAnimationFrame(render); };
+    const visibility = () => { cancelAnimationFrame(frame); clearTimeout(staticTimer); frame=0; last=0; clearInput(); if(!document.hidden) frame=requestAnimationFrame(render); };
     const key = (event: KeyboardEvent, down: boolean) => {
       if (!controlledId || paused || document.hidden || (event.target instanceof HTMLElement && /INPUT|TEXTAREA|SELECT/.test(event.target.tagName))) return;
       const name=event.key.toLowerCase(); if(!['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d'].includes(name)) return;
@@ -119,9 +133,9 @@ export default function HomeTank({ width, height, specimens, controlledId, onSel
     const keydown=(event:KeyboardEvent)=>key(event,true), keyup=(event:KeyboardEvent)=>key(event,false);
     reduced.addEventListener('change',visibility);
     window.addEventListener('keydown',keydown); window.addEventListener('keyup',keyup); window.addEventListener('blur',clearInput); document.addEventListener('visibilitychange',visibility);
-    // Render a first static frame even while paused, then stop scheduling.
+    // Static poses still sample the shared clock; reduced motion freezes moving light.
     render(performance.now());
-    return () => { cancelAnimationFrame(frame); clearInput(); reduced.removeEventListener('change',visibility); window.removeEventListener('keydown',keydown); window.removeEventListener('keyup',keyup); window.removeEventListener('blur',clearInput); document.removeEventListener('visibilitychange',visibility); };
+    return () => { cancelAnimationFrame(frame); clearTimeout(staticTimer); clearInput(); reduced.removeEventListener('change',visibility); window.removeEventListener('keydown',keydown); window.removeEventListener('keyup',keyup); window.removeEventListener('blur',clearInput); document.removeEventListener('visibilitychange',visibility); };
   }, [measured, specimens, controlledId, paused]);
 
   const movePad = (event: React.PointerEvent<HTMLDivElement>) => {

@@ -1,0 +1,27 @@
+{
+  "update": "fish-care-world-v1",
+  "baseUrl": "https://raw.githubusercontent.com/benryaus-cmd/fish-game/main/",
+  "files": [
+    "src/games/importedAippy/upstream/src/App.tsx",
+    "src/games/importedAippy/upstream/src/components/Aquarium.tsx",
+    "src/games/importedAippy/upstream/src/components/GardenHUD.tsx",
+    "src/games/importedAippy/upstream/src/components/GardenUI.css",
+    "src/games/importedAippy/upstream/src/components/HomeScreen.tsx",
+    "src/games/importedAippy/upstream/src/components/HomeTank.tsx",
+    "src/games/importedAippy/upstream/src/components/HomeUI.css",
+    "src/games/importedAippy/upstream/src/components/StockSheet.tsx",
+    "src/games/importedAippy/upstream/src/utils/boutique.ts",
+    "src/games/importedAippy/upstream/src/utils/playerInput.ts",
+    "src/games/importedAippy/upstream/src/utils/playerSurvival.ts",
+    "src/games/importedAippy/upstream/src/utils/specimenAppearance.ts",
+    "src/games/importedAippy/upstream/src/utils/worldCamera.ts",
+    "src/games/importedAippy/upstream/src/components/BreedingSheet.tsx",
+    "src/games/importedAippy/upstream/src/components/FishCarePanel.tsx",
+    "src/games/importedAippy/upstream/src/components/WorldTimeBadge.tsx",
+    "src/games/importedAippy/upstream/src/utils/breeding.ts",
+    "src/games/importedAippy/upstream/src/utils/foodEcology.ts",
+    "src/games/importedAippy/upstream/src/utils/specimenCare.ts",
+    "src/games/importedAippy/upstream/src/utils/tankLighting.ts",
+    "src/games/importedAippy/upstream/src/utils/worldClock.ts"
+  ]
+}

@@ -18,11 +18,17 @@ import { createCamera, updateCamera, getCameraView, triggerCameraShake, worldSur
 import { createPlayerSurvival, updatePlayerFish, type PlayerSurvivalState } from '@/utils/playerSurvival';
 import { createPreyFish, createPredatorFish, getFishMouthPos, updatePrey, updatePredator, type PreyEntity, type PredatorEntity } from '@/utils/survivalEcology';
 import { createSurvivalJuice, spawnBurstWake, spawnEatGlints, updateSurvivalJuice, drawSurvivalJuice } from '@/utils/survivalJuice';
-import { createSpecimen, appraiseFish, getStage, settleRun, type ActiveRun, type Adaptation, type BoutiqueSave, type Specimen } from '@/utils/boutique';
+import { createSpecimen, appraiseFish, getStage, settleRun, NURSERY_CAPACITY, type ActiveRun, type Adaptation, type BoutiqueSave, type Specimen } from '@/utils/boutique';
 import { applySpecimenAppearance, specimenModifiers } from '@/utils/specimenAppearance';
 import { isInNursery, drawNurseryCover } from '@/utils/nurseryCover';
 import GardenHUD from '@/components/GardenHUD';
 import FishPortrait from '@/components/FishPortrait';
+import FishCarePanel from '@/components/FishCarePanel';
+import { useHomeSheet } from '@/components/HomeScreen';
+import { ensureSpecimenCare, advanceSpecimenCare, feedSpecimen } from '@/utils/specimenCare';
+import { drawSandCaustics, drawCycleTint } from '@/utils/tankLighting';
+import { sampleWorldClock } from '@/utils/worldClock';
+import { createFoodEcology, updateFoodEcology, drawFoodEcology, biteFood, canEatFood, BITE_INTERVAL_SECONDS } from '@/utils/foodEcology';
 const tweaks = aippyTweaks(tweaksConfig);
 const NOOP = () => {};
 interface AquariumProps {
@@ -71,6 +77,8 @@ const Aquarium = ({
     isDead: false,
     score: 0
   });
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const detailsSheetRef = useHomeSheet(detailsOpen, () => setDetailsOpen(false));
   const [appraisalOpen, setAppraisalOpen] = useState(false);
   const [choiceStage, setChoiceStage] = useState(0);
   const [receipt, setReceipt] = useState<{ kind: 'sell' | 'keep'; value: number; specimen: Specimen } | null>(null);
@@ -88,9 +96,10 @@ const Aquarium = ({
   viewportRef.current = { width, height };
   const resumeRef = useRef(profile.activeRun);
   const specimenRef = useRef<Specimen>(displaySpecimen ?? profile.activeRun?.specimen ?? createSpecimen());
+  const runMetadataRef = useRef(profile.activeRun);
   const endedRef = useRef(false);
   const modalRef = useRef(false);
-  modalRef.current = paused || appraisalOpen || choiceStage > 0 || receipt !== null;
+  modalRef.current = paused || detailsOpen || appraisalOpen || choiceStage > 0 || receipt !== null;
   const checkpointRef = useRef(0);
   const stickKnobRef = useRef<HTMLDivElement>(null);
   const displayPalettesRef = useRef(new Map<number, FishPalette>());
@@ -103,6 +112,8 @@ const Aquarium = ({
   const worldSceneRef = useRef(buildWorldScene());
 
   // Entities
+  const foodRef = useRef(createFoodEcology());
+  const biteCooldownRef = useRef(0);
   const playerRef = useRef<Fish | null>(null);
   const preyListRef = useRef<PreyEntity[]>([]);
   const predatorRef = useRef<PredatorEntity | null>(null);
@@ -125,7 +136,7 @@ const Aquarium = ({
     const fish = playerRef.current;
     const state = survivalRef.current;
     if (!fish || endedRef.current || displaySpecimen) return null;
-    return { specimen: { ...specimenRef.current, growth: state.growth, health: state.health, hunger: state.hunger },
+    return { ...runMetadataRef.current, specimen: { ...specimenRef.current, growth: state.growth, health: state.health, hunger: state.hunger },
       x: fish.x, y: fish.y, stamina: state.stamina };
   }, [displaySpecimen]);
 
@@ -134,7 +145,14 @@ const Aquarium = ({
     const current = profileRef.current;
     if (!current.activeRun) return true;
     const runId = specimenRef.current.id;
-    if (current.activeRun.specimen.id !== runId) return false;
+    if (current.activeRun.specimen.id !== runId || current.activeRun.visitId !== runMetadataRef.current?.visitId) return false;
+    if (runMetadataRef.current?.source === 'resident') {
+      const candidate = { ...current, activeRun: { ...runMetadataRef.current, specimen: { ...specimenRef.current, health: Math.max(40, survivalRef.current.health), hunger: survivalRef.current.hunger, growth: survivalRef.current.growth } } };
+      const next = settleRun(candidate, runId, 'keep');
+      if (next === candidate || !onProfileChange(next)) return false;
+      profileRef.current = next;
+      return true;
+    }
     const next = { ...current, activeRun: null,
       completedRunIds: [...new Set([...current.completedRunIds, runId])].slice(-10_000) };
     if (!onProfileChange(next)) return false;
@@ -204,7 +222,10 @@ const Aquarium = ({
   const restartGame = useCallback(() => {
     const resume = displaySpecimen ? null : resumeRef.current;
     resumeRef.current = null;
-    specimenRef.current = displaySpecimen ?? resume?.specimen ?? createSpecimen();
+    runMetadataRef.current = resume;
+    specimenRef.current = ensureSpecimenCare(displaySpecimen ?? resume?.specimen ?? createSpecimen(), Date.now());
+    foodRef.current = createFoodEcology(); biteCooldownRef.current = 0;
+    setDetailsOpen(false);
     endedRef.current = false;
     setAppraisalOpen(false); setChoiceStage(0); setReceipt(null);
     inputManagerRef.current?.resetInput();
@@ -231,8 +252,9 @@ const Aquarium = ({
     // Reset camera onto player
     const cam = cameraRef.current = createCamera();
     const viewport = viewportRef.current;
-    cam.x = Math.max(0, Math.min(Math.max(0, WORLD_WIDTH - viewport.width), startX - viewport.width / 2));
-    cam.y = Math.max(0, Math.min(Math.max(0, WORLD_HEIGHT - viewport.height), startY - viewport.height / 2));
+    if (reducedMotion) cam.zoom = 1;
+    cam.x = Math.max(0, Math.min(Math.max(0, WORLD_WIDTH - viewport.width / cam.zoom), startX - viewport.width / cam.zoom / 2));
+    cam.y = Math.max(0, Math.min(Math.max(0, WORLD_HEIGHT - viewport.height / cam.zoom), startY - viewport.height / cam.zoom / 2));
 
     // Spawn 24 prey distributed across feeding zone and open waters
     const prey: PreyEntity[] = [];
@@ -308,13 +330,23 @@ const Aquarium = ({
     inputManagerRef.current?.onBurstEnd(e.pointerId);
   };
 
+  const handleEatPointerDown = (e: PointerEvent<HTMLButtonElement>) => {
+    void initAudio(); e.currentTarget.setPointerCapture(e.pointerId);
+    inputManagerRef.current?.onEatStart(e.pointerId);
+  };
+  const handleEatPointerUp = (e: PointerEvent<HTMLButtonElement>) => {
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* released */ }
+    inputManagerRef.current?.onEatEnd(e.pointerId);
+  };
+  useEffect(() => { if (paused || detailsOpen || appraisalOpen || choiceStage || receipt) inputManagerRef.current?.resetInput(); }, [paused, detailsOpen, appraisalOpen, choiceStage, receipt]);
+
   // Main Simulation & Render Loop
   const {
     canvasRef
   } = useGameLoop({
     width,
     height,
-    maxFPS: paused || appraisalOpen || choiceStage > 0 || receipt ? 10 : 60,
+    maxFPS: paused || detailsOpen || appraisalOpen || choiceStage > 0 || receipt ? 10 : 60,
     designWidth: 0
   }, ({
     deltaTime,
@@ -344,6 +376,16 @@ const Aquarium = ({
     // Nursery Shelter Check: player in X: 160..720, Y > 1250
     const inShelter = isInNursery(player.x, player.y);
 
+    if (!displaySpecimen && !survival.isDead) {
+      specimenRef.current = advanceSpecimenCare({ ...specimenRef.current, health: survival.health, hunger: survival.hunger, growth: survival.growth }, Date.now(), 'growing');
+      survival.health = specimenRef.current.health;
+      survival.hunger = specimenRef.current.hunger;
+      survival.growth = specimenRef.current.growth;
+      player.L = startLengthRef.current * (1 + survival.growth / 100 * 0.6);
+    }
+    updateFoodEcology(foodRef.current, Math.min(deltaTime, 0.05));
+
+
     // Sound trigger on burst start
     if (input.burst && survival.stamina > 25 && survival.burstCooldown <= 0 && !survival.isBursting) {
       playBurstSound();
@@ -358,7 +400,7 @@ const Aquarium = ({
       }, inShelter, specimenModifiers(specimenRef.current));
       if (displaySpecimen) {
         survival.health = 100; survival.hunger = 100; survival.isDead = false;
-      } else specimenRef.current.raisedSeconds += dt;
+      }
 
       // Burst bubble wake
       if (survival.isBursting && Math.random() < 0.6) {
@@ -367,51 +409,22 @@ const Aquarium = ({
         spawnBurstWake(juice, tailX, tailY, Math.cos(player.yawBody));
       }
 
-      // Automatic biting when suitable prey is close to player mouth
-      const pMouth = getFishMouthPos(player);
-      const maxEdibleRatio = 0.68; // prey below ~68% player length
-      const maxGrowthCap = startLengthRef.current * 1.6;
-      for (const p of displaySpecimen ? [] : preyListRef.current) {
-        if (!p.active) continue;
-        // Check if small enough
-        if (p.fish.L <= player.L * maxEdibleRatio) {
-          const dx = p.fish.x - pMouth.x;
-          const dy = p.fish.y - pMouth.y;
-          const dist = Math.hypot(dx, dy);
-          // Must be in front of player
-          const headX = Math.cos(player.yaw) * Math.cos(player.pitch);
-          const headY = -Math.sin(player.pitch);
-          const inFront = dx * headX + dy * headY > -player.L * 0.15;
-          if (dist < player.L * 0.38 && inFront) {
-            // BITE SUCCESS!
-            p.active = false;
-            p.respawnTimer = 6.0 + Math.random() * 4.0; // delayed replenishment outside camera
-
-            player.mouth = 1.0;
-            survival.hunger = Math.min(100, survival.hunger + 22);
-            survival.growthPulse = 1.0;
-
-            // Smooth growth award (0..100%)
-            const growthDelta = 5;
-            const nextGrowth = Math.min(100, survival.growth + growthDelta);
-            survival.growth = nextGrowth;
-            player.L = Math.min(maxGrowthCap, startLengthRef.current * (1 + nextGrowth / 100 * 0.6));
-
-            // FX & Audio
-            spawnEatGlints(juice, pMouth.x, pMouth.y, player.L);
-            playBiteSound();
-
-            // Scatter nearby prey
-            for (const other of preyListRef.current) {
-              if (!other.active) continue;
-              const d = Math.hypot(other.fish.x - pMouth.x, other.fish.y - pMouth.y);
-              if (d < player.L * 2.8) {
-                other.fish.cruise = 1.5;
-                other.fish.decide = 0.8;
-              }
-            }
-            break;
-          }
+      // A bite only occurs on EAT; touching food while swimming never eats it.
+      if (input.eat && Date.now() >= biteCooldownRef.current && !displaySpecimen) {
+        biteCooldownRef.current = Date.now() + BITE_INTERVAL_SECONDS * 1000;
+        player.mouth = 1;
+        const mouth = getFishMouthPos(player);
+        let meal = biteFood(foodRef.current, mouth, player, survival.growth);
+        if (!meal) {
+          const prey = preyListRef.current.find(p => p.active && canEatFood('prey', survival.growth, p.fish.L, player.L) && Math.hypot(p.fish.x - mouth.x, p.fish.y - mouth.y) < player.L * 0.3);
+          if (prey) { prey.active = false; prey.respawnTimer = 8; meal = 'prey'; }
+        }
+        if (meal) {
+          const phase = profileRef.current.worldClock ? sampleWorldClock(profileRef.current.worldClock, Date.now()).phase : 'day';
+          specimenRef.current = feedSpecimen(specimenRef.current, meal, Date.now(), phase);
+          survival.hunger = specimenRef.current.hunger;
+          survival.health = specimenRef.current.health;
+          spawnEatGlints(juice, mouth.x, mouth.y, player.L); playBiteSound();
         }
       }
     }
@@ -485,6 +498,7 @@ const Aquarium = ({
     const predator = predatorRef.current;
     const survival = survivalRef.current;
     const t = timeRef.current;
+    const daylight = profileRef.current.worldClock ? sampleWorldClock(profileRef.current.worldClock, Date.now()).daylight : 1;
     const juice = juiceRef.current;
     const bubbleSprite = getBubbleSprite();
     const dotSprite = getDotSprite();
@@ -514,12 +528,12 @@ const Aquarium = ({
 
     // Light Rays
     ctx.globalCompositeOperation = 'lighter';
-    drawRays(ctx, raysRef.current, t, rayIntensity);
+    drawRays(ctx, raysRef.current, t, rayIntensity * (0.15 + daylight * 0.85));
 
     // Caustics
     const pat = getCausticPattern(ctx);
     if (pat && causticIntensity > 0) {
-      drawWaterCaustics(ctx, pat, t, renderCamX, renderCamY, view.width, view.height, 0.055 * causticIntensity, WORLD_HEIGHT);
+      drawWaterCaustics(ctx, pat, t, renderCamX, renderCamY, view.width, view.height, 0.018 * causticIntensity * (0.2 + daylight * 0.8), WORLD_HEIGHT);
     }
     ctx.globalCompositeOperation = 'source-over';
 
@@ -543,6 +557,8 @@ const Aquarium = ({
     ctx.strokeStyle = 'rgba(20, 60, 75, 0.25)';
     ctx.lineWidth = 2.5;
     ctx.stroke();
+
+    if (pat) drawSandCaustics(ctx, pat, t, view, worldSurfaceY, daylight * causticIntensity, WORLD_HEIGHT);
 
     // Landmarks: Castle (at bottom-right sand)
     const castle = CASTLE_LANDMARK;
@@ -571,6 +587,8 @@ const Aquarium = ({
         drawPlant(ctx, p.x, p.baseY, p, p.S, '#4fa85c', t, 1, 'back');
       }
     }
+
+    drawFoodEcology(ctx, foodRef.current, t);
 
     // Shadows on sand
     if (player && player.x >= viewLeft && player.x <= viewRight) {
@@ -625,6 +643,7 @@ const Aquarium = ({
     drawBubbles(ctx, bubblesRef.current, bubbleSprite, WORLD_HEIGHT, false);
     drawMotes(ctx, motesRef.current, dotSprite, true);
     ctx.restore(); // End World Space
+    drawCycleTint(ctx, vW, vH, daylight);
   });
 
   const openBoutique = () => {
@@ -671,24 +690,40 @@ const Aquarium = ({
   const refugeY = player ? Math.max(NURSERY_ZONE.y0, Math.min(NURSERY_ZONE.y1, player.y)) : 1520;
   const refuge = { distance: player ? Math.round(Math.hypot(refugeX - player.x, refugeY - player.y)) : 0,
     angle: player ? Math.atan2(refugeY - player.y, refugeX - player.x) : 0 };
-  const controls = !paused && !appraisalOpen && !choiceStage && !receipt && !hudState.isDead;
+  const nurseryFull = profile.kept.length + (profile.breeding ? 1 : 0) >= NURSERY_CAPACITY;
+  const resident = runMetadataRef.current?.source === 'resident';
+  const controls = !paused && !detailsOpen && !appraisalOpen && !choiceStage && !receipt && !hudState.isDead;
   return <div className="garden-root" onClick={() => void initAudio()}>
-    <canvas ref={canvasRef} className="block w-full h-full" />
+    <canvas ref={canvasRef} className="block w-full h-full" onPointerDown={e => {
+      if (!controls || !playerRef.current) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const view = getCameraView(cameraRef.current, width, height);
+      const x = view.x + (e.clientX - rect.left) * width / rect.width / view.zoom;
+      const y = view.y + (e.clientY - rect.top) * height / rect.height / view.zoom;
+      const fish = playerRef.current;
+      if (Math.hypot(x - fish.x, y - fish.y) < fish.L * 0.65) {
+        inputManagerRef.current?.resetInput(); modalRef.current = true; setDetailsOpen(true); saveRun();
+      }
+    }} />
     <GardenHUD hud={{ ...hudState, threat: predatorRef.current?.state === 'stalk' || predatorRef.current?.state === 'charge' }}
       coins={profile.coins} value={appraiseFish(specimen)} stage={getStage(hudState.growth)} refuge={refuge}
-      display={!!displaySpecimen} controls={controls} saved={saved}
+      resident={resident} worldClock={profile.worldClock} display={!!displaySpecimen} controls={controls} saved={saved}
       onShop={openBoutique} onAppraise={openAppraisal} onSound={toggleSound} sound={soundEnabled}
       knobRef={stickKnobRef} joyDown={handleJoyPointerDown} joyMove={handleJoyPointerMove} joyUp={handleJoyPointerUp}
+      eatDown={handleEatPointerDown} eatUp={handleEatPointerUp} eatClick={detail => inputManagerRef.current?.onEatClick(detail)}
       burstDown={handleBurstPointerDown} burstUp={handleBurstPointerUp}>
+      {detailsOpen && <div className="garden-modal"><div ref={detailsSheetRef} tabIndex={-1} className="garden-dialog garden-glass" role="dialog" aria-modal="true" aria-label="Fish care"><button className="garden-detail-close" aria-label="Close fish care" onClick={() => setDetailsOpen(false)}>×</button><FishCarePanel specimen={specimen} phase={profile.worldClock ? sampleWorldClock(profile.worldClock).phase : 'day'} /><button className="garden-button garden-button-secondary" onClick={() => setDetailsOpen(false)}>Back to growing tank <span>↗</span></button></div></div>}
       {!!choiceStage && <div className="garden-modal"><section className="garden-dialog garden-glass" role="dialog" aria-modal="true" aria-label="Choose an adaptation">
         <p className="garden-eyebrow">GROWTH MILESTONE · {choiceStage === 1 ? 'JUVENILE' : 'ADULT'}</p>
         <h2>A little more you.</h2><FishPortrait specimen={specimen} />
-        <p>Your guppy has grown. Shape the way it swims or the beauty of its fins.</p>
+        <p>Your guppy has grown. Shape its swimming, ornamental fins or vitality.</p>
         <div className="dialog-actions">
           <button className="garden-button" onClick={() => chooseAdaptation('swift')}>Swift fins <span>↗</span></button>
           <p>12% more swim speed, with 8% more burst effort. Adds ◈ 12 to the base appraisal.</p>
           <button className="garden-button garden-button-secondary" onClick={() => chooseAdaptation('ornate')}>Ornamental fins <span>✧</span></button>
           <p>Longer flowing fins. Adds ◈ 24 to the base appraisal without a speed change.</p>
+          <button className="garden-button garden-button-secondary" onClick={() => chooseAdaptation('vital')}>Vitality <span>♡</span></button>
+          <p>More nourishment from meals and stronger recovery while healthy.</p>
         </div>
       </section></div>}
       {appraisalOpen && <div className="garden-modal"><section className="garden-dialog garden-glass" role="dialog" aria-modal="true" aria-label="Nursery appraisal">
@@ -697,12 +732,13 @@ const Aquarium = ({
         <label className="garden-eyebrow" htmlFor="specimen-name">SPECIMEN NAME</label>
         <input id="specimen-name" className="specimen-name" value={fishName} maxLength={40} onChange={e => setFishName(e.target.value)} />
         <div className="appraisal-value"><span>Current nursery offer</span><strong>◈ {appraiseFish(specimen)}</strong></div>
-        <div className="appraisal-breakdown"><span>{getStage(specimen.growth)} · {Math.round(specimen.growth)}% grown</span><span>{Math.round(specimen.health)}% health</span><span>{Math.round(specimen.hunger)}% fed</span>{specimen.traits.map((trait, i) => <span key={i}>{trait === 'swift' ? 'Swift fins' : 'Ornamental fins'}</span>)}</div>
-        <p>{specimen.growth < 10 ? 'Feed on a few small fish before selling or keeping this specimen.' : specimen.growth < 35 ? 'Juvenile growth at 35% brings your first adaptation and a higher offer.' : specimen.growth < 75 ? 'Adult growth at 75% brings another adaptation and a maturity premium.' : 'A beautifully raised adult. Keep it in your display, or sell and raise another.'}</p>
+        <div className="appraisal-breakdown"><span>{getStage(specimen.growth)} · {Math.round(specimen.growth)}% grown</span><span>{Math.round(specimen.health)}% health</span><span>{Math.round(specimen.hunger)}% fed</span>{specimen.traits.map((trait, i) => <span key={i}>{trait === 'swift' ? 'Swift fins' : trait === 'vital' ? 'Vitality' : 'Ornamental fins'}</span>)}</div>
+        <p>{specimen.growth < 10 ? 'Eat nursery flakes or algae and give your guppy healthy time to grow.' : specimen.growth < 35 ? 'Juvenile growth at 35% brings your first adaptation and a higher offer.' : specimen.growth < 75 ? 'Adult growth at 75% brings another adaptation and a maturity premium.' : 'A beautifully raised adult. Keep it in your display, or sell and raise another.'}</p>
+        {nurseryFull && <p className="garden-notice">Your viewing fish{profile.breeding ? ' and reserved breeding fry' : ''} occupy all {NURSERY_CAPACITY} nursery spaces. Make room before keeping this fish.</p>}
         {!saved && <p className="garden-notice">Saving is unavailable. Your fish is still here; the transaction has not been completed.</p>}
         <div className="dialog-actions">
-          <button className="garden-button" disabled={specimen.growth < 10} onClick={() => finishRun('sell')}>Sell this specimen <span>◈ {appraiseFish(specimen)}</span></button>
-          <button className="garden-button garden-button-secondary" disabled={specimen.growth < 10 || profile.kept.length >= 100} onClick={() => finishRun('keep')}>{profile.kept.length >= 100 ? 'Your display is full' : 'Keep in my display'} <span>♡</span></button>
+          <button className="garden-button" disabled={runMetadataRef.current?.source === 'resident' || specimen.growth < 10} onClick={() => finishRun('sell')}>Sell this specimen <span>◈ {appraiseFish(specimen)}</span></button>
+          <button className="garden-button garden-button-secondary" aria-label={runMetadataRef.current?.source === 'resident' ? 'Return to viewing tank' : undefined} disabled={nurseryFull || (!resident && specimen.growth < 10)} onClick={() => finishRun('keep')}>{nurseryFull ? 'Your nursery is full' : resident ? 'Return to viewing tank' : 'Keep in my display'} <span aria-hidden="true">♡</span></button>
           <button className="garden-button garden-button-secondary" onClick={() => setAppraisalOpen(false)}>Keep exploring <span>↗</span></button>
         </div>
       </section></div>}
@@ -716,7 +752,7 @@ const Aquarium = ({
       </section></div>}
       {hudState.isDead && !receipt && <div className="garden-modal"><section className="garden-dialog garden-glass" role="dialog" aria-modal="true" aria-label="Excursion ended">
         <p className="garden-eyebrow">THE GARDEN GOES ON</p><h2>A small life, a brave swim.</h2>
-        <p>This excursion ended at {hudState.growth}% growth. Your boutique coins and display fish are safe. Another little guppy is waiting.</p>
+        <p>{runMetadataRef.current?.source === 'resident' ? 'Your resident fish can recover safely in the viewing tank. Return home to care for the same individual.' : `This growing outing ended at ${hudState.growth}% growth. Your boutique coins and viewing fish are safe. Another little guppy is waiting.`}</p>
         {!saved && <p className="garden-notice" role="status">Saving failed. Your credits and home fish are safe. Retry either action when saving is available.</p>}
         <div className="dialog-actions"><button className="garden-button" onClick={() => { if (persistDefeat()) onChooseStock(); }} aria-label="Choose next stock">Choose next stock <span aria-hidden="true">↗</span></button><button className="garden-button garden-button-secondary" onClick={() => { if (persistDefeat()) onOpenShop(); }} aria-label="Return home">Return home <span aria-hidden="true">♡</span></button></div>
       </section></div>}

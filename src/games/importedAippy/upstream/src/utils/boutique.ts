@@ -2,7 +2,11 @@ import { getStock, type StockId, type ColorFamily, type FinForm } from './stockC
 export type { StockId, ColorFamily, FinForm } from './stockCatalog.ts';
 
 /** The entire boutique and current excursion share one atomic JSON profile. */
-export type Adaptation = 'swift' | 'ornate';
+export type Adaptation = 'swift' | 'ornate' | 'vital';
+import type { SpecimenCare } from './specimenCare.ts';
+import { ensureSpecimenCare, advanceSpecimenCare } from './specimenCare.ts';
+import type { WorldClock } from './worldClock.ts';
+import type { BreedingCycle } from './breeding.ts';
 export interface Specimen {
   id: string;
   name: string;
@@ -15,10 +19,11 @@ export interface Specimen {
   color: string;
   accent: string;
   raisedSeconds: number;
+  care?: SpecimenCare;
   origin?: StockId;
   inherited?: { colorFamily: ColorFamily; finForm: FinForm; parents: string[] };
 }
-export interface ActiveRun { specimen: Specimen; x: number; y: number; stamina: number }
+export interface ActiveRun { specimen: Specimen; x: number; y: number; stamina: number; source?: 'resident'; visitId?: string }
 export interface BoutiqueSave {
   version: 1;
   coins: number;
@@ -27,6 +32,8 @@ export interface BoutiqueSave {
   activeRun: ActiveRun | null;
   completedRunIds: string[];
   placements?: Record<string, 'home'>;
+  worldClock?: WorldClock;
+  breeding?: BreedingCycle | null;
 }
 
 const SAVE_KEY = 'aqualume.boutique.v1';
@@ -34,7 +41,8 @@ const CORAL = '#f47f69';
 const GOLD = '#ffd36e';
 const MAX_COINS = 1_000_000_000;
 const MAX_SALES = 1_000_000;
-const MAX_KEPT = 100;
+export const NURSERY_CAPACITY = 100;
+const MAX_KEPT = NURSERY_CAPACITY;
 const MAX_HISTORY = 10_000;
 let fallbackId = 0;
 
@@ -52,14 +60,14 @@ export function createSpecimen(stockId: StockId = 'ordinary', id?: string): Spec
   };
 }
 /** Pure candidate transaction. Commit this entire profile before installing it in UI state. */
-export function startStockRun(save: BoutiqueSave, stockId: StockId, runId: string): BoutiqueSave {
+export function startStockRun(save: BoutiqueSave, stockId: StockId, runId: string, now = Date.now()): BoutiqueSave {
   const stock = getStock(stockId);
   if (!stock || !validId(runId) || save.activeRun || !Number.isFinite(save.coins) || save.coins < stock.price
-    || save.completedRunIds.includes(runId) || save.kept.some(specimen => specimen.id === runId)) return save;
+    || save.breeding?.id === runId || save.breeding?.offspring.id === runId || save.completedRunIds.includes(runId) || save.kept.some(specimen => specimen.id === runId)) return save;
   return {
     ...save,
     coins: save.coins - stock.price,
-    activeRun: { specimen: createSpecimen(stock.id, runId), x: 380, y: 1520, stamina: 100 },
+    activeRun: { specimen: ensureSpecimenCare(createSpecimen(stock.id, runId), now), x: 380, y: 1520, stamina: 100 },
   };
 }
 const bounded = (value: unknown, maximum: number, fallback = 0): number =>
@@ -73,19 +81,22 @@ export function appraiseFish(specimen: Specimen): number {
   const growth = bounded(specimen.growth, 100);
   if (growth < 10) return 0;
   const stagePremium = growth >= 75 ? 45 : growth >= 35 ? 18 : 0;
-  const traitPremium = specimen.traits.filter(trait => trait === 'ornate' || trait === 'swift').slice(0, 2)
-    .reduce((total, trait) => total + (trait === 'ornate' ? 24 : 12), 0);
+  const traitPremium = specimen.traits.filter(trait => trait === 'ornate' || trait === 'swift' || trait === 'vital').slice(0, 2)
+    .reduce((total, trait) => total + (trait === 'ornate' ? 24 : trait === 'vital' ? 18 : 12), 0);
   const condition = 0.3 + bounded(specimen.health, 100) / 100 * 0.55 + bounded(specimen.hunger, 100) / 100 * 0.15;
   return Math.round((10 + growth * 1.2 + stagePremium + traitPremium) * condition);
 }
 function cloneSpecimen(specimen: Specimen): Specimen {
-  return { ...specimen, traits: [...specimen.traits], ...(specimen.inherited ? { inherited: { ...specimen.inherited, parents: [...specimen.inherited.parents] } } : {}) };
+  return { ...specimen, ...(specimen.care ? { care: { ...specimen.care, meals: { ...specimen.care.meals } } } : {}), traits: [...specimen.traits], ...(specimen.inherited ? { inherited: { ...specimen.inherited, parents: [...specimen.inherited.parents] } } : {}) };
 }
 export function settleRun(save: BoutiqueSave, runId: string, kind: 'sell' | 'keep'): BoutiqueSave {
-  const specimen = save.activeRun?.specimen;
-  if (!specimen || specimen.id !== runId || save.completedRunIds.includes(runId) || save.kept.some(fish => fish.id === runId)
-    || !Number.isFinite(specimen.growth) || specimen.growth < 10 || (kind !== 'sell' && kind !== 'keep')
-    || (kind === 'keep' && save.kept.length >= MAX_KEPT)) return save;
+  const active = save.activeRun;
+  const specimen = active?.specimen;
+  const resident = active?.source === 'resident';
+  const historyId = resident ? active?.visitId : runId;
+  if (!specimen || !historyId || (specimen.id !== runId && (!resident || historyId !== runId)) || save.completedRunIds.includes(historyId) || save.kept.some(fish => fish.id === runId)
+    || !Number.isFinite(specimen.growth) || (!resident && specimen.growth < 10) || (kind !== 'sell' && kind !== 'keep')
+    || (kind === 'keep' && save.kept.length + (save.breeding ? 1 : 0) >= MAX_KEPT)) return save;
   return {
     ...save,
     coins: kind === 'sell' ? Math.min(MAX_COINS, save.coins + appraiseFish(specimen)) : save.coins,
@@ -93,7 +104,7 @@ export function settleRun(save: BoutiqueSave, runId: string, kind: 'sell' | 'kee
     kept: kind === 'keep' ? [...save.kept, cloneSpecimen(specimen)] : save.kept,
     placements: kind === 'keep' ? { ...save.placements, [specimen.id]: 'home' } : save.placements,
     activeRun: null,
-    completedRunIds: [...save.completedRunIds, runId].slice(-MAX_HISTORY),
+    completedRunIds: [...save.completedRunIds, historyId].slice(-MAX_HISTORY),
   };
 }
 
@@ -123,12 +134,13 @@ function readSpecimen(value: unknown): Specimen | null {
     growth: bounded(value.growth, 100),
     health: bounded(value.health, 100, 100),
     hunger: bounded(value.hunger, 100, 100),
-    traits: Array.isArray(value.traits) ? value.traits.filter((trait): trait is Adaptation => trait === 'swift' || trait === 'ornate').slice(0, 2) : [],
+    traits: Array.isArray(value.traits) ? value.traits.filter((trait): trait is Adaptation => trait === 'swift' || trait === 'ornate' || trait === 'vital').slice(0, 2) : [],
     color: color(value.color, CORAL),
     accent: color(value.accent, GOLD),
     raisedSeconds: bounded(value.raisedSeconds, 604_800),
     origin,
     ...(inherited ? { inherited } : {}),
+    ...(readCare(value.care) ? { care: readCare(value.care)! } : {}),
   };
 }
 function readSave(value: unknown): BoutiqueSave {
@@ -145,12 +157,17 @@ function readSave(value: unknown): BoutiqueSave {
   let activeRun: ActiveRun | null = null;
   if (record(value.activeRun)) {
     const specimen = readSpecimen(value.activeRun.specimen);
-    if (specimen && !ids.has(specimen.id) && !completedRunIds.includes(specimen.id)) {
-      activeRun = { specimen, x: bounded(value.activeRun.x, 100_000), y: bounded(value.activeRun.y, 100_000), stamina: bounded(value.activeRun.stamina, 100, 100) };
+    const resident = value.activeRun.source === 'resident' && validId(value.activeRun.visitId);
+    if (specimen && !ids.has(specimen.id) && !(resident ? completedRunIds.includes(value.activeRun.visitId as string) : completedRunIds.includes(specimen.id))) {
+      activeRun = { ...(resident ? { source: 'resident' as const, visitId: value.activeRun.visitId as string } : {}), specimen, x: bounded(value.activeRun.x, 100_000), y: bounded(value.activeRun.y, 100_000), stamina: bounded(value.activeRun.stamina, 100, 100) };
     }
   }
   const placements: Record<string, 'home'> = Object.fromEntries(kept.map(specimen => [specimen.id, 'home']));
-  return { version: 1, coins: Math.floor(bounded(value.coins, MAX_COINS)), sales: Math.floor(bounded(value.sales, MAX_SALES)), kept, activeRun, completedRunIds, placements };
+  const worldClock = record(value.worldClock) && Number.isFinite(value.worldClock.startedAtMs) && Number.isFinite(value.worldClock.lastSeenMs) ? { startedAtMs: bounded(value.worldClock.startedAtMs, Number.MAX_SAFE_INTEGER), lastSeenMs: Math.max(bounded(value.worldClock.startedAtMs, Number.MAX_SAFE_INTEGER), bounded(value.worldClock.lastSeenMs, Number.MAX_SAFE_INTEGER)) } : undefined;
+  const rawCycle = value.breeding;
+  const child = record(rawCycle) ? readSpecimen(rawCycle.offspring) : null;
+  const breeding = record(rawCycle) && validId(rawCycle.id) && !completedRunIds.includes(rawCycle.id) && Array.isArray(rawCycle.parentIds) && rawCycle.parentIds.length === 2 && rawCycle.parentIds[0] !== rawCycle.parentIds[1] && rawCycle.parentIds.every(id => validId(id) && ids.has(id)) && child && !ids.has(child.id) && kept.length < MAX_KEPT && Number.isFinite(rawCycle.startedAtMs) && Number.isFinite(rawCycle.readyAtMs) ? { id: rawCycle.id, parentIds: rawCycle.parentIds as [string,string], startedAtMs: bounded(rawCycle.startedAtMs, Number.MAX_SAFE_INTEGER), readyAtMs: Math.max(bounded(rawCycle.startedAtMs, Number.MAX_SAFE_INTEGER) + 120000, bounded(rawCycle.readyAtMs, Number.MAX_SAFE_INTEGER)), offspring: child } : undefined;
+  return { ...(worldClock ? { worldClock } : {}), ...(breeding ? { breeding } : value.breeding === null ? { breeding: null } : {}), version: 1, coins: Math.floor(bounded(value.coins, MAX_COINS)), sales: Math.floor(bounded(value.sales, MAX_SALES)), kept, activeRun, completedRunIds, placements };
 }
 export function loadBoutique(storage?: Pick<Storage, 'getItem'>): BoutiqueSave {
   try {
@@ -167,4 +184,16 @@ export function writeBoutique(save: BoutiqueSave, storage?: Pick<Storage, 'setIt
     destination.setItem(SAVE_KEY, JSON.stringify(readSave(save)));
     return true;
   } catch { return false; }
+}
+
+function readCare(value: unknown): SpecimenCare | undefined {
+  if (!record(value) || !Number.isFinite(value.bornAtMs) || !Number.isFinite(value.lastCareAtMs) || !record(value.meals)) return undefined;
+  const bornAtMs = bounded(value.bornAtMs, Number.MAX_SAFE_INTEGER);
+  return { bornAtMs, lastCareAtMs: Math.max(bornAtMs, bounded(value.lastCareAtMs, Number.MAX_SAFE_INTEGER)), healthySeconds: bounded(value.healthySeconds, Number.MAX_SAFE_INTEGER), nutrition: bounded(value.nutrition,100), meals: { flake: bounded(value.meals.flake,1e9), algae: bounded(value.meals.algae,1e9), prey: bounded(value.meals.prey,1e9) }, feedingPreference: value.feedingPreference === 'night' || value.feedingPreference === 'any' ? value.feedingPreference : 'day' };
+}
+export function startResidentRun(save: BoutiqueSave, id: string, visitId: string, now = Date.now()): BoutiqueSave {
+  const fish = save.kept.find(fish => fish.id === id);
+  if (!fish || !validId(visitId) || save.activeRun || save.completedRunIds.includes(visitId) || save.kept.some(fish => fish.id === visitId) || save.breeding?.id === visitId || save.breeding?.parentIds.includes(id)) return save;
+  const placements = { ...save.placements }; delete placements[id];
+  return { ...save, kept: save.kept.filter(fish => fish.id !== id), placements, activeRun: { source: 'resident', visitId, specimen: advanceSpecimenCare(ensureSpecimenCare(fish,now),now,'home'), x:380,y:1520,stamina:100 } };
 }
