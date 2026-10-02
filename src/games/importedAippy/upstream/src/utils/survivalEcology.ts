@@ -7,13 +7,15 @@ import {
 } from '@/utils/fishModel';
 import { SPECIES, type SpeciesId } from '@/utils/fishSpecies';
 import { MAX_PLAYER_PITCH, type PlayerSurvivalState } from '@/utils/playerSurvival';
-import { NURSERY_ZONE, WORLD_WIDTH } from '@/utils/worldCamera';
+import { WORLD_WIDTH } from '@/utils/worldCamera';
 
 const PI = Math.PI;
 const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
 const ease = (rate: number, dt: number) => 1 - Math.exp(-rate * dt);
 
 export interface PreyEntity {
+  specimen?: import('./boutique.ts').Specimen;
+  palette?: FishPalette;
   fish: Fish;
   active: boolean;
   speciesId: SpeciesId;
@@ -117,7 +119,7 @@ export function updatePrey(
         if (fromLeft) {
           spawnX = Math.max(100, camX - margin - Math.random() * 200);
         } else {
-          spawnX = Math.min(2300, camX + viewW + margin + Math.random() * 200);
+          spawnX = Math.min(WORLD_WIDTH - 100, camX + viewW + margin + Math.random() * 200);
         }
         spawnY = 300 + Math.random() * 1100;
         const floorY = surfaceY(spawnX);
@@ -164,7 +166,7 @@ export function updatePrey(
     } else if (f.decide <= 0 || Math.abs(f.tx - f.x) < f.L * 0.8) {
       // Normal wander
       f.decide = 2.5 + Math.random() * 3.5;
-      f.tx = clamp(f.x + (Math.random() - 0.5) * 600, 100, 2300);
+      f.tx = clamp(f.x + (Math.random() - 0.5) * 600, 100, WORLD_WIDTH - 100);
       f.ty = clamp(f.y + (Math.random() - 0.5) * 350, 180, surfaceY(f.x) - f.L * 0.7);
       f.cruise = 0.45 + Math.random() * 0.3;
     }
@@ -200,7 +202,7 @@ export function updatePrey(
 
     // Clamping to world
     const floorY = surfaceY(f.x);
-    f.x = clamp(f.x, 80, 2320);
+    f.x = clamp(f.x, 80, WORLD_WIDTH - 80);
     f.y = clamp(f.y, 120, floorY - f.L * 0.5);
 
     // Wave animations
@@ -235,7 +237,7 @@ export function updatePredator(
 
   // Line of sight check & nursery concealment
   const playerInNursery = playerSurvival.isInNursery;
-  const canSeePlayer = !playerInNursery && distToPlayer < 600 && !playerSurvival.isDead;
+  const canSeePlayer = !playerInNursery && distToPlayer < 480 && !playerSurvival.isDead;
 
   // Keep the last pursuit heading instead of rerolling a retreat target each frame.
   const disengage = (seconds: number) => {
@@ -263,16 +265,16 @@ export function updatePredator(
       }
       if (pred.stateTimer <= 0 || Math.abs(f.tx - f.x) < f.L * 0.6) {
         pred.stateTimer = 4.0 + Math.random() * 4.0;
-        // Patrol outside nursery (X: 850 to 2200)
+        // Cruise open water in the upper half; chase excursions can reach deeper.
         f.tx = 900 + Math.random() * (WORLD_WIDTH - 1100);
-        f.ty = 400 + Math.random() * 800;
+        f.ty = 160 + Math.random() * 620;
         f.cruise = 0.65;
       }
       break;
     }
 
     case 'stalk': {
-      if (playerInNursery || playerSurvival.isDead || distToPlayer > 850) {
+      if (playerInNursery || playerSurvival.isDead || distToPlayer > 680) {
         disengage(2.5);
         break;
       }
@@ -281,7 +283,7 @@ export function updatePredator(
       f.cruise = 2.4;
 
       // When close enough, charge!
-      if ((distToPlayer < 650 || pred.stateTimer <= 0) && pred.attackCooldown <= 0) {
+      if ((distToPlayer < 520 || pred.stateTimer <= 0) && pred.attackCooldown <= 0) {
         pred.state = 'charge';
         pred.stateTimer = 1.4;
         f.cruise = 6.4;
@@ -304,7 +306,7 @@ export function updatePredator(
       const mouthDist = Math.hypot(pMouth.x - player.x, pMouth.y - player.y);
       if (mouthDist < player.L * 0.75 && pred.attackCooldown <= 0 && playerSurvival.invulnerableTime <= 0) {
         f.mouth = 1.0;
-        pred.attackCooldown = 7.0; // seven-second recovery after a successful bite
+        pred.attackCooldown = 9.0; // nine-second recovery after a successful bite
         disengage(2.5);
         onBitePlayer();
       } else if (pred.stateTimer <= 0) {

@@ -13,6 +13,7 @@ import {drawWaterAtmosphere} from '${waterURL}';
 import {createHomeResidents,stepHomeResidents} from '${homeURL}';
 const createFish=()=>({}); const applySpecimenAppearance=()=>({});
 const drawFish=(ctx,fish,palette)=>ctx.predators.push([fish,palette]);
+const drawAerator=()=>{},drawShrimp=()=>{},makeShrimpPalette=()=>({});
 const drawRock=()=>{},buildWorldScene=()=>({rocks:[],decorPlants:[]});
 const drawFishShadow=()=>{},drawSpecimenFish=()=>{},drawPlant=()=>{},drawCastle=()=>{},drawCrab=(ctx,crab)=>ctx.crabs.push(crab),drawCastleBubbles=()=>{},drawFoodEcology=()=>{};
 const makeCrabPalette=()=>({});

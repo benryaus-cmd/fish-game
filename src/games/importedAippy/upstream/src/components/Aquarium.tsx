@@ -31,6 +31,7 @@ import FishCarePanel from '@/components/FishCarePanel';
 import { useHomeSheet } from '@/components/HomeScreen';
 import { ensureSpecimenCare, advanceSpecimenCare, feedSpecimen, careSummary, chooseDevelopment } from '@/utils/specimenCare';
 import { grazeTankAlgae } from '@/utils/tankCare';
+import { drawAerator, inAeratorHealingPlume } from '@/utils/aeratorHealing';
 import { CASTLE_HEAL_PER_SECOND, inCastleHealingPlume, drawCastleBubbles } from '@/utils/castleHealing';
 import { createAquariumView, updateAquariumView, drawAquariumView, pickAquariumViewFish } from '@/utils/aquariumView';
 import { drawSandCaustics, drawCycleTint, getTankPalette } from '@/utils/tankLighting';
@@ -281,16 +282,22 @@ const Aquarium = ({
     cam.x = Math.max(0, Math.min(Math.max(0, WORLD_WIDTH - viewport.width / cam.zoom), startX - viewport.width / cam.zoom / 2));
     cam.y = Math.max(0, Math.min(Math.max(0, WORLD_HEIGHT - viewport.height / cam.zoom), startY - viewport.height / cam.zoom / 2));
 
-    // Spawn 24 prey distributed across feeding zone and open waters
+    // Bounded ambient residents across the whole aquarium; none are edible fish.
     const prey: PreyEntity[] = [];
     const rnd = mulberry(55123);
-    for (let i = 0; i < 24; i++) {
+    for (let i = 0; i < 30; i++) {
       const speciesId = i % 2 === 0 ? 'starter' : 'colorful';
-      // Prey sizes: 38% to 62% of starting player length so they are edible
+      // Small background fish stay visually distinct from the owned individual.
       const preyL = startL * (0.42 + rnd() * 0.2);
-      const px = i < 4 ? 730 + rnd() * 180 : 750 + rnd() * 1450;
-      const py = i < 4 ? 1380 + rnd() * 150 : 350 + rnd() * 1100;
-      prey.push(createPreyFish(100 + i, px, py, preyL, speciesId));
+      const px = i < 4 ? 320 + rnd() * 400 : 200 + rnd() * (WORLD_WIDTH - 400);
+      const py = i < 4 ? 500 + rnd() * 450 : 160 + rnd() * 1160;
+      const resident=createPreyFish(100 + i, px, py, preyL, speciesId);
+      if(i%3===0){
+        const stock=createSpecimen(i%6===0?'rainbow':'blueveil',`ambient-${i}`);
+        resident.specimen={...stock,species:'guppy',growth:85,inherited:stock.inherited?{...stock.inherited,bodyShape:'starter'}:undefined};
+        resident.palette=applySpecimenAppearance(resident.fish,resident.specimen);
+      }
+      prey.push(resident);
     }
     preyListRef.current = prey;
     displayPalettesRef.current.clear();
@@ -302,9 +309,9 @@ const Aquarium = ({
       });
     }
 
-    // Spawn 1 Predator far away in deep open water (X: 1950, Y: 800)
-    predatorRef.current = createPredatorFish(WORLD_WIDTH*.7, 800, startL * 1.75);
-    secondPredatorRef.current = createPredatorFish(WORLD_WIDTH*.47, 480, startL * 1.55);
+    // Two upper-water hunters, neutral in View.
+    predatorRef.current = createPredatorFish(WORLD_WIDTH*.7, 420, startL * 1.75);
+    secondPredatorRef.current = createPredatorFish(WORLD_WIDTH*.47, 650, startL * 1.55);
 
     // Reset juice
     juiceRef.current = createSurvivalJuice();
@@ -409,6 +416,7 @@ const Aquarium = ({
     if (!player || !predator) return;
     if(mode==='view'){
       updateAquariumView(viewStateRef.current,profileRef.current,vW,vH,reducedMotion?0:dt);
+      updatePrey(preyListRef.current,{...player,x:-1000,y:0},predator,dt,0,0,WORLD_WIDTH,WORLD_HEIGHT,worldSurfaceY);
       updateBottomEcology(bottomRef.current,dt,{x:-1000,y:0,L:1,growth:0},worldSurfaceY,{damageEnabled:false});
       for (const hunter of [predator, secondPredatorRef.current]) if(hunter) updatePredator(hunter,{...player,x:-1000,y:0}, {...survival,isInNursery:true},dt,worldSurfaceY,NOOP);
       const current=profileRef.current;
@@ -494,7 +502,7 @@ const Aquarium = ({
               if(next!==current&&onProfileChange(next)){profileRef.current=next;creditAwarded=true;}
             }
           }
-          setMealNotice(specimenRef.current.health<beforeHealth ? `Overfed · −${Math.round(beforeHealth-specimenRef.current.health)} health${growthNotice}. Let your fish digest.` : `${meal === 'prey' ? 'Shrimp eaten' : meal === 'algae' ? 'Algae grazed' : meal === 'pellet' ? 'Pellet eaten' : 'Flake eaten'} · nourishment ${Math.round(specimenRef.current.care?.nutrition ?? 0)}%${growthNotice}`);
+          setMealNotice(meal==='blue' ? `Blue food · ${Math.round(specimenRef.current.health-beforeHealth)>0 ? `+${Math.round(specimenRef.current.health-beforeHealth)} health` : 'health full'}` : specimenRef.current.health<beforeHealth ? `Overfed · −${Math.round(beforeHealth-specimenRef.current.health)} health${growthNotice}. Let your fish digest.` : `${meal === 'prey' ? 'Shrimp eaten' : meal === 'algae' ? 'Algae grazed' : meal === 'pellet' ? 'Pellet eaten' : 'Flake eaten'} · nourishment ${Math.round(specimenRef.current.care?.nutrition ?? 0)}%${growthNotice}`);
           if(meal==='algae')setMealNotice(notice=>`${notice} · algae cleared`);
           if(creditAwarded)setMealNotice(notice=>`${notice} · +1 credit`);
           spawnEatGlints(juice, mouth.x, mouth.y, player.L); playBiteSound();
@@ -502,7 +510,7 @@ const Aquarium = ({
       }
     }
 
-    if(!survival.isDead&&survival.health>0&&inCastleHealingPlume(player.x,player.y)){
+    if(!survival.isDead&&survival.health>0&&(inCastleHealingPlume(player.x,player.y)||inAeratorHealingPlume(player.x,player.y))){
       survival.health=Math.min(100,survival.health+CASTLE_HEAL_PER_SECOND*dt*specimenModifiers(specimenRef.current).recoveryMultiplier);
     }
     if(survival.health<=0)survival.isDead=true;
@@ -523,10 +531,10 @@ const Aquarium = ({
 
     // Update Predator
     if (!displaySpecimen) for (const hunter of [predator, secondPredatorRef.current]) if(hunter) updatePredator(hunter, player, survival, dt, worldSurfaceY, () => {
-      // A hit gives seven seconds of breathing room from both hunters.
+      // A hit gives nine seconds of breathing room from both hunters.
       if (survival.invulnerableTime <= 0 && !survival.isDead) {
         for (const other of [predator, secondPredatorRef.current]) {
-          if (other) other.attackCooldown = Math.max(other.attackCooldown, 7 + dt);
+          if (other) other.attackCooldown = Math.max(other.attackCooldown, 9 + dt);
         }
         survival.health = Math.max(0, survival.health - 8);
         survival.isDead = survival.health <= 0;
@@ -556,7 +564,7 @@ const Aquarium = ({
     const lookAheadX = Math.cos(player.yawBody) * Math.cos(player.pitch) * lookAhead;
     const lookAheadY = -Math.sin(player.pitch) * lookAhead;
     if(!survival.isDead)updateCamera(cam, player.x, player.y, vW, vH, dt, lookAheadX, lookAheadY,
-      { speed: Math.hypot(player.x - previousPlayerX, player.y - previousPlayerY) / dt, bodyLength: player.L, reducedMotion });
+      { speed: Math.hypot(player.x - previousPlayerX, player.y - previousPlayerY) / dt, bodyLength: player.L, swimming: input.active, bursting: survival.isBursting, reducedMotion });
 
     // Environmental particles & bubbles
     updateBubbles(bubblesRef.current, dt, WORLD_WIDTH, WORLD_HEIGHT, worldSurfaceY, bubbleAmount, NOOP);
@@ -591,7 +599,7 @@ const Aquarium = ({
     const t = timeRef.current;
     const daylight = profileRef.current.worldClock ? sampleWorldClock(profileRef.current.worldClock, Date.now()).daylight : 1;
     if(mode==='view'){
-      drawAquariumView(ctx,viewStateRef.current,profileRef.current,bottomRef.current,predator,predatorPalRef.current,vW,vH,reducedMotion?0:t,daylight,secondPredatorRef.current);
+      drawAquariumView(ctx,viewStateRef.current,profileRef.current,bottomRef.current,predator,predatorPalRef.current,vW,vH,reducedMotion?0:t,daylight,secondPredatorRef.current,predatorPalRef.current,preyListRef.current);
       return;
     }
     const tankPalette = getTankPalette(daylight);
@@ -660,6 +668,7 @@ const Aquarium = ({
     if (pat) drawSandCaustics(ctx, pat, t, view, worldSurfaceY, daylight * causticIntensity, WORLD_HEIGHT);
 
     // Landmarks: Castle (at bottom-right sand)
+    drawAerator(ctx,t);
     const castle = CASTLE_LANDMARK;
     if (castle.cx + castle.size >= viewLeft && castle.cx - castle.size <= viewRight) {
       drawCastle(ctx, castle.cx, castle.baseY, castle.size, castleColor, 1, 1);
@@ -710,8 +719,8 @@ const Aquarium = ({
       if (!pr.active) continue;
       const f = pr.fish;
       if (f.x + f.L < viewLeft || f.x - f.L > viewRight) continue;
-      const pal = displaySpecimen ? displayPalettesRef.current.get(f.id) : pr.speciesId === 'starter' ? preyStarterPalRef.current : preyColorfulPalRef.current;
-      if (pal) drawFish(ctx, f, pal);
+      const pal = displaySpecimen ? displayPalettesRef.current.get(f.id) : pr.palette ?? (pr.speciesId === 'starter' ? preyStarterPalRef.current : preyColorfulPalRef.current);
+      if (pal) { if(pr.specimen)drawSpecimenFish(ctx,f,pal,pr.specimen);else drawFish(ctx,f,pal); }
     }
 
     // Draw Predator Fish
@@ -824,7 +833,7 @@ const Aquarium = ({
     }} />
     {mode==='swim'&&<GardenHUD hud={{ ...hudState, threat: predatorRef.current?.state === 'stalk' || predatorRef.current?.state === 'charge' }}
       mode={mode} nextStageSeconds={nextStageSeconds}
-      healing={!!player&&inCastleHealingPlume(player.x,player.y)&&!hudState.isDead}
+      healing={!!player&&(inCastleHealingPlume(player.x,player.y)||inAeratorHealingPlume(player.x,player.y))&&!hudState.isDead}
       pendingDevelopment={specimen.care?.development?.pending}
       onDevelopment={()=>{setChoiceStage(specimenRef.current.care?.development?.pending[0]?.stage??0);setChosenTraits([]);saveRun();}}
       coins={profile.coins} value={appraiseFish(specimen)} stage={getStage(hudState.growth)} refuge={refuge}

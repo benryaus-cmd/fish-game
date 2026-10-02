@@ -72,8 +72,8 @@ test('nursery and neutral view prevent predator bites',()=>{
  let hits=0;for(let i=0;i<120;i++){const p=player();p.x=pred.fish.x+42;p.y=pred.fish.y;updatePredator(pred,p,s,1/60,bounds.surfaceY,()=>hits++);}
  assert.equal(hits,0);assert.notEqual(pred.state,'charge');
 });
-test('predators only notice exposed fish within six hundred world units',()=>{
- for(const [distance,expected] of [[599,'stalk'],[601,'patrol'],[700,'patrol']]){
+test('predators only notice exposed fish within four hundred eighty world units',()=>{
+ for(const [distance,expected] of [[479,'stalk'],[481,'patrol'],[700,'patrol']]){
   const pred=createPredatorFish(1800,800,100),s=createPlayerSurvival();s.isInNursery=false;
   const p=player();p.x=1800+distance;p.y=800;
   updatePredator(pred,p,s,.01,bounds.surfaceY,()=>{});assert.equal(pred.state,expected);
@@ -97,10 +97,15 @@ test('a full default Burst lasts fifty percent longer before exhaustion',()=>{
  while(s.stamina>0&&elapsed<5){updatePlayerFish(f,input,s,.01,bounds,false);elapsed+=.01;}
  assert.ok(Math.abs(elapsed-150/65)<.011,`full charge lasted ${elapsed}s`);
 });
-test('a successful predator bite blocks another attack for at least seven seconds',()=>{
+test('a successful predator bite blocks another attack for at least nine seconds',()=>{
  const pred=createPredatorFish(1800,800,100),s=createPlayerSurvival();s.isInNursery=false;
  pred.state='charge';pred.stateTimer=1;const p=player();p.x=1758;p.y=800;let hits=0;
- updatePredator(pred,p,s,.01,bounds.surfaceY,()=>hits++);assert.equal(hits,1);assert.equal(pred.attackCooldown,7);
- for(let i=0;i<139;i++){p.x=pred.fish.x+42;p.y=pred.fish.y;updatePredator(pred,p,s,.05,bounds.surfaceY,()=>hits++);}
+ updatePredator(pred,p,s,.01,bounds.surfaceY,()=>hits++);assert.equal(hits,1);assert.equal(pred.attackCooldown,9);
+ for(let i=0;i<179;i++){p.x=pred.fish.x+42;p.y=pred.fish.y;updatePredator(pred,p,s,.05,bounds.surfaceY,()=>hits++);}
  assert.equal(hits,1);assert.equal(pred.state,'patrol');assert.ok(pred.attackCooldown>0);
+});
+
+test('predator ordinary patrol destinations favour the upper half',()=>{
+ const pred=createPredatorFish(1800,800,100),s=createPlayerSurvival();s.isInNursery=true;
+ for(let i=0;i<30;i++){pred.state='patrol';pred.stateTimer=0;updatePredator(pred,player(),s,.01,bounds.surfaceY,()=>{});assert.ok(pred.fish.ty<900);}
 });

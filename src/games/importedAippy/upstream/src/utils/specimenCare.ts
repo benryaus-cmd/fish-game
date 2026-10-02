@@ -1,5 +1,5 @@
 import type { Specimen, Adaptation } from './boutique.ts';
-export type FoodKind = 'flake' | 'pellet' | 'algae' | 'prey';
+export type FoodKind = 'flake' | 'pellet' | 'algae' | 'prey' | 'blue';
 export type FeedingPreference = 'day' | 'night' | 'any';
 export interface SpecimenCare {
   /** Acquired vibrancy, independent of inherited palette and current condition. */
@@ -9,7 +9,7 @@ export interface SpecimenCare {
   meals: { flake: number; algae: number; prey: number }; feedingPreference: FeedingPreference;
 }
 export const ADULT_HEALTHY_SECONDS = 600;
-export const GUPPY_DIET = { flake: { minGrowth: 0, nutrition: 18 }, pellet: { minGrowth: 0, nutrition: 18 }, algae: { minGrowth: 0, nutrition: 14 }, prey: { minGrowth: 35, nutrition: 24 } } as const;
+export const GUPPY_DIET = { blue: { minGrowth: 0, nutrition: 0 }, flake: { minGrowth: 0, nutrition: 18 }, pellet: { minGrowth: 0, nutrition: 18 }, algae: { minGrowth: 0, nutrition: 14 }, prey: { minGrowth: 35, nutrition: 24 } } as const;
 const clamp = (n: number, max = 100) => Math.max(0, Math.min(max, Number.isFinite(n) ? n : 0));
 const timestamp = (n: number) => Number.isFinite(n) ? Math.max(0, n) : 0;
 export function ensureSpecimenCare(fish: Specimen, now = Date.now()): Specimen {
@@ -58,6 +58,7 @@ export function feedSpecimen(fish: Specimen, kind: FoodKind, now = Date.now(), p
   if (original.health <= 0) return original;
   const food = GUPPY_DIET[kind];
   if (!food || original.growth < food.minGrowth) return original;
+  if (kind === 'blue') return { ...original, health: clamp(original.health + 5) };
   const care = original.care!, preference = care.feedingPreference;
   const vitality = original.traits.filter(trait => trait === 'vital').length;
   const benefit = food.nutrition * (1 + vitality * .12) * (preference === 'any' || preference === phase ? 1 : .75);

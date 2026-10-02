@@ -12,12 +12,14 @@ export interface Camera {
 export interface CameraHints {
   /** Actual world travel speed in pixels/second, not stick strength. */
   speed?: number;
+  swimming?: boolean;
+  bursting?: boolean;
   /** The player's body length in world pixels (excluding ornamental fins). */
   bodyLength?: number;
   reducedMotion?: boolean;
 }
 
-const MIN_ZOOM = 0.75;
+const MIN_ZOOM = 0.65;
 export const MAX_ZOOM = 1.18;
 const zoomStates = new WeakMap<Camera, { fast: boolean; target: number }>();
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
@@ -117,12 +119,14 @@ export function updateCamera(
     const speedRoom = state.fast ? clamp01((speed - 96) / 96) : 0;
     const sizeRoom = clamp01((bodyLength - 85) / 30);
     const closeZoom = bodyLength <= 72 ? MAX_ZOOM : 1 + (MAX_ZOOM - 1) * clamp01((100 - bodyLength) / 28);
-    const target = closeZoom - (closeZoom - MIN_ZOOM) * Math.max(speedRoom, sizeRoom);
+    const target = closeZoom - (closeZoom - MIN_ZOOM) * Math.max(speedRoom, sizeRoom, hints.bursting ? .9 : hints.swimming ? .22 : 0);
     // Hold tiny target fluctuations, but always allow full recovery / maximum room.
     if (Math.abs(target - state.target) >= 0.015 || target === closeZoom || target === MIN_ZOOM) state.target = target;
     const zoomRate = state.target < oldZoom ? 2 : 0.65;
     cam.zoom = oldZoom + (state.target - oldZoom) * (1 - Math.exp(-zoomRate * dt));
   }
+  // Keep the wider lens inside the aquarium on large but still fitting viewports.
+  if(viewW<=WORLD_WIDTH&&viewH<=WORLD_HEIGHT)cam.zoom=Math.max(cam.zoom,viewW/WORLD_WIDTH,viewH/WORLD_HEIGHT);
   const worldViewW = viewW / cam.zoom;
   const worldViewH = viewH / cam.zoom;
   // Zoom about the current centre, rather than anchoring the old top-left.

@@ -1,10 +1,10 @@
 import type { Fish } from '@/utils/fishModel';
 import { mulberry } from '@/utils/aquaTextures';
 import { worldSurfaceY, WORLD_WIDTH } from '@/utils/worldCamera';
-export type FoodKind = 'flake' | 'pellet' | 'algae' | 'prey';
+export type FoodKind = 'flake' | 'pellet' | 'algae' | 'prey' | 'blue';
 export interface DietPolicy { foods: readonly FoodKind[]; preyMinimumGrowth: number; mouthSizeRatio: number }
 // Authored guppy policy; future species can supply their own foods and mouth limits.
-export const GUPPY_DIET: DietPolicy = { foods: ['flake', 'pellet', 'algae', 'prey'], preyMinimumGrowth: 35, mouthSizeRatio: 0.45 };
+export const GUPPY_DIET: DietPolicy = { foods: ['flake', 'pellet', 'algae', 'prey', 'blue'], preyMinimumGrowth: 35, mouthSizeRatio: 0.45 };
 export function canEatFood(kind: FoodKind, growth: number, foodSize: number, fishLength: number, diet = GUPPY_DIET) {
   return diet.foods.includes(kind) && foodSize <= fishLength * diet.mouthSizeRatio && (kind !== 'prey' || growth >= diet.preyMinimumGrowth);
 }
@@ -13,11 +13,11 @@ export interface FoodParticle { x: number; y: number; size: number; kind: Exclud
 export function createFoodEcology(): FoodParticle[] {
   const rnd = mulberry(39151);
   const food: FoodParticle[] = Array.from({ length: 76 }, (_, i) => {
-    const kind = i < 32 ? 'flake' : i < 50 ? 'pellet' : 'algae';
+    const kind = i === 46 || i === 49 ? 'blue' : i < 32 ? 'flake' : i < 50 ? 'pellet' : 'algae';
     const wallAlgae = kind === 'algae';
-    const x = wallAlgae ? (i % 2 === 0 ? 2 : WORLD_WIDTH - 2) : kind === 'flake' ? 225 + rnd() * 480 : 55 + rnd() * (WORLD_WIDTH - 110);
-    const y = wallAlgae ? 160 + rnd() * 1260 : kind === 'flake' ? 1340 + rnd() * 170 : 90 + rnd() * 1200;
-    return { x, y, size: kind === 'algae' ? 13 : kind === 'pellet' ? 7 : 8, kind, active: true, respawn: 0, seed: rnd() * 6.28 };
+    const x = wallAlgae ? (i % 2 === 0 ? 2 : WORLD_WIDTH - 2) : kind === 'flake' ? 200 + rnd() * (WORLD_WIDTH - 400) : 55 + rnd() * (WORLD_WIDTH - 110);
+    const y = wallAlgae ? 160 + rnd() * 1260 : 90 + rnd() * 1050;
+    return { x, y, size: kind === 'algae' ? 13 : kind === 'pellet' || kind === 'blue' ? 7 : 8, kind, active: true, respawn: 0, seed: rnd() * 6.28 };
   });
   // One visible tutorial flake sits at the newborn's mouth; the rest form a nearby trail.
   Object.assign(food[0], { x: 414, y: 1520 });
@@ -35,19 +35,18 @@ export function updateFoodEcology(food: FoodParticle[], dt: number) {
       if (f.respawn <= 0) { f.active = true; if (f.kind === 'pellet') f.y = 70; }
       continue;
     }
-    if (f.kind === 'pellet') f.y = Math.min(worldSurfaceY(f.x) - 5, f.y + step * 16);
-    // The first tutorial flake remains within the newborn's deliberate bite range.
-    if (f.kind === 'flake' && i > 0) {
+    // Keep three reachable nursery flakes; the main food supply drifts higher up.
+    if (f.kind !== 'algae' && i > 2) {
       f.seed += step * .11;
-      f.x += Math.sin(f.seed) * step * 2.2;
-      f.y = Math.min(worldSurfaceY(f.x) - 7, f.y + step * .8);
+      f.x = Math.max(25, Math.min(WORLD_WIDTH - 25, f.x + Math.sin(f.seed) * step * 4));
+      f.y = Math.max(80, Math.min(1200, f.y + Math.cos(f.seed * .7) * step * 2));
     }
   }
 }
 export function biteFood(food: FoodParticle[], mouth: {x:number;y:number}, fish: Fish, growth: number): FoodKind | null {
   const found = food.find(f => f.active && canEatFood(f.kind, growth, f.size, fish.L) && Math.hypot(f.x - mouth.x, f.y - mouth.y) <= fish.L * 0.27 + f.size);
   if (!found) return null;
-  found.active = false; found.respawn = found.kind === 'algae' ? 18 : 8;
+  found.active = false; found.respawn = found.kind === 'algae' ? 18 : found.kind === 'blue' ? 35 : 8;
   return found.kind;
 }
 export function drawFoodEcology(ctx: CanvasRenderingContext2D, food: FoodParticle[], time: number, view?: {x:number;y:number;width:number;height:number}, consumer?: FoodConsumer) {
@@ -89,7 +88,7 @@ export function drawFoodEcology(ctx: CanvasRenderingContext2D, food: FoodParticl
       const r = f.size * .5;
       ctx.fillStyle = 'rgba(36,25,15,.18)'; ctx.beginPath(); ctx.ellipse(.8, 2.5, r * 1.2, r * .55, 0, 0, tau); ctx.fill();
       const pellet = ctx.createRadialGradient(-r * .35, -r * .4, .1, .3, .5, r * 1.2);
-      pellet.addColorStop(0, '#e7c28a'); pellet.addColorStop(.25, '#c69c61'); pellet.addColorStop(.75, '#976331'); pellet.addColorStop(1, '#674323');
+      pellet.addColorStop(0, f.kind === 'blue' ? '#c4f5ff' : '#e7c28a'); pellet.addColorStop(.25, f.kind === 'blue' ? '#6bd6f2' : '#c69c61'); pellet.addColorStop(.75, f.kind === 'blue' ? '#338ccf' : '#976331'); pellet.addColorStop(1, f.kind === 'blue' ? '#255582' : '#674323');
       ctx.fillStyle = pellet; ctx.beginPath(); ctx.arc(0, 0, r, 0, tau); ctx.fill();
       ctx.strokeStyle = 'rgba(87,55,25,.55)'; ctx.lineWidth = .5; ctx.stroke();
       ctx.fillStyle = 'rgba(255,236,193,.55)'; ctx.beginPath(); ctx.ellipse(-r * .3, -r * .43, r * .31, r * .16, -.5, 0, tau); ctx.fill();

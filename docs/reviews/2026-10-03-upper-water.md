@@ -1,0 +1,9 @@
+# Upper-water ecology
+
+Original filter housing/stream artwork is reused and mirrored at the upper-left wall. Its bounded bubbles heal at the same rate as castle bubbles; no safety or income bonus. View shows the same landmark in its composed overview. Blue healing food uses the shaded pellet renderer with a blue palette: two beads among 76 food particles, 35-second respawn, +5 health capped at 100, no revival or overfeeding penalty.
+
+Most floating food now drifts through the upper two-thirds. Three nursery starter flakes remain reachable. Shrimp stay at eight; new initial positions and wider wandering distribute them through the aquarium. Small ambient residents rise from 24 to 30 and cover the whole width, including rainbow and blue guppy forms. They animate in both View and Swim without becoming owned breeding stock or edible guppies.
+
+Normal steering adds a little camera space; Burst adds substantially more, with the zoom floor widened from .75 to .65. Fitting viewports cannot expose world edges and reduced motion retains its fixed framing. Predators acquire within 480 instead of 600 world units, lose distant pursuits beyond 680 instead of 850, patrol the upper half and share nine seconds of recovery after hits. Heading-preserving disengagement remains.
+
+Verification: scoped TypeScript and production build passed; 175 unit tests passed, two optional native export skips, no failures. Tests cover food distribution/rarity, blue healing and death guards, detection/cooldown/patrol changes, camera framing/bounds, and aerator proximity. Built-browser journey renders View and Swim, confirms actual aerator healing/green label and deliberate blue-food +5-health notice, with no page errors. Inspected View and aerator screenshots. Device FPS and physical audio/haptics were not measured.

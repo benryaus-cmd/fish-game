@@ -22,8 +22,8 @@ function shrimpEnv(surfaceY:(x:number)=>number):ShrimpEnv {return {w:WORLD_WIDTH
 function crabEnv(surfaceY:(x:number)=>number):CrabEnv {return {w:WORLD_WIDTH,h:WORLD_HEIGHT,sandTop:1580,surfaceY,L:86,span:24,speed:1};}
 export function createBottomEcology():BottomEcology {
  const env=shrimpEnv(worldSurfaceY);
- const shrimps=[750,1010,1310,1640,2000,2390,2800,3190].map((homeX,i)=>{
-  const rig=spawnShrimp(env,false,i,8);rig.x=rig.tx=homeX;rig.homeX=homeX/WORLD_WIDTH;rig.y=220+i*175;rig.ty=rig.y;rig.mode='hover';rig.ground=0;rig.swim=1;
+ const shrimps=[320,740,1160,1580,2000,2420,2840,3260].map((homeX,i)=>{
+  const rig=spawnShrimp(env,false,i,8);rig.x=rig.tx=homeX;rig.homeX=homeX/WORLD_WIDTH;rig.y=150+(i*431)%1300;rig.ty=rig.y;rig.mode='hover';rig.ground=0;rig.swim=1;
   return {rig,active:true,respawn:0,homeX,homeY:rig.y,fleeCooldown:0};
  });
  const crabs=[1180,2940].map((homeX,i)=>{
@@ -56,9 +56,9 @@ export function updateBottomEcology(state:BottomEcology,dtRaw:number,player:Bott
    }
    if(r.mode==='flick'){
     r.vx*=Math.exp(-1.5*dt);r.vy*=Math.exp(-1.5*dt);
-    if(r.t>.7){r.mode='hover';r.t=0;r.tx=clamp(r.x+r.face*160,60,WORLD_WIDTH-60);r.ty=clamp(r.y+Math.sin(r.clock)*160,100,surfaceY(r.tx)-35);}
+    if(r.t>.7){r.mode='hover';r.t=0;r.tx=clamp(r.x+r.face*400,60,WORLD_WIDTH-60);r.ty=clamp(r.y+Math.sin(r.clock)*450,100,surfaceY(r.tx)-35);}
    }else{
-    if(r.t>5||Math.hypot(r.tx-r.x,r.ty-r.y)<20){r.t=0;r.tx=clamp(r.x+Math.cos(r.clock*.43+r.id)*220,60,WORLD_WIDTH-60);r.ty=clamp(s.homeY+Math.sin(r.clock*.19+r.id)*240,100,surfaceY(r.tx)-35);}
+    if(r.t>5||Math.hypot(r.tx-r.x,r.ty-r.y)<20){r.t=0;r.tx=clamp(r.x+Math.cos(r.clock*.43+r.id)*600,60,WORLD_WIDTH-60);r.ty=clamp(r.y+Math.sin(r.clock*.19+r.id)*500,100,surfaceY(r.tx)-35);}
     const dx=r.tx-r.x,dy=r.ty-r.y,n=Math.max(1,Math.hypot(dx,dy)),speed=32*r.pSpeed,k=1-Math.exp(-2*dt);
     r.vx+=(dx/n*speed-r.vx)*k;r.vy+=(dy/n*speed-r.vy)*k;
    }

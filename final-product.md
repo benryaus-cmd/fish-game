@@ -118,11 +118,13 @@ Available stock now includes native Seahorse under Tropical (140 credits) and Ra
 
 Adult Swim loop: catch shrimp for1 credit per catch, balancing hunger/overfeeding and predator/crab risk. View offers Buy fish and immediate Swim selection under the identity line; purchases/switches preserve the earlier individual. Burst has1s cooldown on release, half-rate recovery, red feedback below20%, and exhaustion lock until above20%. More assertive predators share the player’s articulated vertical poses; real damage requests short native/browser haptics. Underwater grains, ripples and long rays add depth within fixed effect budgets.
 
-Predator/crab balance: both deal 8 health out of 100 per hit. Predator detection radius is 600 world units (80% of its former 750). Ending a chase preserves the current heading toward one fixed destination while slowing to patrol speed; do not choose retreat targets every frame or force a turnaround.
+Predator/crab balance: both deal 8 health out of 100 per hit. Predator detection radius is 480 world units (80% of the previous 600); pursuit loss distance is 680. Ending a chase preserves the current heading toward one fixed destination while slowing to patrol speed; do not choose retreat targets every frame or force a turnaround.
 Default Burst endurance is 50% longer (normalized drain 65/1.5 per second); retain the saved 0–100 stamina scale and existing recovery/cooldown thresholds.
 
-A successful predator hit gives at least seven seconds without another predator hit, shared by both hunters; crab grace timing is independent.
+A successful predator hit gives at least nine seconds without another predator hit, shared by both hunters; crab grace timing is independent.
 
 Audio master gain is 70% of the previous level for both channels, independent of the saved music/SFX percentages. Keep one audio owner and explicit imports for its settings contract.
 
 The Swim stage box counts down healthy time remaining to juvenile/adult; adults show Fully grown. Castle healing changes the Health label to green Healing without a separate line. Upgrade choices show selection ticks/highlights and a count before confirmation; two/three-choice stages must persist exactly the chosen distinct traits.
+
+Upper-water ecology: the original hanging water filter is mirrored at the upper left, with a bounded healing bubble plume and no passive-income payout. Castle and aerator bubbles heal without safety. Normal swimming widens framing and Burst widens it further; retain reduced motion and world-edge bounds. Most flakes/pellets float in the upper two-thirds, with three reachable nursery starter flakes. Two rare blue beads restore up to 5 health, never resurrect and do not cause overfeeding damage; they respawn after 35 seconds. Eight shrimp roam throughout the tank, with no population increase. Thirty bounded small ambient fish (six more than before) include rainbow/blue guppy forms, are visible in View/Swim and are not owned/selectable breeding stock. Predator patrol destinations favour the top half; post-hit cooldown is 9 seconds shared between hunters.

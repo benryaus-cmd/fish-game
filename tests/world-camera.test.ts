@@ -26,14 +26,14 @@ test('sustained fast travel reveals space without reacting instantly to a brief 
   const brief = advance(undefined, { speed: 200 }, 0.1);
   assert.ok(brief.zoom > 1 && brief.zoom < 1.18);
   const fast = advance(undefined, { speed: 200 });
-  assert.ok(fast.zoom >= 0.75 && fast.zoom < 0.76);
+  assert.ok(fast.zoom >= 0.65 && fast.zoom < 0.66);
 });
 
 test('a large body gets room at rest and extreme inputs never shrink prey further', () => {
   const large = advance(undefined, { bodyLength: 115 });
-  assert.ok(large.zoom >= 0.75 && large.zoom < 0.76);
+  assert.ok(large.zoom >= 0.65 && large.zoom < 0.66);
   const extreme = advance(undefined, { bodyLength: 1000, speed: 10000 });
-  assert.ok(extreme.zoom >= 0.75);
+  assert.ok(extreme.zoom >= 0.65);
 });
 
 test('zoom recovers smoothly and more slowly after travel stops', () => {
@@ -135,4 +135,11 @@ test('castle recovery is confined to the visible bubble plume rather than the wh
  assert.equal(healing.inCastleHealingPlume(3300,base-340),false);
  assert.equal(healing.inCastleHealingPlume(3420,base-120),false);
  assert.equal(healing.inCastleHealingPlume(3300,base+10),false);
+});
+
+test('normal swimming reveals more space and Burst reveals more again',()=>{
+ const still=advance(undefined,{speed:30,bodyLength:72});
+ const swimming=advance(undefined,{speed:30,bodyLength:72,swimming:true});
+ const burst=advance(undefined,{speed:30,bodyLength:72,swimming:true,bursting:true});
+ assert.ok(swimming.zoom<still.zoom-.08);assert.ok(burst.zoom<swimming.zoom-.2);
 });

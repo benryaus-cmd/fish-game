@@ -26,10 +26,10 @@ test('bounded ecology replenishes nursery food after one deliberate bite', () =>
 });
 test('tutorial flake stays at the newborn mouth while other flakes drift and algae stay attached', () => {
   const food=createFoodEcology(); const algae=food.filter(f=>f.kind==='algae').map(f=>({f,x:f.x,y:f.y}));
-  const other={x:food[1].x,y:food[1].y};
+  const other={x:food[3].x,y:food[3].y};
   for(let i=0;i<300;i++)updateFoodEcology(food,1/60);
   assert.equal(food[0].x,414);assert.equal(food[0].y,1520);
-  assert.ok(food[1].y>other.y);assert.ok(Math.abs(food[1].x-other.x)<15);
+  assert.notEqual(food[3].y,other.y);assert.ok(Math.abs(food[3].x-other.x)<25);
   for(const a of algae){assert.equal(a.f.x,a.x);assert.equal(a.f.y,a.y);}
 });
 
@@ -65,4 +65,12 @@ test('invalid food elapsed time cannot poison a consumed particle or motion',()=
  updateFoodEcology(food,NaN);updateFoodEcology(food,Infinity);updateFoodEcology(food,-3);
  assert.equal(food[0].respawn,8);
  assert.ok(food.every(f=>[f.x,f.y,f.seed,f.respawn].every(Number.isFinite)));
+});
+
+test('most floating food occupies upper two thirds and healing bites are rare',()=>{
+ const food=createFoodEcology(),floating=food.filter(f=>f.kind!=='algae');
+ assert.ok(floating.filter(f=>f.y<=1200).length/floating.length>.85);
+ assert.equal(food.filter(f=>f.kind==='blue').length,2);assert.ok(canEatFood('blue',0,7,72));
+ for(let i=0;i<3000;i++)updateFoodEcology(food,1/60);
+ assert.ok(floating.filter(f=>f.y<=1200).length/floating.length>.85);
 });

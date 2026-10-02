@@ -92,3 +92,10 @@ test('Vitality increases feeding growth credit even when the fish is full',()=>{
  assert.ok(Math.abs(vital.care!.healthySeconds-normal.care!.healthySeconds*1.12)<1e-8);
  assert.ok(vital.health<100);assert.equal(vital.hunger,100);
 });
+
+test('blue food restores five health without fullness penalties or growth credit',()=>{
+ const full={...fry(),health:60,hunger:100};const healed=feedSpecimen(full,'blue',t);
+ assert.equal(healed.health,65);assert.equal(healed.hunger,100);assert.equal(healed.care!.healthySeconds,full.care!.healthySeconds);
+ assert.equal(feedSpecimen({...full,health:98},'blue',t).health,100);
+ assert.equal(feedSpecimen({...full,health:0},'blue',t).health,0);
+});
