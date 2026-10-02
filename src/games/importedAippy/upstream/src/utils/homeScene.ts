@@ -62,7 +62,8 @@ export function stepHomeResidents(residents: HomeResident[], width: number, heig
     const yaw = ease(r.yaw, heading, 8);
     const yawBody = ease(r.yawBody, yaw, 6);
     const yawTail = ease(r.yawTail, yawBody, 5);
-    const targetPitch = Math.hypot(dx,dy)>0.1 ? clamp(Math.atan2(-dy,Math.abs(dx)), -1.3, 1.3) : 0;
+    // Match the gentle effort-sensitive pose while preserving physical travel.
+    const targetPitch = Math.hypot(dx,dy)>0.1 ? clamp(-dy / 70 * 0.45, -0.42, 0.42) : 0;
     return { ...r, elapsed, x: clamp(r.x + dx * seconds, bounds.left, bounds.right), y: clamp(r.y + dy * seconds, bounds.top, bounds.bottom),
       vx: dx, vy: dy, heading, yaw, yawBody, yawTail, pitch: ease(r.pitch,targetPitch,6),
       phase: r.phase + seconds * (2.2 + Math.hypot(dx,dy) * 0.045) };

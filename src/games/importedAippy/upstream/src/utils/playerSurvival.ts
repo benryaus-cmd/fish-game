@@ -146,8 +146,8 @@ export function updatePlayerFish(
 
     // Desired vertical pitch based on Y input
     // Positive pitch lifts the nose in the procedural rig (screen Y points down).
-    // Direction controls orientation independently of analogue effort.
-    const pitchGoal = clamp(Math.atan2(-directionY, Math.abs(directionX)), -1.2, 1.2);
+    // Effort gives a gentle nose lift without rotating the fish upright.
+    const pitchGoal = clamp(-inputY * 0.45, -0.42, 0.42);
     player.pitch += (pitchGoal - player.pitch) * ease(5, dt);
   } else {
     // Gentle leveling when idle

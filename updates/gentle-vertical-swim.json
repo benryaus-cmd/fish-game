@@ -1,0 +1,8 @@
+{
+  "update": "fish-gentle-vertical-swim-v1",
+  "baseUrl": "https://raw.githubusercontent.com/benryaus-cmd/fish-game/main/",
+  "files": [
+    "src/games/importedAippy/upstream/src/utils/playerSurvival.ts",
+    "src/games/importedAippy/upstream/src/utils/homeScene.ts"
+  ]
+}

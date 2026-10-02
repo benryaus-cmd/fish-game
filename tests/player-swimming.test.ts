@@ -26,11 +26,33 @@ test('diagonal input cannot travel faster than full horizontal input', () => {
   const full = swim(1, 0), diagonal = swim(1, 1);
   assert.ok(Math.hypot(diagonal.x - 10000, diagonal.y - 10000) <= (full.x - 10000) * 1.01);
 });
-test('rising and diving point the nose nearly vertical with screen Y sign', () => {
-  assert.ok(swim(0, -1).pitch > 1.15);
-  assert.ok(swim(0, 1).pitch < -1.15);
+test('rising and diving keep a gentle signed nose lift while retaining full vertical travel', () => {
+  const up = swim(0, -1), down = swim(0, 1);
+  assert.ok(up.pitch > 0.40 && up.pitch < 0.43);
+  assert.ok(down.pitch < -0.40 && down.pitch > -0.43);
+  assert.ok(10000 - up.y > 515 && 10000 - up.y < 517);
+  assert.ok(down.y - 10000 > 515 && down.y - 10000 < 517);
+  assert.ok(Math.abs(up.vy + 183.6) < 0.001);
+  assert.ok(Math.abs(down.vy - 183.6) < 0.001);
+});
+test('vertical effort controls nose lift and diagonal input stays gently tilted', () => {
+  const light = swim(0, -0.25), full = swim(0, -1);
+  assert.ok(light.pitch > 0.10 && light.pitch < 0.12);
+  assert.ok(light.pitch < full.pitch * 0.3);
   const diagonal = swim(0.7, -0.7);
-  assert.ok(diagonal.pitch > 0.7 && diagonal.pitch < 0.9);
+  assert.ok(diagonal.pitch > 0.30 && diagonal.pitch < 0.33);
+  assert.ok(swim(0.7, 0.7).pitch < -0.30 && swim(0.7, 0.7).pitch > -0.33);
+});
+test('releasing vertical input eases the gentle pitch back toward level', () => {
+  for (const y of [-1, 1]) {
+    const player = swim(0, y), survival = createPlayerSurvival();
+    for (let i = 0; i < 30; i++) {
+      const before = Math.abs(player.pitch);
+      updatePlayerFish(player, { x: 0, y: 0, active: false, burst: false }, survival, 1 / 60, bounds, false);
+      assert.ok(Math.abs(player.pitch) > 0 && Math.abs(player.pitch) < before);
+    }
+    assert.ok(Math.abs(player.pitch) > 0.10 && Math.abs(player.pitch) < 0.13);
+  }
 });
 test('full-stick turns preserve head body and tail lag in both directions', () => {
   const left = swim(-1, 0, 60, 0.1);

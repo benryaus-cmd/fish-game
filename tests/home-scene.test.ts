@@ -53,15 +53,50 @@ test('invalid controls cannot poison a safe home pose', () => {
   const moved=stepHomeResidents(residents,320,240,Infinity,'safe',{x:NaN,y:Infinity});
   assert.ok(Number.isFinite(moved[0].x)); assert.ok(Number.isFinite(moved[0].y));
 });
-test('controlled vertical travel points the procedural nose up and down', () => {
+test('controlled vertical travel uses a gentle signed pitch without slowing ascent or descent', () => {
   const seed=createHomeResidents([fish('pose')],600,600,'pose'); seed[0].x=300; seed[0].y=300;
   let up=seed, down=seed;
-  for(let i=0;i<10;i++) {
+  for(let i=0;i<20;i++) {
     up=stepHomeResidents(up,600,600,0.05,'pose',{x:0,y:-1});
     down=stepHomeResidents(down,600,600,0.05,'pose',{x:0,y:1});
   }
-  assert.ok(up[0].pitch>1); assert.ok(down[0].pitch < -1);
+  assert.ok(up[0].pitch>0.40 && up[0].pitch<0.43);
+  assert.ok(down[0].pitch < -0.40 && down[0].pitch > -0.43);
   assert.equal(up[0].vy,-70); assert.equal(down[0].vy,70);
+  assert.equal(up[0].y,230); assert.equal(down[0].y,370);
+});
+test('home pitch reflects vertical effort and remains gentle on diagonals', () => {
+  const seed=createHomeResidents([fish('effort')],600,600,'effort'); seed[0].x=300; seed[0].y=300;
+  let light=seed, diagonal=seed;
+  for(let i=0;i<20;i++) {
+    light=stepHomeResidents(light,600,600,0.05,'effort',{x:0,y:-0.25});
+    diagonal=stepHomeResidents(diagonal,600,600,0.05,'effort',{x:1,y:1});
+  }
+  assert.ok(light[0].pitch>0.10 && light[0].pitch<0.12);
+  assert.ok(diagonal[0].pitch < -0.30 && diagonal[0].pitch > -0.33);
+  assert.equal(light[0].vy,-17.5);
+  assert.ok(Math.abs(Math.hypot(diagonal[0].vx,diagonal[0].vy)-70)<0.001);
+});
+test('home vertical pitch eases to level after control release', () => {
+  let residents=createHomeResidents([fish('release')],600,600,'release'); residents[0].x=300; residents[0].y=300;
+  for(let i=0;i<20;i++) residents=stepHomeResidents(residents,600,600,0.05,'release',{x:0,y:-1});
+  const before=residents[0].pitch;
+  residents=stepHomeResidents(residents,600,600,0.1,'release',{x:0,y:0});
+  assert.ok(residents[0].pitch>0.22 && residents[0].pitch<0.24);
+  assert.ok(residents[0].pitch<before);
+  assert.equal(residents[0].vy,0);
+});
+test('autonomous residents retain vertical wander with restrained velocity-sensitive pitch', () => {
+  let residents=createHomeResidents([fish('wander')],600,600,null);
+  let verticalDistance=0, peakPitch=0;
+  for(let i=0;i<200;i++) {
+    const before=residents[0].y;
+    residents=stepHomeResidents(residents,600,600,0.1,null,{x:0,y:0});
+    verticalDistance+=Math.abs(residents[0].y-before);
+    peakPitch=Math.max(peakPitch,Math.abs(residents[0].pitch));
+  }
+  assert.ok(verticalDistance>40);
+  assert.ok(peakPitch>0.01 && peakPitch<0.17);
 });
 test('reversals retain bounded head body and tail lag without touching resident condition', () => {
   const specimen=fish('turn'); const before=JSON.stringify(specimen);

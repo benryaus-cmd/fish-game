@@ -1,0 +1,11 @@
+# Restore gentle vertical swimming
+
+User requested the earlier lively climb/dive feel, accepting that the nose need not point fully up/down. Sampled all five supplied recordings throughout: current home watching/control (154857, 154932), current garden (155047), previous v8 (155443) and previous v7 (155508). The earlier versions differ: v8 already shows steep vertical attitude; v7 retains a gentler body attitude and prominent flex. Read the original playerSurvival/fishModel directly from uploaded aqualume-project (2).zip rather than assuming all previous recordings used the same source.
+
+The ZIP's pitch target was clamp(-input.y × 0.45, -0.42, 0.42). The current garden target used normalised direction/atan2 capped at 1.2 radians; home used travel angle capped at 1.3. Those steep attitudes reduce visible lateral flex and make the broad side silhouette rotate towards upright.
+
+Restored the original gentle, effort-sensitive target in playerSurvival.ts using sanitised inputY. HomeScene.ts now uses vertical velocity / 70 with the same 0.45 effort factor and ±0.42 cap. Home autonomous wandering consequently keeps restrained attitude too. Existing pitch easing, horizontal head/body/tail lag, phase/fin animation, vertical velocity, burst, camera, feeding and corrected body/fin/shading projection are unchanged. The product brief now explicitly distinguishes full vertical travel from gentle visual attitude.
+
+Worker saw seven pitch assertions fail before these two target changes. Updated tests cover gentle signed full-stick pitch, partial effort, diagonals, release/levelling, autonomous wander and unchanged displacement/velocity. Root full suite: 59 passed, one optional pose-sheet export skipped, no failures; scoped TypeScript and production build passed. Native rendering/fin attachment regressions remain green. Built Chromium journey verified full ascent/descent and safe resident control without runtime errors; inspected actual garden/home up/down screenshots. An initial fixture triggered a legitimate growth-choice modal, so the motion capture fixture now uses an adult with both adaptations; video capture was dropped after the headless recorder timed out. No physical-phone feel/FPS or audio claim.
+
+Only two product source files ship through updates/gentle-vertical-swim.json. No rendering rollback or unrelated progression work.
