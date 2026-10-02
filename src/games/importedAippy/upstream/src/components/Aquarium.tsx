@@ -510,8 +510,11 @@ const Aquarium = ({
 
     // Update Predator
     if (!displaySpecimen) for (const hunter of [predator, secondPredatorRef.current]) if(hunter) updatePredator(hunter, player, survival, dt, worldSurfaceY, () => {
-      // Predator bite hit player!
+      // A hit gives seven seconds of breathing room from both hunters.
       if (survival.invulnerableTime <= 0 && !survival.isDead) {
+        for (const other of [predator, secondPredatorRef.current]) {
+          if (other) other.attackCooldown = Math.max(other.attackCooldown, 7 + dt);
+        }
         survival.health = Math.max(0, survival.health - 8);
         survival.isDead = survival.health <= 0;
         survival.invulnerableTime = 1.8;

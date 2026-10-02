@@ -120,3 +120,5 @@ Adult Swim loop: catch shrimp for1 credit per catch, balancing hunger/overfeedin
 
 Predator/crab balance: both deal 8 health out of 100 per hit. Predator detection radius is 600 world units (80% of its former 750). Ending a chase preserves the current heading toward one fixed destination while slowing to patrol speed; do not choose retreat targets every frame or force a turnaround.
 Default Burst endurance is 50% longer (normalized drain 65/1.5 per second); retain the saved 0–100 stamina scale and existing recovery/cooldown thresholds.
+
+A successful predator hit gives at least seven seconds without another predator hit, shared by both hunters; crab grace timing is independent.

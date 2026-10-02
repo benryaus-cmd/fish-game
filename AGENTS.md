@@ -31,3 +31,5 @@ Predator/crab balance: both deal 8 health out of 100 per hit. Predator detection
 Default Burst endurance is 50% longer (normalized drain 65/1.5 per second); retain the saved 0–100 stamina scale and existing recovery/cooldown thresholds.
 
 Launch welcomes players with V0.9, the native Rainbow portrait and a concise how-to-play card. Dismiss into View; returning from Swim does not reopen it. Browser journeys should dismiss Let’s begin before interacting with Home.
+
+A successful predator hit gives at least seven seconds without another predator hit, shared by both hunters; crab grace timing is independent.

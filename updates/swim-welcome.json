@@ -1,5 +1,5 @@
 {
-  "update": "swim-welcome-v1",
+  "update": "swim-welcome-v2",
   "baseUrl": "https://raw.githubusercontent.com/benryaus-cmd/fish-game/main/",
   "files": [
     "src/dev/projectZipExport.ts",

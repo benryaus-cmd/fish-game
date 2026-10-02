@@ -304,7 +304,7 @@ export function updatePredator(
       const mouthDist = Math.hypot(pMouth.x - player.x, pMouth.y - player.y);
       if (mouthDist < player.L * 0.75 && pred.attackCooldown <= 0 && playerSurvival.invulnerableTime <= 0) {
         f.mouth = 1.0;
-        pred.attackCooldown = 2.0; // safe window
+        pred.attackCooldown = 7.0; // seven-second recovery after a successful bite
         disengage(2.5);
         onBitePlayer();
       } else if (pred.stateTimer <= 0) {
