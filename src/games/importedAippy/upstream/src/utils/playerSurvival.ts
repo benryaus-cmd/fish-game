@@ -136,14 +136,17 @@ export function updatePlayerFish(
     player.pitch += (0 - player.pitch) * ease(2.5, dt);
   }
 
-  // Spring-like yaw turning
+  // Strong horizontal input speeds up the turn without snapping the pose.
+  // Keep the original response below half stick; reach full boost at 90%.
+  const turnInput = input.active ? clamp((Math.abs(input.x) - 0.5) / 0.4, 0, 1) : 0;
+  const turnBoost = turnInput * turnInput * (3 - 2 * turnInput);
   const goalYaw = player.dir === 1 ? 0 : PI;
-  const k = 5.2; // responsive turning
+  const k = 5.2 + 41.6 * turnBoost;
   const c = 2 * Math.sqrt(k) * 0.95;
   player.yawVel += ((goalYaw - player.yaw) * k - player.yawVel * c) * dt;
   player.yaw = clamp(player.yaw + player.yawVel * dt, -0.04, PI + 0.04);
-  player.yawBody += (player.yaw - player.yawBody) * ease(5.5, dt);
-  player.yawTail += (player.yawBody - player.yawTail) * ease(4.2, dt);
+  player.yawBody += (player.yaw - player.yawBody) * ease(5.5 + 11 * turnBoost, dt);
+  player.yawTail += (player.yawBody - player.yawTail) * ease(4.2 + 8.4 * turnBoost, dt);
   const turning = Math.sin(clamp(player.yawBody, 0, PI));
 
   // Compute velocities
