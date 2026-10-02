@@ -14,7 +14,7 @@ Launch into **View**, the peaceful overview of your saved aquarium. **Swim** tak
 
 Use a quiet bottom dock: **Raise · Tanks · Breed · FishoDex**, plus settings. Selecting a fish opens its portrait, name, lineage, traits and actions to swim, move, favourite, mark as breeding stock or sell. Collapse panels to watch the aquarium. Favourites and breeding stock require explicit sale confirmation.
 
-Fish are persistent individuals, never edible guppy prey. Tap one for condition, progress, inheritance and development paths. View offers paid pellets and cleaning; Swim offers free wall grazing, shrimp hunting and glass cleaning. Dirt accumulates on the shared saved timeline and becomes visible on the walls. Forgiving unattended View care keeps a health floor, but an individual already at zero health never revives. At zero health, it turns upside down and floats upward for four seconds before death information and its removal. This applies to owned fish as well as new stock. Other individuals and credits survive; affected breeding reservations cancel safely.
+Fish are persistent individuals, never edible guppy prey. Tap one for condition, progress, inheritance and development paths. View offers paid pellets and cleaning; Swim offers free algae grazing and shrimp hunting; each eaten algae patch clears 5 dirt, without an instant free-clean button. Dirt accumulates on the shared saved timeline and becomes visible on the walls. Forgiving unattended View care keeps a health floor, but an individual already at zero health never revives. At zero health, it turns upside down and floats upward for four seconds before death information and its removal. This applies to owned fish as well as new stock. Other individuals and credits survive; affected breeding reservations cancel safely.
 
 ## 2. The raise–sell–keep loop and stock
 
@@ -33,7 +33,7 @@ Swim has a deliberate traversal loop: the leafy nursery at the left is the only 
 | **Ornamental** | Tail shape → patterned fins → refined colour/iridescence. Clearly prettier in motion and portraits; market and collection premiums. | Spectacular finnage can increase drag or burst cost. Beauty means authored shape, pattern and material, not unlimited fin scaling. |
 | **Athletic** | Streamlined form, stronger propulsion, acceleration, turning or burst recovery. Opens difficult food routes and escapes. | Fast builds need more food or stamina; every tier cannot improve every movement stat. |
 | **Vibrancy** | Richer expression of inherited colour and a higher show value. | Uses a stage choice; heredity stays fixed and poor condition still dulls colour. |
-| **Vitality** | Robust condition, food efficiency, recovery and environmental tolerance. Useful parents for resilient offspring and demanding habitats. | Uses opportunities that could increase ornament or speed; never grants invulnerability or ignores species compatibility. |
+| **Vitality** | Robust condition, 12% more feeding time credit per upgrade (including overfeeding), food efficiency, recovery and environmental tolerance. Useful parents for resilient offspring and demanding habitats. | Uses opportunities that could increase ornament or speed; never grants invulnerability or ignores species compatibility. |
 
 Each species eventually gets a small authored branch tree, previewing appearance, immediate stat changes and its next branch. The current four paths allow multiple different picks per milestone when care is good; low condition may earn none. Growth continues while a choice awaits, and earned choices remain available while the player is present in View.
 
@@ -124,3 +124,5 @@ Default Burst endurance is 50% longer (normalized drain 65/1.5 per second); reta
 A successful predator hit gives at least seven seconds without another predator hit, shared by both hunters; crab grace timing is independent.
 
 Audio master gain is 70% of the previous level for both channels, independent of the saved music/SFX percentages. Keep one audio owner and explicit imports for its settings contract.
+
+The Swim stage box counts down healthy time remaining to juvenile/adult; adults show Fully grown. Castle healing changes the Health label to green Healing without a separate line. Upgrade choices show selection ticks/highlights and a count before confirmation; two/three-choice stages must persist exactly the chosen distinct traits.

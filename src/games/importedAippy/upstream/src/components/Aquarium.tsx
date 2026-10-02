@@ -30,7 +30,7 @@ import FishPortrait from '@/components/FishPortrait';
 import FishCarePanel from '@/components/FishCarePanel';
 import { useHomeSheet } from '@/components/HomeScreen';
 import { ensureSpecimenCare, advanceSpecimenCare, feedSpecimen, careSummary, chooseDevelopment } from '@/utils/specimenCare';
-import { cleanTank } from '@/utils/tankCare';
+import { grazeTankAlgae } from '@/utils/tankCare';
 import { CASTLE_HEAL_PER_SECOND, inCastleHealingPlume, drawCastleBubbles } from '@/utils/castleHealing';
 import { createAquariumView, updateAquariumView, drawAquariumView, pickAquariumViewFish } from '@/utils/aquariumView';
 import { drawSandCaustics, drawCycleTint, getTankPalette } from '@/utils/tankLighting';
@@ -480,6 +480,14 @@ const Aquarium = ({
             ? ` · ${savedSeconds}s saved to ${nextStage}`
             : growthCredit > 0 ? ` · +${growthCredit}s growth credit (minimum age applies)` : ' · Growth time credit full';
           let creditAwarded=false;
+          if(meal==='algae'){
+            const active=snapshot();
+            if(active){
+              const current={...profileRef.current,activeRun:active};
+              const next=grazeTankAlgae(current,Date.now());
+              if(onProfileChange(next))profileRef.current=next;
+            }
+          }
           if(meal==='prey'){
             const active=snapshot();
             if(active){const current=profileRef.current,next=rewardShrimpCatch(current,active);
@@ -487,6 +495,7 @@ const Aquarium = ({
             }
           }
           setMealNotice(specimenRef.current.health<beforeHealth ? `Overfed · −${Math.round(beforeHealth-specimenRef.current.health)} health${growthNotice}. Let your fish digest.` : `${meal === 'prey' ? 'Shrimp eaten' : meal === 'algae' ? 'Algae grazed' : meal === 'pellet' ? 'Pellet eaten' : 'Flake eaten'} · nourishment ${Math.round(specimenRef.current.care?.nutrition ?? 0)}%${growthNotice}`);
+          if(meal==='algae')setMealNotice(notice=>`${notice} · algae cleared`);
           if(creditAwarded)setMealNotice(notice=>`${notice} · +1 credit`);
           spawnEatGlints(juice, mouth.x, mouth.y, player.L); playBiteSound();
         }
@@ -774,15 +783,6 @@ const Aquarium = ({
     if(playerRef.current)playerPalRef.current=applySpecimenAppearance(playerRef.current,next);
     setChoiceStage(0);setChosenTraits([]);
   };
-  const cleanGlass=()=>{
-    const active=snapshot();if(!active)return;
-    const current={...profileRef.current,activeRun:active};
-    const next=cleanTank(current,false,Date.now());
-    if(next===current||!onProfileChange(next))return;
-    profileRef.current=next;
-    for(const food of foodRef.current)if(food.kind==='algae'){food.active=false;food.respawn=60;}
-    setMealNotice('Glass cleaned · free while swimming');
-  };
   const finishRun = (kind: 'sell' | 'keep') => {
     const player = playerRef.current;
     if (!player || endedRef.current || survivalRef.current.isDead || (kind === 'keep' && !isInNursery(player.x, player.y))) return;
@@ -805,6 +805,8 @@ const Aquarium = ({
   const refuge = { distance: player ? Math.round(Math.hypot(refugeX - player.x, refugeY - player.y)) : 0,
     angle: player ? Math.atan2(refugeY - player.y, refugeX - player.x) : 0 };
   const nurseryFull = profile.kept.length + (profile.breeding ? 1 : 0) >= NURSERY_CAPACITY;
+  const nextStageSeconds = specimen.growth < 35 ? Math.max(0, 280 - (specimen.care?.healthySeconds ?? 0)) : careSummary(specimen).adultReadyInSeconds;
+  const choiceSlots = specimen.care?.development?.pending.find(p=>p.stage===choiceStage)?.slots ?? 0;
   const resident = runMetadataRef.current?.source === 'resident';
   const controls = mode==='swim' && !paused && !detailsOpen && !appraisalOpen && !choiceStage && !receipt && !hudState.isDead;
   return <div className="garden-root" onClick={() => void initAudio()}>
@@ -821,9 +823,9 @@ const Aquarium = ({
       }
     }} />
     {mode==='swim'&&<GardenHUD hud={{ ...hudState, threat: predatorRef.current?.state === 'stalk' || predatorRef.current?.state === 'charge' }}
-      mode={mode} ageSeconds={Math.max(0,(Date.now()-(specimen.care?.bornAtMs ?? Date.now()))/1000)}
+      mode={mode} nextStageSeconds={nextStageSeconds}
       healing={!!player&&inCastleHealingPlume(player.x,player.y)&&!hudState.isDead}
-      pendingDevelopment={specimen.care?.development?.pending} onClean={cleanGlass}
+      pendingDevelopment={specimen.care?.development?.pending}
       onDevelopment={()=>{setChoiceStage(specimenRef.current.care?.development?.pending[0]?.stage??0);setChosenTraits([]);saveRun();}}
       coins={profile.coins} value={appraiseFish(specimen)} stage={getStage(hudState.growth)} refuge={refuge}
       resident={resident} worldClock={profile.worldClock} display={!!displaySpecimen} controls={controls} saved={saved}
@@ -837,16 +839,17 @@ const Aquarium = ({
         <button className="garden-detail-close" aria-label="Choose later" onClick={()=>setChoiceStage(0)}>×</button>
         <p className="garden-eyebrow">GROWTH MILESTONE · {choiceStage === 35 ? 'JUVENILE' : 'ADULT'}</p>
         <h2>A little more you.</h2><FishPortrait specimen={specimen} />
-        <p>Your care earned {specimen.care?.development?.pending.find(p=>p.stage===choiceStage)?.slots ?? 0} choices. Select different paths, then confirm. Growth continues while choices wait.</p>
+        <p>Your care earned {choiceSlots} choices. Select different paths, then confirm. Growth continues while choices wait.</p>
+        <p className="garden-choice-count" role="status">{chosenTraits.length} of {choiceSlots} selected{chosenTraits.length < choiceSlots ? ` · choose ${choiceSlots-chosenTraits.length} more` : ' · ready to confirm'}</p>
         <div className="dialog-actions">
-          <button className="garden-button" aria-pressed={chosenTraits.includes('swift')} onClick={() => chooseAdaptation('swift')}>Swim speed <span>↗</span></button>
+          <button className="garden-button garden-button-secondary" aria-pressed={chosenTraits.includes('swift')} disabled={!chosenTraits.includes('swift') && chosenTraits.length >= choiceSlots} onClick={() => chooseAdaptation('swift')}>Swim speed <span>{chosenTraits.includes('swift') ? '✓' : '↗'}</span></button>
           <p>12% more swim speed, with 8% more burst effort. Adds ◈ 12 to the base appraisal.</p>
-          <button className="garden-button garden-button-secondary" aria-pressed={chosenTraits.includes('vibrancy')} onClick={() => chooseAdaptation('vibrancy')}>Vibrancy <span>✧</span></button><p>Deepen the colour you inherited and increase show value.</p>
-          <button className="garden-button garden-button-secondary" aria-pressed={chosenTraits.includes('ornate')} onClick={() => chooseAdaptation('ornate')}>Ornamental fins <span>✧</span></button>
+          <button className="garden-button garden-button-secondary" aria-pressed={chosenTraits.includes('vibrancy')} disabled={!chosenTraits.includes('vibrancy') && chosenTraits.length >= choiceSlots} onClick={() => chooseAdaptation('vibrancy')}>Vibrancy <span>{chosenTraits.includes('vibrancy') ? '✓' : '✧'}</span></button><p>Deepen the colour you inherited and increase show value.</p>
+          <button className="garden-button garden-button-secondary" aria-pressed={chosenTraits.includes('ornate')} disabled={!chosenTraits.includes('ornate') && chosenTraits.length >= choiceSlots} onClick={() => chooseAdaptation('ornate')}>Ornamental fins <span>{chosenTraits.includes('ornate') ? '✓' : '✧'}</span></button>
           <p>Longer flowing fins. Adds ◈ 24 to the base appraisal without a speed change.</p>
-          <button className="garden-button garden-button-secondary" aria-pressed={chosenTraits.includes('vital')} onClick={() => chooseAdaptation('vital')}>Vitality <span>♡</span></button>
-          <p>More nourishment from meals and stronger recovery while healthy.</p>
-          <button className="garden-button" disabled={chosenTraits.length!==(specimen.care?.development?.pending.find(p=>p.stage===choiceStage)?.slots ?? 0)} onClick={confirmAdaptations}>Confirm upgrades</button>
+          <button className="garden-button garden-button-secondary" aria-pressed={chosenTraits.includes('vital')} disabled={!chosenTraits.includes('vital') && chosenTraits.length >= choiceSlots} onClick={() => chooseAdaptation('vital')}>Vitality <span>{chosenTraits.includes('vital') ? '✓' : '♡'}</span></button>
+          <p>12% more feeding time credit per Vitality upgrade, even when overfed. Better nourishment and recovery.</p>
+          <button className="garden-button" disabled={chosenTraits.length!==choiceSlots} onClick={confirmAdaptations}>Confirm upgrades</button>
         </div>
       </section></div>}
       {appraisalOpen && <div className="garden-modal"><section className="garden-dialog garden-glass" role="dialog" aria-modal="true" aria-label="Nursery appraisal">

@@ -25,3 +25,9 @@ export function cleanTank(save: BoutiqueSave, paid: boolean, now=Date.now()): Bo
   if(profile.tankCare!.dirt<=0) return save;
   return {...profile,coins:profile.coins-(paid?CLEAN_PRICE:0),tankCare:{...profile.tankCare!,dirt:0}};
 }
+
+/** One eaten algae patch removes a little dirt; other patches stay available. */
+export function grazeTankAlgae(save: BoutiqueSave, now=Date.now()): BoutiqueSave {
+  const profile=advanceTankCare(save,now);
+  return {...profile,tankCare:{...profile.tankCare!,dirt:Math.max(0,profile.tankCare!.dirt-5)}};
+}

@@ -78,7 +78,7 @@ test('vitality improves meal efficiency without instant meal healing', () => {
   const ordinary=feedSpecimen(base,'flake',t,'day');
   const vital=feedSpecimen({...base,traits:['vital']},'flake',t,'day');
   assert.ok(vital.hunger>ordinary.hunger); assert.equal(vital.health,ordinary.health);
-  assert.equal(vital.growth,0); assert.equal(vital.care!.healthySeconds,15);
+  assert.equal(vital.growth,0); assert.ok(Math.abs(vital.care!.healthySeconds-16.8)<1e-8);
 });
 
 test('recovering fish receive identical healthy credit across coarse and frequent ticks', () => {

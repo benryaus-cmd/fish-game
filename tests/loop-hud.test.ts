@@ -21,10 +21,11 @@ const { default: HUD } = await import(join(out, 'components-GardenHUD.mjs'));
 const props = { hud: { health: 95, hunger: 71, stamina: 100, growth: 36, inShelter: false, isDead: false }, coins: 42, value: 20, stage: 'juvenile', display: false, controls: true, saved: true, sound: false, knobRef: {current: null}, onShop() {}, onAppraise() {}, onSound() {}, joyDown() {}, joyMove() {}, joyUp() {}, burstDown() {}, burstUp() {} };
 const render = (extra = {}) => renderToStaticMarkup(createElement(HUD, {...props, ...extra}));
 
-test('Swim puts condition and actual age before aquarium identity', () => {
-  const html = render({ ageSeconds: 125 });
+test('Swim puts condition and a next-stage countdown before aquarium identity', () => {
+  const html = render({ nextStageSeconds: 125 });
   assert.ok(html.indexOf('garden-stats') < html.indexOf('garden-topbar'));
-  assert.match(html, /2\.1 min/);
+  assert.match(html, /2:05/);
+  assert.match(html, /to adult/);
   assert.match(html, /Swim/);
   assert.doesNotMatch(html, /Viewing tank|Growing tank/);
   assert.match(html, /aria-label="Return to View mode"/);
@@ -35,8 +36,8 @@ test('accumulated development opportunities are available as an edge action', ()
   assert.match(html, /5 choices ready/);
   assert.doesNotMatch(html, /aria-modal="true"/);
 });
-test('free glass cleaning is accessible in Swim only', () => {
-  assert.match(render({onClean() {}}), /aria-label="Clean glass"/);
+test('instant free glass cleaning is absent from Swim and View HUDs', () => {
+  assert.doesNotMatch(render({onClean() {}}), /aria-label="Clean glass"/);
   assert.doesNotMatch(render({mode:'view', onClean() {}}), /aria-label="Clean glass"/);
 });
 
@@ -67,4 +68,14 @@ test('burst ring is red strictly below twenty percent even during an active burs
     assert.match(low,/conic-gradient\(#e76565 /);
     assert.doesNotMatch(threshold,/conic-gradient\(#e76565 /);
   }
+});
+test('Swim has no instant free-clean action even if a legacy caller supplies one',()=>{
+ assert.doesNotMatch(render({onClean(){}}),/Clean glass|Free<\/small>/);
+});
+
+test('castle healing replaces the health label without adding a line',()=>{
+ const html=render({healing:true});assert.match(html,/label class="garden-healing">Healing/);assert.doesNotMatch(html,/<small class="garden-healing"/);
+});
+test('adults have no next-stage countdown',()=>{
+ const html=render({stage:'adult',nextStageSeconds:0});assert.match(html,/Fully grown/);assert.doesNotMatch(html,/0:00/);
 });

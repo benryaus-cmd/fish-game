@@ -15,9 +15,9 @@ interface Props {
   resident?: boolean;
   eatClick?: (detail: number) => void;
   species?: string; mealNotice?: string; onCare?: () => void;
-  mode?: 'view' | 'swim'; ageSeconds?: number; healing?: boolean;
+  mode?: 'view' | 'swim'; nextStageSeconds?: number; healing?: boolean;
   pendingDevelopment?: { stage: number; slots: number; options: Adaptation[] }[];
-  onDevelopment?: () => void; onClean?: () => void;
+  onDevelopment?: () => void;
   children?: ReactNode;
 }
 export default function GardenHUD(p: Props) {
@@ -26,7 +26,8 @@ export default function GardenHUD(p: Props) {
   const burstLabel = hud.isBursting ? 'BURST' : (hud.burstCooldown ?? 0) > 0 ? 'COOLDOWN' : burstLocked ? 'RECHARGE' : 'BURST';
   const burstHint = hud.isBursting ? 'hold / space' : (hud.burstCooldown ?? 0) > 0 ? (hud.burstCooldown ?? 0).toFixed(1) + 's' : burstLocked ? 'recover >20%' : 'hold / space';
   const mode = p.mode ?? 'swim';
-  const ageMinutes = Math.max(0, p.ageSeconds ?? 0) / 60;
+  const remaining = Math.ceil(Math.max(0, p.nextStageSeconds ?? 0));
+  const countdown = `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`;
   const pendingChoices = (p.pendingDevelopment ?? []).reduce((total, opportunity) => total + opportunity.slots, 0);
   const [details, setDetails] = useState(false);
   const [intro, setIntro] = useState(true);
@@ -36,11 +37,11 @@ export default function GardenHUD(p: Props) {
     {!p.display && <>
       <div className="garden-stats">
         <button className="garden-condition garden-glass" aria-label="Fish condition and value" aria-expanded={details} onClick={toggleDetails}>
-          <span><label>Health <em>{hud.health}</em></label>{p.healing && <small className="garden-healing">Healing</small>}<i><b style={{ width: hud.health + '%', background: '#eda896' }} /></i></span>
+          <span><label className={p.healing ? "garden-healing" : undefined}>{p.healing ? "Healing" : "Health"} <em>{hud.health}</em></label><i><b style={{ width: hud.health + '%', background: '#eda896' }} /></i></span>
           <span><label>Food <em>{hud.hunger}</em></label><i><b style={{ width: hud.hunger + '%', background: '#d8c58d' }} /></i></span>
         </button>
         <button className="garden-growth garden-glass" aria-label="Age, growth and appraisal details" aria-expanded={details} onClick={toggleDetails}>
-          <span className="garden-age-label">Age <small>{p.stage}</small></span><span className="garden-age-value"><strong>{hud.growth}<small>%</small></strong><small>{ageMinutes.toFixed(1)} min</small></span><span aria-hidden="true">⌄</span>
+          <span className="garden-age-label">{p.stage === 'adult' ? 'Adult' : 'Next stage'}<small>{p.stage}</small></span><span className="garden-age-value"><strong>{p.stage === 'adult' ? 'Adult' : countdown}</strong><small>{p.stage === 'adult' ? 'Fully grown' : `to ${p.stage === 'fry' ? 'juvenile' : 'adult'}`}</small></span><span aria-hidden="true">⌄</span>
         </button>
       </div>
       {(hud.inShelter || hud.threat) && <div className={'garden-status' + (hud.threat && !hud.inShelter ? ' danger' : '')}>
@@ -59,7 +60,6 @@ export default function GardenHUD(p: Props) {
     </header>
     {mode === 'swim' && <div className="garden-edge-actions">
       {pendingChoices > 0 && p.onDevelopment && <button className="garden-upgrades garden-glass" onClick={p.onDevelopment} aria-label="Choose upgrades"><strong>Choose upgrades</strong><small>{pendingChoices} {pendingChoices === 1 ? 'choice' : 'choices'} ready</small></button>}
-      {p.onClean && <button className="garden-clean garden-glass" onClick={p.onClean} aria-label="Clean glass">Clean glass <small>Free</small></button>}
     </div>}
     {!p.saved && <p className="garden-save-warning" role="status">Saving unavailable</p>}
     {p.controls && <>

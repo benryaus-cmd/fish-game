@@ -121,7 +121,7 @@
 .garden-age-label small{display:block;font-size:8px;text-transform:capitalize;color:#d8e4d6;margin-top:4px}
 .garden-growth>.garden-age-value{display:block;text-transform:none;letter-spacing:0;text-align:right}
 .garden-age-value>small{display:block;color:#e2eadb;font-size:9px;white-space:nowrap;margin-top:2px}
-.garden-healing{display:block;font-size:8px;color:#b5edc0;margin-top:4px}
+.garden-condition label.garden-healing{color:#b5edc0}
 .garden-topbar{top:calc(max(8px,env(safe-area-inset-top)) + 66px);padding:0 max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left));align-items:flex-start}
 .garden-topbar>div>span{margin-top:2px}.garden-topbar .world-time{margin-top:2px}
 .garden-edge-actions{position:absolute;top:calc(max(8px,env(safe-area-inset-top)) + 124px);right:max(12px,env(safe-area-inset-right));z-index:25;display:flex;flex-direction:column;align-items:flex-end;gap:6px;max-width:134px}
@@ -143,3 +143,6 @@
 @media(prefers-reduced-motion:reduce){.garden-low-health-vignette{animation:none}}
 
 .garden-burst-waiting span b{font-size:9px;letter-spacing:.03em}.garden-burst-waiting span small{font-size:7px;letter-spacing:0}.garden-burst-low span b{color:#ff9b8f}
+
+.dialog-actions .garden-button[aria-pressed="true"]{background:linear-gradient(155deg,#f1e5bb,#bda872);color:#173e42;border-color:#fff0b9;box-shadow:0 0 0 2px #eadca544,inset 0 1px 0 #fff8dc77}
+.garden-choice-count{color:#e4d09a!important;font-weight:700}

@@ -7,7 +7,7 @@ export const developmentPaths = [
   { trait: 'ornate', name: 'Ornate', icon: '✧', benefit: 'Flowing fins and a higher show value.', next: 'Each tier develops fuller fins and adds a beauty premium.' },
   { trait: 'swift', name: 'Swift', icon: '↗', benefit: 'Stronger swimming and quicker escapes.', next: 'Each tier adds 12% swim speed, with a higher burst cost.' },
   { trait: 'vibrancy', name: 'Vibrancy', icon: '◈', benefit: 'Richer living colour and a brighter sheen.', next: 'Each choice deepens acquired colour quality without changing inherited hue.' },
-  { trait: 'vital', name: 'Vital', icon: '♡', benefit: 'Better food efficiency and recovery.', next: 'A healthier raising path and more reliable breeding condition.' },
+  { trait: 'vital', name: 'Vital', icon: '♡', benefit: '12% more feeding time credit, better food efficiency and recovery.', next: 'A healthier raising path and more reliable breeding condition.' },
 ] as const;
 
 export function formatCareTime(seconds: number) {

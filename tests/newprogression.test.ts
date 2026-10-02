@@ -80,3 +80,15 @@ test('new outing stock starts hungry enough for its first worthwhile bite', asyn
  const save=startStockRun({...createBoutiqueSave(),coins:1000},'ordinary','first-bite',t); assert.equal(save.activeRun!.specimen.hunger,70);
  const fed=feedSpecimen(save.activeRun!.specimen,'flake',t); assert.equal(fed.health,100); assert.ok(fed.care!.nutrition>save.activeRun!.specimen.care!.nutrition);
 });
+test('eating algae cleans only part of the glass for free and preserves owned fish', async()=>{
+ const {grazeTankAlgae}=await import('../src/games/importedAippy/upstream/src/utils/tankCare.ts');
+ const fish=fry(),save={...createBoutiqueSave(),coins:42,kept:[fish],tankCare:{dirt:40,lastUpdatedMs:t,pellets:2}};
+ const cleaned=grazeTankAlgae(save,t);assert.equal(cleaned.tankCare!.dirt,35);assert.equal(cleaned.coins,42);assert.deepEqual(cleaned.kept,[fish]);assert.equal(cleaned.tankCare!.pellets,2);
+ assert.equal(grazeTankAlgae({...save,tankCare:{...save.tankCare,dirt:2}},t).tankCare!.dirt,0);
+});
+test('Vitality increases feeding growth credit even when the fish is full',()=>{
+ const full={...fry(),hunger:100,health:100};
+ const normal=feedSpecimen(full,'flake',t),vital=feedSpecimen({...full,traits:['vital']},'flake',t);
+ assert.ok(Math.abs(vital.care!.healthySeconds-normal.care!.healthySeconds*1.12)<1e-8);
+ assert.ok(vital.health<100);assert.equal(vital.hunger,100);
+});
