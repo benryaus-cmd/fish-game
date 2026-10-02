@@ -1,9 +1,10 @@
 import { LAST, fishBlit, fishEllipse, fishPoint, fishSprites, type Fish, type FishPalette } from '@/utils/fishModel';
 
 /** Layered tropical markings + volume shading for the Colorful Fish (drawn inside the body clip). */
-export function drawColorfulShading(ctx: CanvasRenderingContext2D, f: Fish, p: FishPalette, near: number, lw: number) {
+export function drawColorfulShading(ctx: CanvasRenderingContext2D, f: Fish, p: FishPalette, near: number, lw: number, pattern?: string) {
   const HH = f.tr.hh, WW = f.tr.ww;
   const { light, cool } = fishSprites();
+  if (!pattern || pattern === 'banded') {
   // Warm golden lateral band from gill to tail stem — shifts onto the near flank while turning
   ctx.fillStyle = p.accent;
   ctx.beginPath();
@@ -44,6 +45,7 @@ export function drawColorfulShading(ctx: CanvasRenderingContext2D, f: Fish, p: F
     ctx.fillStyle = p.mark;
     ctx.globalAlpha = 0.34 * c;
     ctx.beginPath(); fishEllipse(ctx, f, i, 0.038, HH[i] * 0.7, 0.008, -HH[i] * 0.1); ctx.fill();
+  }
   }
   // Volume: back light, belly glow, underside + tail shade
   const q = (i: number) => ({ a: f.ya[i], c: Math.abs(Math.cos(f.ya[i])), s: Math.abs(Math.sin(f.ya[i])) });

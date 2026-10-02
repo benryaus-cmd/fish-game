@@ -2,6 +2,7 @@ import { mix } from '@/utils/colorUtils';
 
 type Grad = CanvasGradient | string;
 export interface AngelPalette {
+  pattern?: string; accent?: string;
   top: string; pearl: string; light: string; cream: string; gold: string; dark: string;
   stripe: string; rim: string; gill: string; socket: string; iris: string; irisRing: string; pupil: string; glint: string;
   lip: string; mouthIn: string; ray: string; finEdge: string; finA: string; finB: string; finC: string;

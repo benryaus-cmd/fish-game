@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Specimen } from '@/utils/boutique';
 import { createFish, type Fish, type FishPalette } from '@/utils/fishModel';
-import { drawFish, drawFishShadow } from '@/utils/fishRender';
+import { drawFishShadow } from '@/utils/fishRender';
+import { drawSpecimenFish } from '@/utils/specimenRender';
 import { applySpecimenAppearance } from '@/utils/specimenAppearance';
 import { drawPlant, type PlantDef } from '@/utils/plantRender';
 import { drawRock } from '@/utils/rockRender';
 import { drawWaterCaustics, getCausticPattern } from '@/utils/aquaScene';
-import { drawSandCaustics, drawCycleTint } from '@/utils/tankLighting';
+import { drawSandCaustics, drawCycleTint, getTankPalette, drawWaterBackground } from '@/utils/tankLighting';
 import { sampleWorldClock, type WorldClock } from '@/utils/worldClock';
 import { canvasHomePoint, createHomeResidents, pickHomeResident, stepHomeResidents, type HomeAxis, type HomeResident } from '@/utils/homeScene';
 
@@ -46,7 +47,7 @@ export default function HomeTank({ width, height, specimens, controlledId, onSel
     const owned = new Map(specimens.map(s => [s.id, s]));
     for (const r of residents.current) {
       const specimen = owned.get(r.id)!;
-      const appearance = JSON.stringify([specimen.color, specimen.accent, specimen.traits, specimen.growth, specimen.inherited]);
+      const appearance = JSON.stringify([specimen.color, specimen.accent, specimen.traits, specimen.growth, specimen.inherited, specimen.health, specimen.hunger, specimen.care]);
       let rig = rigs.current.get(r.id);
       if (!rig || rig.appearance !== appearance) {
         const fish = createFish(w, h, r.size);
@@ -63,25 +64,42 @@ export default function HomeTank({ width, height, specimens, controlledId, onSel
     const sandY = h * 0.80;
     const surface = (x: number) => sandY + Math.sin(x / w * 6 + 0.5) * 6;
     const decorScale = Math.min(65, w * 0.12, h * 0.17);
-    const background = document.createElement('canvas'); background.width = el.width; background.height = el.height;
-    const bg = background.getContext('2d')!; bg.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const water = bg.createLinearGradient(0, 0, w * 0.5, h);
-    water.addColorStop(0, '#356c69'); water.addColorStop(0.38, '#143e46'); water.addColorStop(1, '#08242d');
-    bg.fillStyle = water; bg.fillRect(0, 0, w, h);
-    const glow = bg.createRadialGradient(w * 0.4, -h * 0.06, 0, w * 0.4, 0, h * 0.8);
-    glow.addColorStop(0, 'rgba(247,241,205,.28)'); glow.addColorStop(0.55, 'rgba(170,216,182,.055)'); glow.addColorStop(1, 'rgba(170,216,182,0)');
-    bg.fillStyle = glow; bg.fillRect(0, 0, w, h);
-    for (let i = 0; i < 5; i++) {
-      bg.fillStyle = 'rgba(230,245,214,.025)'; bg.beginPath();
-      const x = w * (0.06 + i * 0.23); bg.moveTo(x, 0); bg.lineTo(x + 20, 0); bg.lineTo(x + w * 0.2, sandY); bg.lineTo(x - w * 0.03, sandY); bg.fill();
-    }
-    const sand = bg.createLinearGradient(0, sandY, 0, h); sand.addColorStop(0, '#9eaa8d'); sand.addColorStop(0.1, '#d0c6a1'); sand.addColorStop(1, '#857b61');
-    bg.fillStyle = sand; bg.beginPath(); bg.moveTo(0, surface(0));
-    for (let x = 0; x <= w + 8; x += 8) bg.lineTo(x, surface(x)); bg.lineTo(w, h); bg.lineTo(0, h); bg.closePath(); bg.fill();
-    for (let i = 0; i < 230; i++) {
-      const x = (i * 73.31 % w), y = sandY + (i * 19.17 % Math.max(1,h-sandY));
-      bg.fillStyle = i % 3 === 0 ? 'rgba(244,230,191,.23)' : 'rgba(58,69,55,.15)'; bg.fillRect(x,y,1.2,0.8);
-    }
+    // Bake both clock endpoints once; daylight blends them without rebuilding canvases.
+    const makeLayer = () => {
+      const layer = document.createElement('canvas'); layer.width = el.width; layer.height = el.height;
+      const paint = layer.getContext('2d')!; paint.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { layer, paint };
+    };
+    const backgrounds = [0, 1].map(daylight => {
+      const { layer, paint: bg } = makeLayer(), palette = getTankPalette(daylight);
+      drawWaterBackground(bg, w, h, daylight);
+      const sand = bg.createLinearGradient(0, sandY, 0, h);
+      sand.addColorStop(0, palette.sand); sand.addColorStop(0.18, palette.sand); sand.addColorStop(1, daylight ? '#c8b58e' : '#857b61');
+      bg.fillStyle = sand; bg.beginPath(); bg.moveTo(0, surface(0));
+      for (let x = 0; x <= w + 8; x += 8) bg.lineTo(x, surface(x)); bg.lineTo(w, h); bg.lineTo(0, h); bg.closePath(); bg.fill();
+      for (let i = 0; i < 230; i++) {
+        const x = (i * 73.31 % w), y = sandY + (i * 19.17 % Math.max(1, h - sandY));
+        bg.fillStyle = i % 3 === 0 ? 'rgba(244,230,191,.23)' : 'rgba(58,69,55,.15)'; bg.fillRect(x, y, 1.2, 0.8);
+      }
+      for (let i = 0; i < 5; i++) {
+        const x = w * [0.08, 0.19, 0.75, 0.89, 0.95][i];
+        drawRock(bg, x, surface(x) + 5, { w: 1.2 + (i % 2) * 0.6, h: 0.65 + (i % 3) * 0.19, seed: 11 + i * 4, tone: i % 3 }, decorScale, palette.rock);
+      }
+      return layer;
+    });
+    // Separate endpoint contexts preserve plant material caches while stems keep swaying.
+    const foliage = [makeLayer(), makeLayer()];
+    const plantX = (i: number) => w * (i < 7 ? 0.015 + i * 0.047 : 0.73 + (i - 7) * 0.05);
+    const drawFoliage = (pass: 'back' | 'front', sceneTime: number, daylight: number) => {
+      foliage.forEach(({ layer, paint }, index) => {
+        const alpha = index ? daylight : 1 - daylight;
+        if (alpha <= 0) return;
+        paint.clearRect(0, 0, w, h);
+        const color = getTankPalette(index).plant;
+        plants.forEach((p, i) => drawPlant(paint, plantX(i), surface(plantX(i)) + 3, p, decorScale, color, sceneTime, i < 7 ? 0.7 : 0.86, pass));
+        ctx.save(); ctx.globalAlpha = alpha; ctx.drawImage(layer, 0, 0, w, h); ctx.restore();
+      });
+    };
     const render = (now: number) => {
       frame = 0;
       if (document.hidden) return;
@@ -94,27 +112,23 @@ export default function HomeTank({ width, height, specimens, controlledId, onSel
       // Reduced motion freezes autonomous swimming and planting, while deliberate control stays usable.
       if (!paused && !reduced.matches) residents.current = stepHomeResidents(residents.current,w,h,dt,controlledId,input);
       else if (!paused && controlledId) residents.current = residents.current.map(r => r.id === controlledId ? stepHomeResidents([r],w,h,dt,controlledId,input)[0] : r);
-      ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(background,0,0);
+      ctx.setTransform(1,0,0,1,0,0); ctx.globalAlpha = 1; ctx.drawImage(backgrounds[0],0,0);
+      ctx.globalAlpha = daylight; ctx.drawImage(backgrounds[1],0,0); ctx.globalAlpha = 1;
       ctx.setTransform(dpr,0,0,dpr,0,0);
       if (pattern) {
         drawWaterCaustics(ctx, pattern, sceneTime, 0, 0, w, h, 0.016 * (0.2 + daylight * 0.8), h);
         drawSandCaustics(ctx, pattern, sceneTime, { x: 0, y: 0, width: w, height: h }, surface, daylight, h);
       }
-      for (let i = 0; i < 5; i++) {
-        const x = w * [0.08,0.19,0.75,0.89,0.95][i];
-        drawRock(ctx,x,surface(x)+5,{w:1.2+(i%2)*0.6,h:0.65+(i%3)*0.19,seed:11+i*4,tone:i%3},decorScale,'#899887');
-      }
-      const plantX = (i: number) => w * (i < 7 ? 0.015+i*0.047 : 0.73+(i-7)*0.05);
-      plants.forEach((p,i) => drawPlant(ctx,plantX(i),surface(plantX(i))+3,p,decorScale,'#688e61',sceneTime, i<7 ? 0.7 : 0.86,'back'));
+      drawFoliage('back', sceneTime, daylight);
       for (const r of [...residents.current].sort((a,b)=>a.y-b.y)) {
         const rig = rigs.current.get(r.id)!;
         Object.assign(rig.fish,{x:r.x,y:r.y,L:r.size,phase:reduced.matches?0:r.phase,finPhase:reduced.matches?0:r.finPhase,amp:r.amp,pitch:r.pitch,yaw:r.yaw,yawBody:r.yawBody,yawTail:r.yawTail,dir:r.heading===0?1:-1});
-        drawFishShadow(ctx,rig.fish,surface); drawFish(ctx,rig.fish,rig.palette);
+        drawFishShadow(ctx,rig.fish,surface); drawSpecimenFish(ctx,rig.fish,rig.palette,owned.get(r.id)!);
         if (r.id === controlledId) {
           ctx.strokeStyle='rgba(246,221,158,.65)'; ctx.lineWidth=1.3; ctx.beginPath(); ctx.ellipse(r.x,r.y,r.size*0.9,Math.max(18,r.size*0.5),0,0,Math.PI*2); ctx.stroke();
         }
       }
-      plants.forEach((p,i) => drawPlant(ctx,plantX(i),surface(plantX(i))+3,p,decorScale,'#688e61',sceneTime,i<7?0.7:0.86,'front'));
+      drawFoliage('front', sceneTime, daylight);
       if (!reduced.matches) for (let i=0;i<17;i++) {
         const x = (i*79.31+sceneTime*1.4)%w, y = (i*47.7+sceneTime*2)%sandY;
         ctx.fillStyle='rgba(232,241,211,.15)'; ctx.beginPath(); ctx.arc(x,y,i%3===0?1.3:0.7,0,Math.PI*2); ctx.fill();
@@ -146,7 +160,7 @@ export default function HomeTank({ width, height, specimens, controlledId, onSel
   };
   const stopPad = () => { axis.current={x:0,y:0}; if(thumb.current)thumb.current.style.transform='translate(0px, 0px)'; };
   return <div ref={container} style={{position:'absolute',inset:0,width:'100%',height:'100%',overflow:'hidden'}}>
-    <canvas ref={canvas} role="img" aria-label={`Safe planted home aquarium with ${specimens.length} resident guppies. Tap a fish to select it.`} style={{display:'block',width:'100%',height:'100%',touchAction:'manipulation'}} onPointerUp={event=>{
+    <canvas ref={canvas} role="img" aria-label={`Safe planted home aquarium with ${specimens.length} resident fish. Tap a fish to select it.`} style={{display:'block',width:'100%',height:'100%',touchAction:'manipulation'}} onPointerUp={event=>{
       if(paused)return; const rect=event.currentTarget.getBoundingClientRect(); const p=canvasHomePoint(event.clientX,event.clientY,rect,measured.width,measured.height);
       const id=pickHomeResident(residents.current,p.x,p.y); if(id)onSelect(id);
     }}/>

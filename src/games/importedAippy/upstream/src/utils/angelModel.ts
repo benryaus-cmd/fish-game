@@ -8,6 +8,7 @@ export interface AngelEnv { w: number; h: number; sandTop: number; L: number }
  * Separate yaws per body region: head (yh), torso (yb), tail base (yp), tail fin (yt), fin tips (yf).
  */
 export interface AngelPose {
+  pitch?: number; finScale?: number; tailLength?: number; tailWidth?: number; finStyle?: 'rounded' | 'triangle' | 'sail';
   x: number; y: number; S: number; fade: number; rot: number; bob: number; sway: number;
   yh: number; yb: number; yp: number; yt: number; yf: number;
   bend: number; drag: number; lift: number;

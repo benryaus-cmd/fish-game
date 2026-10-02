@@ -10,11 +10,12 @@ export const ANAL: Fin = { b0: 0.09, b1: -0.3, dir: 1, tx: -0.37, ty: 0.97, ex: 
 /** Base leads, middle follows, tip lags last: drag, lift, flutter wave, turn bend and lagged yaw grow with v. */
 function finPt(a: AngelPose, f: Fin, u: number, v: number) {
   const bx = f.b0 + (f.b1 - f.b0) * u, by = midY(bx) + f.dir * halfH(bx) * 0.94;
+  const scale = a.finScale ?? 1;
   const w = 1 - u, cx = (f.tx + f.ex) * 0.5 + 0.06, cy = (f.ty + f.ey) * 0.4;
   const ox = w * w * f.tx + 2 * u * w * cx + u * u * f.ex, oy = w * w * f.ty + 2 * u * w * cy + u * u * f.ey;
   const vv = v * v, wave = Math.sin(a.finPh + f.ph - v * 2.4 - u * 1.7);
   const x = bx + (ox - bx) * v + 0.07 * Math.sin(Math.PI * v) * w * w - a.drag * vv * 0.1;
-  const y = by + (oy - by) * v - a.lift * vv * 0.1 + f.dir * 0.012 * wave * v;
+  const y = by + (oy - by) * v * scale - a.lift * vv * 0.1 + f.dir * 0.012 * wave * v;
   const z = 0.05 * wave * Math.pow(v, 1.4) + a.bend * Math.pow(v, 1.5) * 0.3;
   const q = yawAt(a, bx);
   proj(x, y, z, q + (a.yf - a.yb) * Math.pow(v, 1.3));
@@ -35,7 +36,7 @@ export function drawFin(ctx: CanvasRenderingContext2D, a: AngelPose, pal: AngelP
   ctx.globalAlpha = al * 0.6; ctx.strokeStyle = pal.finEdge; ctx.lineWidth = 0.006; ctx.stroke();
   ctx.save(); ctx.clip();
   ctx.fillStyle = pal.stripe;
-  for (const b of f.bands) {
+  for (const b of !pal.pattern || pal.pattern === 'banded' ? f.bands : []) {
     ctx.globalAlpha = al * b[2];
     ctx.beginPath();
     for (let i = 0; i <= 6; i++) { finPt(a, f, b[0], i / 6); if (i === 0) ctx.moveTo(P.x, P.y); else ctx.lineTo(P.x, P.y); }
@@ -54,7 +55,8 @@ export function drawFin(ctx: CanvasRenderingContext2D, a: AngelPose, pal: AngelP
 
 /** Fan tail: beats laterally about the tail base and inherits the most delayed yaw of the body. */
 function tailPt(a: AngelPose, u: number, v: number) {
-  const m = midY(-0.42), by = m + u * 0.07, ex = -0.69 - 0.11 * u * u, ey = m + u * 0.31;
+  const m = midY(-0.42), by = m + u * 0.07;
+  const ex = -0.42 - (0.27 + 0.11 * u * u) * (a.tailLength ?? 1), ey = m + u * 0.31 * (a.tailWidth ?? 1);
   const wave = Math.sin(a.finPh * 1.3 - v * 2 + u * 0.8);
   let x = -0.42 + (ex + 0.42) * v - a.drag * v * v * 0.04;
   const y = by + (ey - by) * v - a.lift * v * v * 0.05 + 0.01 * wave * v;

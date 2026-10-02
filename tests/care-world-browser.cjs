@@ -26,15 +26,15 @@ const profile={version:1,coins:100,sales:0,kept:[adult('coral','Coral','#f47f69'
   await page.getByRole('button',{name:'Eat food',exact:true}).waitFor();
   await click('Return to viewing tank');await click('Return to viewing tank');await click('Return home');
   save=await read();assert.equal(save.activeRun,null);assert.equal(save.kept.length,2);assert.equal(save.kept.filter(f=>f.id==='coral').length,1);
-  await click('Breed');await page.getByRole('dialog',{name:'Breed guppies'}).waitFor();
+  await click('Breed');await page.getByRole('dialog',{name:'Breed fish'}).waitFor();
   await click('Select Coral as a parent');await click('Select Azure as a parent');await capture('breeding-pair');
   await page.getByRole('button',{name:/^Start breeding/}).click();save=await read();const childId=save.breeding.offspring.id;
   assert.deepEqual([...save.breeding.parentIds].sort(),['azure','coral']);assert.equal(save.kept.length,2);
   await page.evaluate(()=>{window.careTestNow+=121000;sessionStorage.setItem('care.testNow',String(window.careTestNow));});
-  await page.getByRole('button',{name:/^Welcome your guppy/}).waitFor({state:'visible'});await page.getByRole('button',{name:/^Welcome your guppy/}).click();
+  await page.getByRole('button',{name:/^Welcome your fry/}).waitFor({state:'visible'});await page.getByRole('button',{name:/^Welcome your fry/}).click();
   save=await read();assert.equal(save.kept.length,3);assert.ok(save.kept.some(f=>f.id===childId));assert.equal(save.breeding,null);
   await click('Close breeding');await click('Collection');
-  await page.getByRole('button',{name:/View Guppy fry,/i}).click();await click('Raise in growing tank');
+  await page.getByRole('button',{name:/View .*fry,/i}).click();await click('Raise in growing tank');
   await page.getByRole('button',{name:'Eat food',exact:true}).waitFor();
   await page.waitForTimeout(500);await click('Open boutique');save=await read();
   assert.equal(save.activeRun.specimen.id,childId);assert.equal(save.activeRun.specimen.care.meals.flake,0,'overlapping food does not automatically eat');

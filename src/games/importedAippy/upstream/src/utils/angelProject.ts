@@ -32,16 +32,23 @@ export function yawAt(a: AngelPose, x: number) {
 /** Rotate a local point about the vertical axis by yaw q, with soft perspective (near parts grow). */
 export const P = { x: 0, y: 0, d: 0 };
 const PK = 0.13;
+let pitch = 0;
+/** Each synchronous angel render installs its own 3D pitch; legacy colonies default to zero. */
+export function setAngelPitch(value = 0) { pitch = value; }
 export function proj(x: number, y: number, z: number, q: number) {
-  const c = Math.cos(q), s = Math.sin(q), d = x * s + z * c, k = 1 / (1 - PK * d);
-  P.x = (x * c - z * s) * k; P.y = y * k; P.d = d;
+  const c = Math.cos(q), s = Math.sin(q), cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const forward = x * cp + y * sp;
+  const d = forward * s + z * c, k = 1 / (1 - PK * d);
+  P.x = (forward * c - z * s) * k; P.y = (-x * sp + y * cp) * k; P.d = d;
 }
 
 /** World position of the mouth (written to M). */
 export const M = { x: 0, y: 0 };
 export function mouthWorld(a: AngelPose) {
+  setAngelPitch(a.pitch);
   proj(NOSE + 0.006, midY(NOSE) + 0.008, 0, a.yh);
   const c = Math.cos(a.rot), s = Math.sin(a.rot);
   M.x = a.x - Math.cos(a.yb) * a.recoil * a.S + (P.x * c - P.y * s) * a.S;
   M.y = a.y + a.bob + (P.x * s + P.y * c) * a.S;
+  setAngelPitch();
 }

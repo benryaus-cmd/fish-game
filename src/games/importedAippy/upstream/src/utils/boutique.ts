@@ -1,5 +1,5 @@
-import { getStock, type StockId, type ColorFamily, type FinForm } from './stockCatalog.ts';
-export type { StockId, ColorFamily, FinForm } from './stockCatalog.ts';
+import { getStock, type StockId, type ColorFamily, type FinForm, type BodyShape, type FinStyle, type ColorPattern, type OrnamentalSpecies } from './stockCatalog.ts';
+export type { StockId, ColorFamily, FinForm, BodyShape, FinStyle, ColorPattern, OrnamentalSpecies } from './stockCatalog.ts';
 
 /** The entire boutique and current excursion share one atomic JSON profile. */
 export type Adaptation = 'swift' | 'ornate' | 'vital';
@@ -10,7 +10,7 @@ import type { BreedingCycle } from './breeding.ts';
 export interface Specimen {
   id: string;
   name: string;
-  species: 'guppy';
+  species: OrnamentalSpecies;
   growth: number;
   health: number;
   /** 100 is fully fed; 0 is starving. Advances only during active play. */
@@ -21,7 +21,7 @@ export interface Specimen {
   raisedSeconds: number;
   care?: SpecimenCare;
   origin?: StockId;
-  inherited?: { colorFamily: ColorFamily; finForm: FinForm; parents: string[] };
+  inherited?: { colorFamily: ColorFamily; finForm: FinForm; parents: string[]; bodyShape?: BodyShape; finStyle?: FinStyle; colorPattern?: ColorPattern };
 }
 export interface ActiveRun { specimen: Specimen; x: number; y: number; stamina: number; source?: 'resident'; visitId?: string }
 export interface BoutiqueSave {
@@ -53,10 +53,10 @@ export function createSpecimen(stockId: StockId = 'ordinary', id?: string): Spec
   const stock = getStock(stockId);
   const specimenId = id ?? globalThis.crypto?.randomUUID?.() ?? `guppy-${Date.now().toString(36)}-${(++fallbackId).toString(36)}-${Math.random().toString(36).slice(2)}`;
   return {
-    id: specimenId, name: stock?.name ?? 'Coral', species: 'guppy', growth: 0, health: 100, hunger: 100,
+    id: specimenId, name: stock?.name ?? 'Coral', species: stock?.species ?? 'guppy', growth: 0, health: 100, hunger: 100,
     traits: [], color: stock?.color ?? CORAL, accent: stock?.accent ?? GOLD, raisedSeconds: 0,
     origin: stock?.id ?? 'legacy',
-    ...(stock ? { inherited: { colorFamily: stock.colorFamily, finForm: stock.finForm, parents: [] } } : {}),
+    ...(stock ? { inherited: { colorFamily: stock.colorFamily, finForm: stock.finForm, parents: [], bodyShape: stock.bodyShape, finStyle: stock.finStyle, colorPattern: stock.colorPattern } } : {}),
   };
 }
 /** Pure candidate transaction. Commit this entire profile before installing it in UI state. */
@@ -118,19 +118,22 @@ function color(value: unknown, fallback: string): string {
   return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
 }
 function readSpecimen(value: unknown): Specimen | null {
-  if (!record(value) || !validId(value.id) || value.species !== 'guppy') return null;
+  if (!record(value) || !validId(value.id) || !['guppy', 'tropical', 'angelfish'].includes(value.species as string)) return null;
   const origin: StockId = getStock(value.origin)?.id ?? 'legacy';
   const inherited = record(value.inherited) && ['silver', 'warm', 'cool'].includes(value.inherited.colorFamily as string)
     && ['short', 'fan', 'veil'].includes(value.inherited.finForm as string)
     ? {
       colorFamily: value.inherited.colorFamily as ColorFamily,
       finForm: value.inherited.finForm as FinForm,
+      ...(['starter', 'colorful', 'angel'].includes(value.inherited.bodyShape as string) ? { bodyShape: value.inherited.bodyShape as BodyShape } : {}),
+      ...(['rounded', 'triangle', 'sail'].includes(value.inherited.finStyle as string) ? { finStyle: value.inherited.finStyle as FinStyle } : {}),
+      ...(['solid', 'rainbow', 'banded', 'koi'].includes(value.inherited.colorPattern as string) ? { colorPattern: value.inherited.colorPattern as ColorPattern } : {}),
       parents: Array.isArray(value.inherited.parents) ? [...new Set(value.inherited.parents.filter(validId))].slice(0, 2) : [],
     } : undefined;
   return {
     id: value.id,
     name: typeof value.name === 'string' && value.name.trim() ? value.name.slice(0, 40) : 'Coral',
-    species: 'guppy',
+    species: value.species as OrnamentalSpecies,
     growth: bounded(value.growth, 100),
     health: bounded(value.health, 100, 100),
     hunger: bounded(value.hunger, 100, 100),
@@ -189,7 +192,7 @@ export function writeBoutique(save: BoutiqueSave, storage?: Pick<Storage, 'setIt
 function readCare(value: unknown): SpecimenCare | undefined {
   if (!record(value) || !Number.isFinite(value.bornAtMs) || !Number.isFinite(value.lastCareAtMs) || !record(value.meals)) return undefined;
   const bornAtMs = bounded(value.bornAtMs, Number.MAX_SAFE_INTEGER);
-  return { bornAtMs, lastCareAtMs: Math.max(bornAtMs, bounded(value.lastCareAtMs, Number.MAX_SAFE_INTEGER)), healthySeconds: bounded(value.healthySeconds, Number.MAX_SAFE_INTEGER), nutrition: bounded(value.nutrition,100), meals: { flake: bounded(value.meals.flake,1e9), algae: bounded(value.meals.algae,1e9), prey: bounded(value.meals.prey,1e9) }, feedingPreference: value.feedingPreference === 'night' || value.feedingPreference === 'any' ? value.feedingPreference : 'day' };
+  return { ...(typeof value.colourQuality === 'number' && Number.isFinite(value.colourQuality) ? { colourQuality: bounded(value.colourQuality, 1) } : {}), bornAtMs, lastCareAtMs: Math.max(bornAtMs, bounded(value.lastCareAtMs, Number.MAX_SAFE_INTEGER)), healthySeconds: bounded(value.healthySeconds, Number.MAX_SAFE_INTEGER), nutrition: bounded(value.nutrition,100), meals: { flake: bounded(value.meals.flake,1e9), algae: bounded(value.meals.algae,1e9), prey: bounded(value.meals.prey,1e9) }, feedingPreference: value.feedingPreference === 'night' || value.feedingPreference === 'any' ? value.feedingPreference : 'day' };
 }
 export function startResidentRun(save: BoutiqueSave, id: string, visitId: string, now = Date.now()): BoutiqueSave {
   const fish = save.kept.find(fish => fish.id === id);

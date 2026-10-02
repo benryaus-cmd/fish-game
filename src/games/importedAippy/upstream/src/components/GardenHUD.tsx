@@ -13,6 +13,7 @@ interface Props {
   worldClock?: WorldClock;
   resident?: boolean;
   eatClick?: (detail: number) => void;
+  species?: string; mealNotice?: string; onCare?: () => void;
   children?: ReactNode;
 }
 export default function GardenHUD(p: Props) {
@@ -40,13 +41,15 @@ export default function GardenHUD(p: Props) {
         {hud.inShelter ? '◌ Concealed' : '⚠ Predator nearby'}
       </div>}
       {details && <section className="garden-detail-panel garden-glass" aria-label="Fish details">
-        <div><p className="garden-eyebrow">{p.stage} GUPPY</p><button className="garden-detail-close" aria-label="Close fish details" onClick={toggleDetails}>×</button></div>
+        <div><p className="garden-eyebrow">{p.stage} {(p.species ?? 'fish').toUpperCase()}</p><button className="garden-detail-close" aria-label="Close fish details" onClick={toggleDetails}>×</button></div>
         <p>Health <b>{hud.health}%</b> · Food <b>{hud.hunger}%</b></p><p>Growth <b>{hud.growth}%</b> · Nursery value <b>◈ {p.value}</b></p>
         <p className="garden-detail-note">Hold Eat near flakes or algae. Tiny prey unlocks as you grow. Tap your fish for its care and paths.</p>
+        <button className="garden-button garden-button-secondary garden-button-small" onClick={() => { setDetails(false); p.onCare?.(); }}>Care and development</button>
       </section>}
     </>}
     {!p.saved && <p className="garden-save-warning" role="status">Saving unavailable</p>}
     {p.controls && <>
+      {!!p.mealNotice && <p className="garden-meal-notice" role="status">{p.mealNotice}</p>}
       {!p.display && !hud.isDead && <div className="nursery-action">
         {hud.inShelter ? <button className="garden-button garden-glass nursery-button" aria-label={p.resident ? 'Return to viewing tank' : hud.growth >= 10 ? 'Appraise your fish' : 'Nursery · Feed to grow'} onClick={p.onAppraise}>{p.resident ? 'Return fish' : hud.growth >= 10 ? 'Appraise' : 'Feed to grow'} <span>↗</span></button> :
           <span className="nursery-direction" aria-label={'Nursery ' + (p.refuge?.distance ?? 0) + ' units away'}><i style={{ transform: 'rotate(' + (p.refuge?.angle ?? 0) + 'rad)' }}>➜</i><span>Nursery<small>{p.refuge?.distance ?? 0} away</small></span></span>}

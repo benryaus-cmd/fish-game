@@ -66,3 +66,34 @@ test('original caustic texture visibly lights pale sand while invalid bounds lea
   for(let i=0;i<pixels.length;i+=4)if(pixels[i]-208>=4)visible++;
   assert.ok(visible>pixels.length/4*.15,'original network must create visibly brighter moving floor shapes');
 });
+test('all tanks share the original growing day and viewing night palette endpoints', async () => {
+  const api = await lighting();
+  assert.deepEqual(api.getTankPalette(1), {waterTop:'#8fd8d6',waterMid:'#4aa6c8',waterDeep:'#2f7f98',sand:'#e6d3ae',plant:'#6f8a4e',rock:'#8f8a80'});
+  assert.deepEqual(api.getTankPalette(0), {waterTop:'#356c69',waterMid:'#143e46',waterDeep:'#08242d',sand:'#d0c6a1',plant:'#688e61',rock:'#899887'});
+  const c=canvas.createCanvas(100,200), ctx=c.getContext('2d');
+  const rgb=(day: number)=>{api.drawWaterBackground(ctx,100,200,day);return [...ctx.getImageData(50,100,1,1).data].slice(0,3);};
+  const day=rgb(1), night=rgb(0), dawn=rgb(.5);
+  const lum=(p: number[])=>p[0]*.2126+p[1]*.7152+p[2]*.0722;
+  assert.ok(lum(day)>lum(night)+65,'day must replace dark base water, not merely tint it');
+  dawn.forEach((v,i)=>assert.ok(Math.abs(v-(day[i]+night[i])/2)<=2));
+  assert.deepEqual(api.getTankPalette(-1),api.getTankPalette(0));
+  assert.deepEqual(api.getTankPalette(2),api.getTankPalette(1));
+});
+test('Home cached backgrounds visibly follow a changed clock without canvas allocations per frame', async () => {
+  const api=await lighting();
+  const source=await readFile(new URL('../components/HomeTank.tsx',base),'utf8');
+  const setup=source.slice(source.indexOf('    const makeLayer ='), source.indexOf('    const render ='));
+  const blend=source.slice(source.indexOf('      ctx.setTransform(1,0,0,1,0,0);'),source.indexOf('      if (pattern)'));
+  let allocations=0;
+  const document={createElement:()=>{allocations++;return canvas.createCanvas(1,1);}};
+  const w=320,h=240,dpr=1,el=canvas.createCanvas(w,h),ctx=el.getContext('2d');
+  const build=new Function('document','el','ctx','w','h','dpr','sandY','surface','decorScale','drawRock','drawPlant','plants','getTankPalette','drawWaterBackground',`${stripTypeScriptTypes(setup)}\nreturn daylight => {${blend}};`);
+  const draw=build(document,el,ctx,w,h,dpr,h*.8,(x:number)=>h*.8+Math.sin(x/w*6+.5)*6,30,()=>{},()=>{},[],api.getTankPalette,api.drawWaterBackground);
+  const allocated=allocations;
+  draw(0);const night=Buffer.from(ctx.getImageData(150,100,1,1).data);
+  draw(1);const day=Buffer.from(ctx.getImageData(150,100,1,1).data);
+  assert.ok(day[1]>night[1]+60,'clock day must brighten the actual Home background');
+  draw(0);assert.deepEqual(Buffer.from(ctx.getImageData(150,100,1,1).data),night);
+  assert.equal(allocations,allocated,'rendering phase changes must reuse endpoint layers');
+  assert.match(source,/drawSpecimenFish\(ctx,rig.fish,rig.palette,owned.get\(r.id\)!\)/);
+});

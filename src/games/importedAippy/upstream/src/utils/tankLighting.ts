@@ -4,6 +4,30 @@ export interface LightingView { x: number; y: number; width: number; height: num
 let sandLightBuffer: HTMLCanvasElement | null = null;
 const clamp = (value: number) => Math.max(0, Math.min(1, Number.isFinite(value) ? value : 1));
 
+export interface TankPalette { waterTop: string; waterMid: string; waterDeep: string; sand: string; plant: string; rock: string }
+export const DAY_TANK_PALETTE: Readonly<TankPalette> = Object.freeze({ waterTop: '#8fd8d6', waterMid: '#4aa6c8', waterDeep: '#2f7f98', sand: '#e6d3ae', plant: '#6f8a4e', rock: '#8f8a80' });
+export const NIGHT_TANK_PALETTE: Readonly<TankPalette> = Object.freeze({ waterTop: '#356c69', waterMid: '#143e46', waterDeep: '#08242d', sand: '#d0c6a1', plant: '#688e61', rock: '#899887' });
+const paletteKeys = Object.keys(DAY_TANK_PALETTE) as (keyof TankPalette)[];
+// A shared pair of endpoints makes every tank follow the same world clock.
+export function getTankPalette(daylight: number): TankPalette {
+  const day = clamp(daylight);
+  if (day === 1) return DAY_TANK_PALETTE;
+  if (day === 0) return NIGHT_TANK_PALETTE;
+  const result = {} as TankPalette;
+  for (const key of paletteKeys) {
+    const night = NIGHT_TANK_PALETTE[key], light = DAY_TANK_PALETTE[key];
+    result[key] = '#' + [1, 3, 5].map(i => Math.round(parseInt(night.slice(i, i + 2), 16) * (1 - day) + parseInt(light.slice(i, i + 2), 16) * day).toString(16).padStart(2, '0')).join('');
+  }
+  return result;
+}
+export function drawWaterBackground(ctx: CanvasRenderingContext2D, width: number, height: number, daylight: number): void {
+  if (width <= 0 || height <= 0 || !Number.isFinite(width + height)) return;
+  const palette = getTankPalette(daylight);
+  const water = ctx.createLinearGradient(0, 0, 0, height);
+  water.addColorStop(0, palette.waterTop); water.addColorStop(0.5, palette.waterMid); water.addColorStop(1, palette.waterDeep);
+  ctx.fillStyle = water; ctx.fillRect(0, 0, width, height);
+}
+
 /** Sand is the receiver: light follows the world floor and never fills the water wall. */
 export function drawSandCaustics(
   ctx: CanvasRenderingContext2D, pattern: CanvasPattern, time: number, view: LightingView,

@@ -111,3 +111,4 @@
 .garden-burst{right:max(20px,env(safe-area-inset-right));bottom:calc(max(24px,env(safe-area-inset-bottom)) + 110px);width:60px;height:60px}
 @media(max-width:360px){.garden-eat{right:66px;width:66px;height:66px}.garden-burst{right:16px;width:56px;height:56px}}
 @media(max-height:600px){.garden-eat{bottom:22px}.garden-burst{bottom:112px}.garden-topbar .world-time{font-size:9px}.garden-first-hint{bottom:114px;right:82px}}
+.garden-meal-notice{position:absolute;left:16px;top:139px;z-index:25;max-width:calc(100% - 32px);padding:7px 11px;border:1px solid #e5d59d44;border-radius:11px;background:#0b343bd9;color:#f3dfac;font-size:10px;pointer-events:none}

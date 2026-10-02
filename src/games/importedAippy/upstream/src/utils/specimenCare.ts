@@ -2,6 +2,8 @@ import type { Specimen } from './boutique.ts';
 export type FoodKind = 'flake' | 'pellet' | 'algae' | 'prey';
 export type FeedingPreference = 'day' | 'night' | 'any';
 export interface SpecimenCare {
+  /** Acquired vibrancy, independent of inherited palette and current condition. */
+  colourQuality?: number;
   bornAtMs: number; lastCareAtMs: number; healthySeconds: number; nutrition: number;
   meals: { flake: number; algae: number; prey: number }; feedingPreference: FeedingPreference;
 }
@@ -14,7 +16,7 @@ export function ensureSpecimenCare(fish: Specimen, now = Date.now()): Specimen {
   const at = timestamp(now);
   // Legacy age credit preserves already earned development, without granting new fry adulthood.
   const credit = Math.max(clamp(fish.growth) / 75 * ADULT_HEALTHY_SECONDS, fish.raisedSeconds || 0);
-  return { ...fish, care: { bornAtMs: Math.max(0, at - credit * 1000), lastCareAtMs: at, healthySeconds: credit, nutrition: Math.max(clamp(fish.growth), 45), meals: { flake: 0, algae: 0, prey: 0 }, feedingPreference: fish.origin === 'blueveil' ? 'night' : 'day' } };
+  return { ...fish, care: { colourQuality: fish.inherited?.bodyShape ? .35 + .65 * clamp(fish.growth) / 100 : 1, bornAtMs: Math.max(0, at - credit * 1000), lastCareAtMs: at, healthySeconds: credit, nutrition: Math.max(clamp(fish.growth), 45), meals: { flake: 0, algae: 0, prey: 0 }, feedingPreference: fish.origin === 'blueveil' ? 'night' : 'day' } };
 }
 export function advanceSpecimenCare(fish: Specimen, now = Date.now(), location: 'home' | 'growing' = 'home'): Specimen {
   const original = ensureSpecimenCare(fish, now), care = original.care!;
@@ -33,7 +35,7 @@ export function advanceSpecimenCare(fish: Specimen, now = Date.now(), location: 
   const health = Math.max(location === 'home' ? 40 : 0, clamp(clamp(original.health + recoverySeconds * recoveryRate) - starvingSeconds / 30));
   const timeCeiling = healthySeconds < ADULT_HEALTHY_SECONDS ? Math.min(74.99, healthySeconds / ADULT_HEALTHY_SECONDS * 75) : Math.min(100, 75 + (healthySeconds - ADULT_HEALTHY_SECONDS) / 24);
   const growth = Math.max(original.growth, Math.min(care.nutrition, timeCeiling));
-  return { ...original, hunger, health, growth, raisedSeconds: Math.max(original.raisedSeconds, healthySeconds), care: { ...care, lastCareAtMs: at, healthySeconds } };
+  return { ...original, hunger, health, growth, raisedSeconds: Math.max(original.raisedSeconds, healthySeconds), care: { ...care, lastCareAtMs: at, healthySeconds, colourQuality: Math.min(1, (care.colourQuality ?? 1) + (healthySeconds - care.healthySeconds) / 1200 * clamp(care.nutrition) / 100) } };
 }
 export function feedSpecimen(fish: Specimen, kind: FoodKind, now = Date.now(), phase: 'day' | 'night' = 'day'): Specimen {
   const original = advanceSpecimenCare(fish, now, 'growing');
@@ -48,4 +50,11 @@ export function feedSpecimen(fish: Specimen, kind: FoodKind, now = Date.now(), p
 export function careSummary(fish: Specimen, now = Date.now()) {
   const care = ensureSpecimenCare(fish, now).care!;
   return { healthySeconds: care.healthySeconds, adultReadyInSeconds: Math.max(0, ADULT_HEALTHY_SECONDS - care.healthySeconds), nutrition: care.nutrition, feedingPreference: care.feedingPreference };
+}
+
+/** Renderer multiplier 0..1; inherited hue/pattern never changes. Legacy vibrancy defaults to 1. */
+export function careColourQuality(fish: Specimen): number {
+  const acquired = fish.care?.colourQuality ?? 1;
+  const condition = .35 + .65 * (.7 * clamp(fish.health) + .3 * clamp(fish.hunger)) / 100;
+  return clamp(acquired, 1) * condition;
 }

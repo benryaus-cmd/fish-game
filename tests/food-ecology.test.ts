@@ -24,3 +24,11 @@ test('bounded ecology replenishes nursery food after one deliberate bite', () =>
   assert.equal(flake.active, true); assert.equal(food.length, count);
   assert.ok(BITE_INTERVAL_SECONDS >= .35 && BITE_INTERVAL_SECONDS <= .5);
 });
+test('tutorial flake stays at the newborn mouth while other flakes drift and algae stay attached', () => {
+  const food=createFoodEcology(); const algae=food.filter(f=>f.kind==='algae').map(f=>({f,x:f.x,y:f.y}));
+  const other={x:food[1].x,y:food[1].y};
+  for(let i=0;i<300;i++)updateFoodEcology(food,1/60);
+  assert.equal(food[0].x,414);assert.equal(food[0].y,1520);
+  assert.ok(food[1].y>other.y);assert.ok(Math.abs(food[1].x-other.x)<15);
+  for(const a of algae){assert.equal(a.f.x,a.x);assert.equal(a.f.y,a.y);}
+});

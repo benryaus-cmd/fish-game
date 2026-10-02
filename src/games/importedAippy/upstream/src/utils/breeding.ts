@@ -1,3 +1,4 @@
+import { specimenBodyShape, specimenFinStyle, specimenPattern, bodyShapeSpecies } from './stockCatalog.ts';
 import { createSpecimen, NURSERY_CAPACITY, type BoutiqueSave, type Specimen } from './boutique.ts';
 import { advanceSpecimenCare, ensureSpecimenCare, ADULT_HEALTHY_SECONDS } from './specimenCare.ts';
 export const BREEDING_SECONDS = 120;
@@ -23,9 +24,18 @@ export function startBreeding(save: BoutiqueSave, a: string, b: string, cycleId:
   const parentA=save.kept.find(fish=>fish.id===a)!, parentB=save.kept.find(fish=>fish.id===b)!;
   const childId=`${cycleId}:child`;
   if(childId.length>128 || save.completedRunIds.includes(childId) || save.kept.some(fish=>fish.id===childId) || save.activeRun?.specimen.id===childId) return save;
-  const colorParent = Math.random()<.5 ? parentA : parentB;
-  const finParent = Math.random()<.5 ? parentA : parentB;
-  const child=ensureSpecimenCare({ ...createSpecimen('ordinary',childId), name:'Guppy fry',color:colorParent.color,accent:colorParent.accent, inherited:{ colorFamily:colorParent.inherited?.colorFamily??'silver',finForm:finParent.inherited?.finForm??'short',parents:[a,b]} },now + BREEDING_SECONDS * 1000);
+  // Each axis is drawn exactly once at start; the saved offspring is never regenerated.
+  const choose = () => Math.random() < .5 ? parentA : parentB;
+  const bodyShape = specimenBodyShape(choose());
+  const colorParent = choose();
+  const colorPattern = specimenPattern(choose());
+  const finStyle = specimenFinStyle(choose());
+  const finParent = choose();
+  const hybrid = specimenBodyShape(parentA) !== specimenBodyShape(parentB)
+    || specimenPattern(parentA) !== specimenPattern(parentB) || specimenFinStyle(parentA) !== specimenFinStyle(parentB)
+    || parentA.color !== parentB.color || parentA.inherited?.finForm !== parentB.inherited?.finForm;
+  const species = bodyShapeSpecies(bodyShape);
+  const child=ensureSpecimenCare({ ...createSpecimen('ordinary',childId), origin: 'legacy', species, name: hybrid ? 'Ornamental hybrid fry' : `${species === 'angelfish' ? 'Angel' : species === 'tropical' ? 'Tropical' : 'Guppy'} fry`, color:colorParent.color,accent:colorParent.accent, inherited:{ colorFamily:colorParent.inherited?.colorFamily??'silver',finForm:finParent.inherited?.finForm??'short',parents:[a,b],bodyShape,finStyle,colorPattern} },now + BREEDING_SECONDS * 1000);
   return {...save,kept:save.kept.map(fish=>fish.id===a||fish.id===b?advanceSpecimenCare(fish,now,'home'):fish),breeding:{id:cycleId,parentIds:[a,b],startedAtMs:now,readyAtMs:now+BREEDING_SECONDS*1000,offspring:child}};
 }
 export function claimBreeding(save: BoutiqueSave, now = Date.now()): BoutiqueSave {

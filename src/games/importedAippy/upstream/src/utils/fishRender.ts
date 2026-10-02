@@ -2,6 +2,7 @@ import {
   LAST, N, TAU, bodyGradient, computePose, fishBlit, fishEllipse, fishFrame, fishPoint, fishScale, fishSprites, type Fish, type FishPalette,
 } from '@/utils/fishModel';
 import { drawMedianFin, drawPectoral, drawTail, medianFinFacesCamera } from '@/utils/fishFins';
+import { drawInheritedPattern } from '@/utils/specimenPattern';
 import { drawColorfulShading } from '@/utils/colorfulRender';
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -18,12 +19,12 @@ function bodyPath(ctx: CanvasRenderingContext2D, f: Fish) {
   }
 }
 
-function drawShading(ctx: CanvasRenderingContext2D, f: Fish, p: FishPalette, near: number, lw: number) {
+function drawShading(ctx: CanvasRenderingContext2D, f: Fish, p: FishPalette, near: number, lw: number, pattern?: string) {
   const HH = f.tr.hh, WW = f.tr.ww;
   const { light, shade } = fishSprites();
   // Soft species bands (fade out when seen head-on)
   ctx.fillStyle = p.mark;
-  for (const t of [0.34, 0.63]) {
+  for (const t of pattern && pattern !== 'banded' ? [] : [0.34, 0.63]) {
     const i = Math.round(t * LAST), a = f.ya[i];
     const c = Math.abs(Math.cos(a));
     if (c < 0.12) continue;
@@ -122,7 +123,7 @@ function drawFace(ctx: CanvasRenderingContext2D, f: Fish, p: FishPalette, lw: nu
   ctx.globalAlpha = 1;
 }
 
-export function drawFish(ctx: CanvasRenderingContext2D, f: Fish, p: FishPalette) {
+export function drawFish(ctx: CanvasRenderingContext2D, f: Fish, p: FishPalette, pattern?: string, quality = 1) {
   computePose(f);
   const S = fishScale(f);
   const lw = 1 / S;
@@ -142,8 +143,9 @@ export function drawFish(ctx: CanvasRenderingContext2D, f: Fish, p: FishPalette)
   ctx.fill();
   ctx.save();
   ctx.clip();
-  if (f.tr.id === 'colorful') drawColorfulShading(ctx, f, p, near, lw);
-  else drawShading(ctx, f, p, near, lw);
+  drawInheritedPattern(ctx, f, p, pattern, quality);
+  if (f.tr.id === 'colorful') drawColorfulShading(ctx, f, p, near, lw, pattern);
+  else drawShading(ctx, f, p, near, lw, pattern);
   ctx.restore();
   drawFace(ctx, f, p, lw);
   ctx.fillStyle = p.fin; ctx.strokeStyle = p.ray; ctx.lineWidth = 0.8 * lw;

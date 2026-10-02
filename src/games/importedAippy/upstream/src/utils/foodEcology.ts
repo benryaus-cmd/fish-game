@@ -16,7 +16,7 @@ export function createFoodEcology(): FoodParticle[] {
     const kind = i < 32 ? 'flake' : i < 50 ? 'pellet' : 'algae';
     const wallAlgae = kind === 'algae' && i < 56;
     const x = wallAlgae ? 52 : kind === 'flake' ? 225 + rnd() * 480 : 55 + rnd() * (WORLD_WIDTH - 110);
-    const y = wallAlgae ? 500 + rnd() * 900 : kind === 'flake' ? 1340 + rnd() * 170 : kind === 'pellet' ? 90 + rnd() * 1200 : worldSurfaceY(x) - 12;
+    const y = wallAlgae ? 500 + rnd() * 900 : kind === 'flake' ? 1340 + rnd() * 170 : kind === 'pellet' ? 90 + rnd() * 1200 : worldSurfaceY(x) - 2;
     return { x, y, size: kind === 'algae' ? 13 : kind === 'pellet' ? 7 : 8, kind, active: true, respawn: 0, seed: rnd() * 6.28 };
   });
   // One visible tutorial flake sits at the newborn's mouth; the rest form a nearby trail.
@@ -26,13 +26,21 @@ export function createFoodEcology(): FoodParticle[] {
   return food;
 }
 export function updateFoodEcology(food: FoodParticle[], dt: number) {
-  for (const f of food) {
+  for (let i = 0; i < food.length; i++) {
+    const f = food[i];
     if (!f.active) {
       f.respawn -= dt;
       if (f.respawn <= 0) { f.active = true; if (f.kind === 'pellet') f.y = 70; }
       continue;
     }
-    if (f.kind === 'pellet') f.y = Math.min(worldSurfaceY(f.x) - 16, f.y + dt * 16);
+    const step = Number.isFinite(dt) ? Math.max(0, Math.min(dt, .1)) : 0;
+    if (f.kind === 'pellet') f.y = Math.min(worldSurfaceY(f.x) - 5, f.y + step * 16);
+    // The first tutorial flake remains within the newborn's deliberate bite range.
+    if (f.kind === 'flake' && i > 0) {
+      f.seed += step * .11;
+      f.x += Math.sin(f.seed) * step * 2.2;
+      f.y = Math.min(worldSurfaceY(f.x) - 7, f.y + step * .8);
+    }
   }
 }
 export function biteFood(food: FoodParticle[], mouth: {x:number;y:number}, fish: Fish, growth: number): FoodKind | null {
@@ -41,20 +49,48 @@ export function biteFood(food: FoodParticle[], mouth: {x:number;y:number}, fish:
   found.active = false; found.respawn = found.kind === 'algae' ? 18 : 8;
   return found.kind;
 }
-export function drawFoodEcology(ctx: CanvasRenderingContext2D, food: FoodParticle[], time: number) {
+export function drawFoodEcology(ctx: CanvasRenderingContext2D, food: FoodParticle[], time: number, view?: {x:number;y:number;width:number;height:number}) {
+  const tau = Math.PI * 2;
   for (const f of food) {
-    if (!f.active) continue;
+    if (!f.active || (view && (f.x + 30 < view.x || f.x - 30 > view.x + view.width || f.y + 30 < view.y || f.y - 30 > view.y + view.height))) continue;
     ctx.save(); ctx.translate(f.x, f.y);
     if (f.kind === 'algae') {
-      ctx.strokeStyle = '#84b85e'; ctx.lineWidth = 2;
-      for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(i * 3, 7); ctx.quadraticCurveTo(i * 4 + Math.sin(time + f.seed) * 2, 0, i * 3 + 2, -7); ctx.stroke(); }
+      // Every tuft grows from one attached receiver, with fine, unequal filaments.
+      if (f.x < 70) ctx.rotate(Math.PI / 2);
+      const variation = .8 + .2 * Math.sin(f.seed * 3);
+      const base = ctx.createRadialGradient(0, 1, 0, 0, 1, 9);
+      base.addColorStop(0, 'rgba(55,92,46,.48)'); base.addColorStop(1, 'rgba(55,92,46,0)');
+      ctx.fillStyle = base; ctx.beginPath(); ctx.ellipse(0, 1, 10, 3.5, 0, 0, tau); ctx.fill();
+      for (let i = 0; i < 9; i++) {
+        const phase = f.seed * 2.7 + i * 2.13;
+        const root = (i - 4) * 1.2;
+        const h = (10 + (Math.sin(phase) + 1) * 5) * variation;
+        const sway = Math.sin(time * .75 + phase * .12) * 2;
+        const reach = root * 1.4 + Math.sin(phase) * 2 + sway;
+        const color = ctx.createLinearGradient(0, 1, 0, -h);
+        color.addColorStop(0, '#365b37'); color.addColorStop(.5, '#68924c'); color.addColorStop(1, '#a5ba72');
+        ctx.strokeStyle = color; ctx.lineWidth = .7 + (i % 3) * .2; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(root, 0); ctx.bezierCurveTo(root + sway * .3, -h * .35, reach - sway, -h * .7, reach, -h); ctx.stroke();
+      }
     } else if (f.kind === 'flake') {
-      ctx.rotate(f.seed + Math.sin(time + f.seed) * 0.2); ctx.fillStyle = '#e7bd78';
-      ctx.beginPath(); ctx.moveTo(-5, -2); ctx.lineTo(1, -4); ctx.lineTo(5, 1); ctx.lineTo(-1, 4); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = '#9c683a'; ctx.lineWidth = 0.8; ctx.stroke();
+      ctx.rotate(f.seed + Math.sin(time * .6 + f.seed) * .16);
+      ctx.scale(.9 + Math.sin(f.seed * 3) * .12, .85 + Math.cos(f.seed * 2) * .14);
+      ctx.fillStyle = 'rgba(64,38,20,.12)'; ctx.beginPath(); ctx.ellipse(1.2, 2.1, 5.6, 2.5, 0, 0, tau); ctx.fill();
+      const amber = ctx.createLinearGradient(-3, -5, 4, 4);
+      amber.addColorStop(0, '#f4d08c'); amber.addColorStop(.4, '#dca253'); amber.addColorStop(1, '#a8692d');
+      ctx.fillStyle = amber;
+      ctx.beginPath(); ctx.moveTo(-5.7, -1.6); ctx.quadraticCurveTo(-3.6, -5.3, -.7, -3.5); ctx.quadraticCurveTo(1.8, -5.2, 4.8, -1.1); ctx.quadraticCurveTo(6, 1.9, 2.2, 2.5); ctx.quadraticCurveTo(-.9, 5.2, -4.5, 2.3); ctx.quadraticCurveTo(-3.8, .6, -5.7, -1.6); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(118,70,27,.8)'; ctx.lineWidth = .65; ctx.stroke();
+      ctx.strokeStyle = '#f5d9a4'; ctx.lineWidth = .7; ctx.beginPath(); ctx.moveTo(-4, -2); ctx.quadraticCurveTo(-1.2, -3.3, 1, -.8); ctx.stroke();
+      ctx.strokeStyle = 'rgba(130,76,31,.45)'; ctx.lineWidth = .5; ctx.beginPath(); ctx.moveTo(-2, 2); ctx.quadraticCurveTo(1, .3, 3.4, .8); ctx.stroke();
     } else {
-      ctx.fillStyle = '#b68650'; ctx.beginPath(); ctx.arc(0,0,3.5,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle='#ebd09a';ctx.fillRect(-1,-2,2,1.5);
+      const r = f.size * .5;
+      ctx.fillStyle = 'rgba(36,25,15,.18)'; ctx.beginPath(); ctx.ellipse(.8, 2.5, r * 1.2, r * .55, 0, 0, tau); ctx.fill();
+      const pellet = ctx.createRadialGradient(-r * .35, -r * .4, .1, .3, .5, r * 1.2);
+      pellet.addColorStop(0, '#e7c28a'); pellet.addColorStop(.25, '#c69c61'); pellet.addColorStop(.75, '#976331'); pellet.addColorStop(1, '#674323');
+      ctx.fillStyle = pellet; ctx.beginPath(); ctx.arc(0, 0, r, 0, tau); ctx.fill();
+      ctx.strokeStyle = 'rgba(87,55,25,.55)'; ctx.lineWidth = .5; ctx.stroke();
+      ctx.fillStyle = 'rgba(255,236,193,.55)'; ctx.beginPath(); ctx.ellipse(-r * .3, -r * .43, r * .31, r * .16, -.5, 0, tau); ctx.fill();
     }
     ctx.restore();
   }

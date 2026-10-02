@@ -1,5 +1,6 @@
 import { getStage, appraiseFish, type Specimen } from '@/utils/boutique';
-import { careSummary } from '@/utils/specimenCare';
+import { careSummary, careColourQuality } from '@/utils/specimenCare';
+import { specimenBodyShape, specimenFinStyle, specimenPattern } from '@/utils/stockCatalog';
 
 export const developmentPaths = [
   { trait: 'ornate', name: 'Ornamental', icon: '✧', benefit: 'Flowing fins and a higher show value.', next: 'Each tier develops fuller fins and adds a beauty premium.' },
@@ -16,7 +17,8 @@ export default function FishCarePanel({ specimen, phase }: { specimen: Specimen;
   const care = careSummary(specimen, Date.now());
   const stage = getStage(specimen.growth);
   return <section className="fish-care" aria-label="Fish care and progression">
-    <p className="care-identity">{stage} guppy · {specimen.inherited?.finForm ?? 'original'} fins · ◈ {appraiseFish(specimen)}</p>
+    <p className="care-identity">{stage} {specimen.species} · {specimenBodyShape(specimen)} body · ◈ {appraiseFish(specimen)}</p>
+    <p className="home-note">Inherited {specimenFinStyle(specimen)} fins · {specimen.inherited?.finForm ?? 'original'} tail · {specimenPattern(specimen)} pattern</p>
     <dl className="home-stats care-stats">
       <div><dt>Growth</dt><dd>{Math.round(specimen.growth)}%</dd></div>
       <div><dt>Health</dt><dd>{Math.round(specimen.health)}%</dd></div>
@@ -27,7 +29,8 @@ export default function FishCarePanel({ specimen, phase }: { specimen: Specimen;
       <strong>{stage === 'adult' ? 'Ready to flourish' : care.adultReadyInSeconds > 0 ? `Adult in at least ${formatCareTime(care.adultReadyInSeconds)}` : 'Time met · keep feeding to mature'}</strong>
       <p>Adulthood needs ten healthy minutes and enough nourishment. Growth pauses when poorly fed.</p>
     </div>
-    <div className="care-diet"><strong>Flakes · pellets · algae{specimen.growth >= 35 ? ' · tiny prey' : ''}</strong><p>{specimen.growth < 35 ? 'Small guppies graze and eat flakes. Fish prey unlocks at juvenile growth.' : 'Tiny prey must still fit your mouth. Kept fish are never food.'}</p>
+    <div className="care-vibrancy"><span className="home-eyebrow">LIVING COLOUR</span><strong>{Math.round(careColourQuality(specimen)*100)}% vibrancy</strong><p>Growth reveals your inherited colour. Healthy care deepens its sheen; poor condition dulls it, and recovery brings it back.</p></div>
+    <div className="care-diet"><strong>Flakes · pellets · algae{specimen.growth >= 35 ? ' · tiny prey' : ''}</strong><p>{specimen.growth < 35 ? 'Small fish eat flakes and graze. Shrimp and tiny fish unlock at juvenile growth.' : 'Shrimp and tiny fish must still fit your mouth. Kept fish are never food.'}</p>
       <p>{care.feedingPreference === 'any' ? 'Feeds equally well by day or night.' : `Prefers ${care.feedingPreference} feeding${phase === care.feedingPreference ? ' · bonus active' : ''}.`}</p>
     </div>
     <div className="care-paths" aria-label="Development paths">{developmentPaths.map(path => {
@@ -37,6 +40,6 @@ export default function FishCarePanel({ specimen, phase }: { specimen: Specimen;
         <p>{path.benefit}</p><small>{tiers ? `${tiers} ${tiers === 1 ? 'tier chosen' : 'tiers chosen'}. ` : ''}{path.next}</small>
       </article>;
     })}</div>
-    <p className="home-note care-lineage">Choose a path at 35% and 75% growth. Inherited colour and fin potential stay separate from these choices.{!!specimen.inherited?.parents.length && ' This guppy has a recorded two-parent lineage.'}</p>
+    <p className="home-note care-lineage">Choose a path at 35% and 75% growth. Inherited colour and fin potential stay separate from these choices.{!!specimen.inherited?.parents.length && ' This fish has a recorded two-parent lineage.'}</p>
   </section>;
 }

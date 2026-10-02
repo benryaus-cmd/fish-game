@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { createFish, computePose, bodyGradient } from '@/utils/fishModel';
-import { drawFish } from '@/utils/fishRender';
+import { drawSpecimenFish, fitSpecimenPortrait } from '@/utils/specimenRender';
 import { applySpecimenAppearance } from '@/utils/specimenAppearance';
 import type { Specimen } from '@/utils/boutique';
 
@@ -14,7 +14,8 @@ export default function FishPortrait({ specimen }: { specimen: Specimen }) {
     canvas.width = 180 * dpr; canvas.height = 110 * dpr;
     const fish = createFish(180, 180, 75 + specimen.growth * 0.15);
     const palette = applySpecimenAppearance(fish, specimen);
-    fish.x = 93; fish.y = 57; fish.amp = 0.16;
+    fitSpecimenPortrait(fish, specimen); fish.amp = 0.16;
+    const centreY = fish.y;
     let raf = 0, previous = 0;
     const render = (now: number) => {
       raf = requestAnimationFrame(render);
@@ -29,11 +30,11 @@ export default function FishPortrait({ specimen }: { specimen: Specimen }) {
       ctx.beginPath(); ctx.ellipse(82, 80, 53, 6, 0, 0, Math.PI * 2); ctx.fill();
       fish.phase = t * 4; fish.finPhase = t * 3;
       fish.pitch = Math.sin(t * 0.7) * 0.05;
-      fish.y = 56 + Math.sin(t) * 3;
-      computePose(fish); bodyGradient(ctx, palette); drawFish(ctx, fish, palette);
+      fish.y = centreY + Math.sin(t) * 3;
+      computePose(fish); bodyGradient(ctx, palette); drawSpecimenFish(ctx, fish, palette, specimen);
     };
     raf = requestAnimationFrame(render);
     return () => cancelAnimationFrame(raf);
   }, [specimen]);
-  return <canvas ref={ref} className="fish-portrait" aria-label={specimen.name + ' guppy portrait'} role="img" />;
+  return <canvas ref={ref} className="fish-portrait" aria-label={specimen.name + ' ' + specimen.species + ' portrait'} role="img" />;
 }
