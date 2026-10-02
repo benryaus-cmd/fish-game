@@ -7,7 +7,7 @@ import { startBreeding, claimBreeding } from '../src/games/importedAippy/upstrea
 const t = 1_000_000;
 test('new fish require ten healthy minutes, meals alone cannot mature them, backward time is inert', () => {
   let fish = ensureSpecimenCare(createSpecimen('ordinary', 'fry'), t);
-  for (let i=0;i<20;i++) fish = feedSpecimen(fish, 'flake', t, 'day');
+  fish = {...fish,care:{...fish.care!,nutrition:100}};
   assert.equal(fish.growth, 0);
   fish = advanceSpecimenCare(fish, t+599_000, 'growing');
   assert.ok(fish.growth < 75);
@@ -73,12 +73,12 @@ test('healthy time stops when unfed and real-time care is independent of invocat
   assert.equal(starving.care!.healthySeconds,0); assert.equal(starving.growth,0);
 });
 
-test('vitality improves meal efficiency and recovery without granting instant growth', () => {
+test('vitality improves meal efficiency without instant meal healing', () => {
   const base=ensureSpecimenCare({...createSpecimen('ordinary','vital'),hunger:30,health:60},t);
   const ordinary=feedSpecimen(base,'flake',t,'day');
   const vital=feedSpecimen({...base,traits:['vital']},'flake',t,'day');
-  assert.ok(vital.hunger>ordinary.hunger); assert.ok(vital.health>ordinary.health);
-  assert.equal(vital.growth,0); assert.equal(vital.care!.healthySeconds,0);
+  assert.ok(vital.hunger>ordinary.hunger); assert.equal(vital.health,ordinary.health);
+  assert.equal(vital.growth,0); assert.equal(vital.care!.healthySeconds,15);
 });
 
 test('recovering fish receive identical healthy credit across coarse and frequent ticks', () => {

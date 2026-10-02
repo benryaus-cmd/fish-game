@@ -2,7 +2,7 @@ import { getStock, type StockId, type ColorFamily, type FinForm, type BodyShape,
 export type { StockId, ColorFamily, FinForm, BodyShape, FinStyle, ColorPattern, OrnamentalSpecies } from './stockCatalog.ts';
 
 /** The entire boutique and current excursion share one atomic JSON profile. */
-export type Adaptation = 'swift' | 'ornate' | 'vital';
+export type Adaptation = 'swift' | 'ornate' | 'vital' | 'vibrancy';
 import type { SpecimenCare } from './specimenCare.ts';
 import { ensureSpecimenCare, advanceSpecimenCare } from './specimenCare.ts';
 import type { WorldClock } from './worldClock.ts';
@@ -20,6 +20,7 @@ export interface Specimen {
   accent: string;
   raisedSeconds: number;
   care?: SpecimenCare;
+  deathAtMs?: number;
   origin?: StockId;
   inherited?: { colorFamily: ColorFamily; finForm: FinForm; parents: string[]; bodyShape?: BodyShape; finStyle?: FinStyle; colorPattern?: ColorPattern };
 }
@@ -34,6 +35,7 @@ export interface BoutiqueSave {
   placements?: Record<string, 'home'>;
   worldClock?: WorldClock;
   breeding?: BreedingCycle | null;
+  tankCare?: { dirt: number; lastUpdatedMs: number; pellets: number };
 }
 
 const SAVE_KEY = 'aqualume.boutique.v1';
@@ -67,7 +69,7 @@ export function startStockRun(save: BoutiqueSave, stockId: StockId, runId: strin
   return {
     ...save,
     coins: save.coins - stock.price,
-    activeRun: { specimen: ensureSpecimenCare(createSpecimen(stock.id, runId), now), x: 380, y: 1520, stamina: 100 },
+    activeRun: { specimen: ensureSpecimenCare({...createSpecimen(stock.id, runId), hunger:70}, now), x: 380, y: 1520, stamina: 100 },
   };
 }
 const bounded = (value: unknown, maximum: number, fallback = 0): number =>
@@ -81,8 +83,8 @@ export function appraiseFish(specimen: Specimen): number {
   const growth = bounded(specimen.growth, 100);
   if (growth < 10) return 0;
   const stagePremium = growth >= 75 ? 45 : growth >= 35 ? 18 : 0;
-  const traitPremium = specimen.traits.filter(trait => trait === 'ornate' || trait === 'swift' || trait === 'vital').slice(0, 2)
-    .reduce((total, trait) => total + (trait === 'ornate' ? 24 : trait === 'vital' ? 18 : 12), 0);
+  const traitPremium = specimen.traits.filter(trait => trait === 'ornate' || trait === 'swift' || trait === 'vital' || trait === 'vibrancy').slice(0, 8)
+    .reduce((total, trait) => total + (trait === 'ornate' ? 24 : trait === 'vibrancy' ? 22 : trait === 'vital' ? 18 : 12), 0);
   const condition = 0.3 + bounded(specimen.health, 100) / 100 * 0.55 + bounded(specimen.hunger, 100) / 100 * 0.15;
   return Math.round((10 + growth * 1.2 + stagePremium + traitPremium) * condition);
 }
@@ -95,7 +97,7 @@ export function settleRun(save: BoutiqueSave, runId: string, kind: 'sell' | 'kee
   const resident = active?.source === 'resident';
   const historyId = resident ? active?.visitId : runId;
   if (!specimen || !historyId || (specimen.id !== runId && (!resident || historyId !== runId)) || save.completedRunIds.includes(historyId) || save.kept.some(fish => fish.id === runId)
-    || !Number.isFinite(specimen.growth) || (!resident && specimen.growth < 10) || (kind !== 'sell' && kind !== 'keep')
+    || specimen.health <= 0 || !Number.isFinite(specimen.growth) || (!resident && specimen.growth < 10) || (kind !== 'sell' && kind !== 'keep')
     || (kind === 'keep' && save.kept.length + (save.breeding ? 1 : 0) >= MAX_KEPT)) return save;
   return {
     ...save,
@@ -137,10 +139,11 @@ function readSpecimen(value: unknown): Specimen | null {
     growth: bounded(value.growth, 100),
     health: bounded(value.health, 100, 100),
     hunger: bounded(value.hunger, 100, 100),
-    traits: Array.isArray(value.traits) ? value.traits.filter((trait): trait is Adaptation => trait === 'swift' || trait === 'ornate' || trait === 'vital').slice(0, 2) : [],
+    traits: Array.isArray(value.traits) ? value.traits.filter((trait): trait is Adaptation => trait === 'swift' || trait === 'ornate' || trait === 'vital' || trait === 'vibrancy').slice(0, 8) : [],
     color: color(value.color, CORAL),
     accent: color(value.accent, GOLD),
     raisedSeconds: bounded(value.raisedSeconds, 604_800),
+    ...(typeof value.deathAtMs === 'number' && Number.isFinite(value.deathAtMs) ? { deathAtMs: bounded(value.deathAtMs,Number.MAX_SAFE_INTEGER) } : {}),
     origin,
     ...(inherited ? { inherited } : {}),
     ...(readCare(value.care) ? { care: readCare(value.care)! } : {}),
@@ -150,18 +153,18 @@ function readSave(value: unknown): BoutiqueSave {
   if (!record(value) || value.version !== 1 || typeof value.coins !== 'number' || !Number.isFinite(value.coins)
     || typeof value.sales !== 'number' || !Number.isFinite(value.sales) || !Array.isArray(value.kept)
     || !Array.isArray(value.completedRunIds) || (value.activeRun !== null && !record(value.activeRun))) return createBoutiqueSave();
+  const completedRunIds = [...new Set(value.completedRunIds.filter(validId))].slice(-MAX_HISTORY);
   const ids = new Set<string>();
   const kept: Specimen[] = [];
   for (const candidate of value.kept.slice(0, MAX_KEPT)) {
     const specimen = readSpecimen(candidate);
-    if (specimen && !ids.has(specimen.id)) { ids.add(specimen.id); kept.push(specimen); }
+    if (specimen && !ids.has(specimen.id) && !completedRunIds.includes(`death:${specimen.id}`)) { ids.add(specimen.id); kept.push(specimen); }
   }
-  const completedRunIds = [...new Set(value.completedRunIds.filter(validId))].slice(-MAX_HISTORY);
   let activeRun: ActiveRun | null = null;
   if (record(value.activeRun)) {
     const specimen = readSpecimen(value.activeRun.specimen);
     const resident = value.activeRun.source === 'resident' && validId(value.activeRun.visitId);
-    if (specimen && !ids.has(specimen.id) && !(resident ? completedRunIds.includes(value.activeRun.visitId as string) : completedRunIds.includes(specimen.id))) {
+    if (specimen && !ids.has(specimen.id) && !completedRunIds.includes(`death:${specimen.id}`) && !(resident ? completedRunIds.includes(value.activeRun.visitId as string) : completedRunIds.includes(specimen.id))) {
       activeRun = { ...(resident ? { source: 'resident' as const, visitId: value.activeRun.visitId as string } : {}), specimen, x: bounded(value.activeRun.x, 100_000), y: bounded(value.activeRun.y, 100_000), stamina: bounded(value.activeRun.stamina, 100, 100) };
     }
   }
@@ -170,7 +173,8 @@ function readSave(value: unknown): BoutiqueSave {
   const rawCycle = value.breeding;
   const child = record(rawCycle) ? readSpecimen(rawCycle.offspring) : null;
   const breeding = record(rawCycle) && validId(rawCycle.id) && !completedRunIds.includes(rawCycle.id) && Array.isArray(rawCycle.parentIds) && rawCycle.parentIds.length === 2 && rawCycle.parentIds[0] !== rawCycle.parentIds[1] && rawCycle.parentIds.every(id => validId(id) && ids.has(id)) && child && !ids.has(child.id) && kept.length < MAX_KEPT && Number.isFinite(rawCycle.startedAtMs) && Number.isFinite(rawCycle.readyAtMs) ? { id: rawCycle.id, parentIds: rawCycle.parentIds as [string,string], startedAtMs: bounded(rawCycle.startedAtMs, Number.MAX_SAFE_INTEGER), readyAtMs: Math.max(bounded(rawCycle.startedAtMs, Number.MAX_SAFE_INTEGER) + 120000, bounded(rawCycle.readyAtMs, Number.MAX_SAFE_INTEGER)), offspring: child } : undefined;
-  return { ...(worldClock ? { worldClock } : {}), ...(breeding ? { breeding } : value.breeding === null ? { breeding: null } : {}), version: 1, coins: Math.floor(bounded(value.coins, MAX_COINS)), sales: Math.floor(bounded(value.sales, MAX_SALES)), kept, activeRun, completedRunIds, placements };
+  const tankCare = record(value.tankCare) ? { dirt: bounded(value.tankCare.dirt,100), lastUpdatedMs: bounded(value.tankCare.lastUpdatedMs,Number.MAX_SAFE_INTEGER), pellets: bounded(value.tankCare.pellets,1e9) } : undefined;
+  return { ...(tankCare ? {tankCare}: {}), ...(worldClock ? { worldClock } : {}), ...(breeding ? { breeding } : value.breeding === null ? { breeding: null } : {}), version: 1, coins: Math.floor(bounded(value.coins, MAX_COINS)), sales: Math.floor(bounded(value.sales, MAX_SALES)), kept, activeRun, completedRunIds, placements };
 }
 export function loadBoutique(storage?: Pick<Storage, 'getItem'>): BoutiqueSave {
   try {
@@ -192,11 +196,26 @@ export function writeBoutique(save: BoutiqueSave, storage?: Pick<Storage, 'setIt
 function readCare(value: unknown): SpecimenCare | undefined {
   if (!record(value) || !Number.isFinite(value.bornAtMs) || !Number.isFinite(value.lastCareAtMs) || !record(value.meals)) return undefined;
   const bornAtMs = bounded(value.bornAtMs, Number.MAX_SAFE_INTEGER);
-  return { ...(typeof value.colourQuality === 'number' && Number.isFinite(value.colourQuality) ? { colourQuality: bounded(value.colourQuality, 1) } : {}), bornAtMs, lastCareAtMs: Math.max(bornAtMs, bounded(value.lastCareAtMs, Number.MAX_SAFE_INTEGER)), healthySeconds: bounded(value.healthySeconds, Number.MAX_SAFE_INTEGER), nutrition: bounded(value.nutrition,100), meals: { flake: bounded(value.meals.flake,1e9), algae: bounded(value.meals.algae,1e9), prey: bounded(value.meals.prey,1e9) }, feedingPreference: value.feedingPreference === 'night' || value.feedingPreference === 'any' ? value.feedingPreference : 'day' };
+  const rawDevelopment=record(value.development) ? value.development : undefined;
+  const development=rawDevelopment ? { resolvedStages: Array.isArray(rawDevelopment.resolvedStages) ? [...new Set(rawDevelopment.resolvedStages.filter((stage): stage is number => stage===35||stage===75))] : [], pending: Array.isArray(rawDevelopment.pending) ? rawDevelopment.pending.filter(record).filter(choice => (choice.stage===35||choice.stage===75) && Number.isInteger(choice.slots) && Number(choice.slots)>0 && Number(choice.slots)<=3 && Array.isArray(choice.options)).map(choice => ({stage:Number(choice.stage),slots:Number(choice.slots),options:[...new Set((choice.options as unknown[]).filter((trait): trait is Adaptation => trait==='swift'||trait==='ornate'||trait==='vital'||trait==='vibrancy'))]})).filter(choice=>choice.options.length>=choice.slots).slice(0,2) : [] } : undefined;
+  return { ...(development ? {development}: {}), ...(typeof value.colourQuality === 'number' && Number.isFinite(value.colourQuality) ? { colourQuality: bounded(value.colourQuality, 1) } : {}), bornAtMs, lastCareAtMs: Math.max(bornAtMs, bounded(value.lastCareAtMs, Number.MAX_SAFE_INTEGER)), healthySeconds: bounded(value.healthySeconds, Number.MAX_SAFE_INTEGER), nutrition: bounded(value.nutrition,100), meals: { flake: bounded(value.meals.flake,1e9), algae: bounded(value.meals.algae,1e9), prey: bounded(value.meals.prey,1e9) }, feedingPreference: value.feedingPreference === 'night' || value.feedingPreference === 'any' ? value.feedingPreference : 'day' };
 }
 export function startResidentRun(save: BoutiqueSave, id: string, visitId: string, now = Date.now()): BoutiqueSave {
   const fish = save.kept.find(fish => fish.id === id);
   if (!fish || !validId(visitId) || save.activeRun || save.completedRunIds.includes(visitId) || save.kept.some(fish => fish.id === visitId) || save.breeding?.id === visitId || save.breeding?.parentIds.includes(id)) return save;
   const placements = { ...save.placements }; delete placements[id];
   return { ...save, kept: save.kept.filter(fish => fish.id !== id), placements, activeRun: { source: 'resident', visitId, specimen: advanceSpecimenCare(ensureSpecimenCare(fish,now),now,'home'), x:380,y:1520,stamina:100 } };
+}
+
+/** Atomic loss transaction: a dead individual closes once without any payout. */
+export function finishDeath(save: BoutiqueSave, id: string, now=Date.now()): BoutiqueSave {
+  const historyId=`death:${id}`;
+  if(!Number.isFinite(now)) return save;
+  const active=save.activeRun?.specimen.id===id ? save.activeRun : null;
+  const fish=active?.specimen ?? save.kept.find(fish=>fish.id===id);
+  if(!fish || fish.health>0 || save.completedRunIds.includes(historyId)) return save;
+  const placements={...save.placements}; delete placements[id];
+  const history=[...save.completedRunIds,historyId];
+  if(active?.source==='resident' && active.visitId && !history.includes(active.visitId)) history.push(active.visitId);
+  return {...save,kept:save.kept.filter(fish=>fish.id!==id),activeRun:active?null:save.activeRun,placements,breeding:save.breeding?.parentIds.includes(id) || save.breeding?.offspring.id===id ? null : save.breeding,completedRunIds:history.slice(-MAX_HISTORY)};
 }

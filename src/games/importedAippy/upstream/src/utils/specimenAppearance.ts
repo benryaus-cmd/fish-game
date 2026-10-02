@@ -37,7 +37,7 @@ export function applySpecimenAppearance(fish: Fish, specimen: Specimen) {
 /** Heredity fixes hue; maturity and today's care control saturation and sheen. */
 export function specimenColour(specimen: Specimen, color: string): string {
   const maturity = 0.55 + Math.min(100, specimen.growth) / 100 * 0.45;
-  const quality = careColourQuality(specimen);
+  const quality = Math.min(1.3, careColourQuality(specimen) + specimen.traits.filter(trait => trait === 'vibrancy').length * .12);
   return mixHex('#889496', color, maturity * (0.38 + quality * 0.62));
 }
 export function specimenPalette(specimen: Specimen) {

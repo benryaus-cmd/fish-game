@@ -10,7 +10,7 @@ const profile = health => ({version:1,coins:100,sales:0,kept:[],completedRunIds:
     const page=await browser.newPage({viewport:{width:390,height:680}});page.setDefaultTimeout(10000);
     await page.addInitScript(()=>{const v=sessionStorage.getItem('recovery.fixture');if(v){localStorage.setItem('aqualume.boutique.v1',v);sessionStorage.removeItem('recovery.fixture');}});
     await page.goto('http://127.0.0.1:'+server.address().port,{waitUntil:'domcontentloaded'});
-    const load=async health=>{await page.evaluate(v=>sessionStorage.setItem('recovery.fixture',JSON.stringify(v)),profile(health));await page.reload({waitUntil:'domcontentloaded'});await page.getByRole('button',{name:'Continue raising',exact:true}).waitFor();};
+    const load=async health=>{await page.evaluate(v=>sessionStorage.setItem('recovery.fixture',JSON.stringify(v)),profile(health));await page.reload({waitUntil:'domcontentloaded'});await page.getByRole('button',{name:'Swim',exact:true}).waitFor();};
     const failures=[];
     const check=async(name,fn)=>{try{await fn();console.log('PASS',name);}catch(e){failures.push(name+': '+e.message);console.log('FAIL',name);}};
     await load(100);
@@ -18,8 +18,8 @@ const profile = health => ({version:1,coins:100,sales:0,kept:[],completedRunIds:
     await check('Space activates home buttons while an outing is retained',async()=>assert.equal(await page.getByRole('dialog',{name:'Your collection'}).count(),1));
     await load(0);
     await page.evaluate(()=>{window.realStorageWrite=Storage.prototype.setItem;Storage.prototype.setItem=()=>{throw new Error('quota fixture');};});
-    await page.getByRole('button',{name:'Continue raising',exact:true}).click();
-    await page.getByRole('dialog',{name:'Excursion ended'}).waitFor();await page.waitForTimeout(300);
+    await page.getByRole('button',{name:'Swim',exact:true}).click();
+    await page.getByRole('dialog',{name:'Fish died'}).waitFor();await page.waitForTimeout(300);
     assert.ok(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)).activeRun,key));
     await page.evaluate(()=>{Storage.prototype.setItem=window.realStorageWrite;});
     await page.getByRole('button',{name:'Choose next stock',exact:true}).click();
@@ -28,7 +28,7 @@ const profile = health => ({version:1,coins:100,sales:0,kept:[],completedRunIds:
       assert.ok(await page.getByRole('button',{name:'Raise ordinary guppy',exact:true}).isEnabled());
       const saved=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)),key);
       assert.equal(saved.activeRun,null);assert.equal(saved.coins,100);assert.equal(saved.sales,0);
-      assert.deepEqual(saved.completedRunIds,['recovery-run']);
+      assert.deepEqual(saved.completedRunIds,['death:recovery-run']);
     });
     assert.deepEqual(failures,[]);
   }finally{if(browser)await Promise.race([browser.close(),new Promise(r=>setTimeout(r,1500))]);server.closeAllConnections();await new Promise(r=>server.close(r));}

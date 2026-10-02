@@ -43,7 +43,7 @@ export function getCameraView(cam: Camera, viewW: number, viewH: number) {
   };
 }
 
-export const WORLD_WIDTH = 2400;
+export const WORLD_WIDTH = 3600;
 export const WORLD_HEIGHT = 1800;
 
 // World landmarks
@@ -62,8 +62,8 @@ export const OPEN_FEEDING_ZONE = {
 };
 
 export const CASTLE_LANDMARK = {
-  cx: 2100,
-  baseY: 1660,
+  cx: 3300,
+  get baseY() { return worldSurfaceY(3300); },
   size: 210,
 };
 
@@ -111,10 +111,10 @@ export function updateCamera(
   } else {
     const speed = Number.isFinite(hints.speed) ? Math.max(0, hints.speed!) : 0;
     const bodyLength = Number.isFinite(hints.bodyLength) ? Math.max(0, hints.bodyLength!) : 72;
-    // Schmitt trigger: ordinary 72px guppy cruise (~245px/s) stays at 1x.
-    if (speed >= 280) state.fast = true;
-    else if (speed <= 240) state.fast = false;
-    const speedRoom = state.fast ? clamp01((speed - 240) / 240) : 0;
+    // Schmitt trigger: ordinary 72px guppy cruise (~98px/s) stays at 1x.
+    if (speed >= 112) state.fast = true;
+    else if (speed <= 96) state.fast = false;
+    const speedRoom = state.fast ? clamp01((speed - 96) / 96) : 0;
     const sizeRoom = clamp01((bodyLength - 85) / 30);
     const closeZoom = bodyLength <= 72 ? MAX_ZOOM : 1 + (MAX_ZOOM - 1) * clamp01((100 - bodyLength) / 28);
     const target = closeZoom - (closeZoom - MIN_ZOOM) * Math.max(speedRoom, sizeRoom);

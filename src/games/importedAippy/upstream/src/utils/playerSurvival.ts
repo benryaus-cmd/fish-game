@@ -112,7 +112,7 @@ export function updatePlayerFish(
 
   // Movement Physics
   const L = Number.isFinite(player.L) ? Math.max(1, player.L) : 1;
-  const maxBaseSpeed = L * 3.4 * speedMultiplier;
+  const maxBaseSpeed = L * 3.4 * 0.4 * speedMultiplier;
   const burstMultiplier = survival.isBursting ? 1.85 : 1.0;
   const targetSpeed = maxBaseSpeed * burstMultiplier * strength;
 

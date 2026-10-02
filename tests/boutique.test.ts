@@ -108,5 +108,5 @@ test('both growth choices can repeat an adaptation and each earns its premium', 
   const swift = { ...fish, traits: ['swift', 'swift'] as ('swift')[] };
   assert.equal(appraiseFish(swift) - appraiseFish({ ...swift, traits: ['swift'] }), 12);
   const overfull = { ...save, activeRun: { ...save.activeRun!, specimen: { ...fish, traits: ['ornate', 'invalid', 'swift', 'ornate'] } } };
-  assert.deepEqual(loadBoutique({ getItem: () => JSON.stringify(overfull) }).activeRun!.specimen.traits, ['ornate', 'swift']);
+  assert.deepEqual(loadBoutique({ getItem: () => JSON.stringify(overfull) }).activeRun!.specimen.traits, ['ornate', 'swift', 'ornate']);
 });

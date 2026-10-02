@@ -43,7 +43,7 @@ test('legacy fish survive migration and invalid new axes are discarded individua
 test('healthy care slowly reveals colour and condition dulling is reversible without changing heredity', () => {
   let fed=care.ensureSpecimenCare(createSpecimen('rainbow','fed'),at);
   const neglected=care.advanceSpecimenCare({...fed,hunger:0,health:40},at+600000,'home');
-  for(let i=0;i<5;i++) fed=care.feedSpecimen(fed,'flake',at);
+  fed=care.feedSpecimen({...fed,hunger:70},'flake',at);
   fed=care.advanceSpecimenCare(fed,at+600000,'home');
   assert.ok(care.careColourQuality(fed)>care.careColourQuality(neglected));
   assert.ok(care.careColourQuality(fed)>care.careColourQuality(care.ensureSpecimenCare(createSpecimen('rainbow','new'),at)));

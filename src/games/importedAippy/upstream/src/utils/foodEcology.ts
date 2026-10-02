@@ -14,9 +14,9 @@ export function createFoodEcology(): FoodParticle[] {
   const rnd = mulberry(39151);
   const food: FoodParticle[] = Array.from({ length: 76 }, (_, i) => {
     const kind = i < 32 ? 'flake' : i < 50 ? 'pellet' : 'algae';
-    const wallAlgae = kind === 'algae' && i < 56;
-    const x = wallAlgae ? 52 : kind === 'flake' ? 225 + rnd() * 480 : 55 + rnd() * (WORLD_WIDTH - 110);
-    const y = wallAlgae ? 500 + rnd() * 900 : kind === 'flake' ? 1340 + rnd() * 170 : kind === 'pellet' ? 90 + rnd() * 1200 : worldSurfaceY(x) - 2;
+    const wallAlgae = kind === 'algae';
+    const x = wallAlgae ? (i % 2 === 0 ? 2 : WORLD_WIDTH - 2) : kind === 'flake' ? 225 + rnd() * 480 : 55 + rnd() * (WORLD_WIDTH - 110);
+    const y = wallAlgae ? 160 + rnd() * 1260 : kind === 'flake' ? 1340 + rnd() * 170 : 90 + rnd() * 1200;
     return { x, y, size: kind === 'algae' ? 13 : kind === 'pellet' ? 7 : 8, kind, active: true, respawn: 0, seed: rnd() * 6.28 };
   });
   // One visible tutorial flake sits at the newborn's mouth; the rest form a nearby trail.
@@ -26,14 +26,15 @@ export function createFoodEcology(): FoodParticle[] {
   return food;
 }
 export function updateFoodEcology(food: FoodParticle[], dt: number) {
+  const elapsed = Number.isFinite(dt) ? Math.max(0, Math.min(dt, 60)) : 0;
+  const step = Math.min(elapsed, .1);
   for (let i = 0; i < food.length; i++) {
     const f = food[i];
     if (!f.active) {
-      f.respawn -= dt;
+      f.respawn -= elapsed;
       if (f.respawn <= 0) { f.active = true; if (f.kind === 'pellet') f.y = 70; }
       continue;
     }
-    const step = Number.isFinite(dt) ? Math.max(0, Math.min(dt, .1)) : 0;
     if (f.kind === 'pellet') f.y = Math.min(worldSurfaceY(f.x) - 5, f.y + step * 16);
     // The first tutorial flake remains within the newborn's deliberate bite range.
     if (f.kind === 'flake' && i > 0) {
@@ -49,14 +50,15 @@ export function biteFood(food: FoodParticle[], mouth: {x:number;y:number}, fish:
   found.active = false; found.respawn = found.kind === 'algae' ? 18 : 8;
   return found.kind;
 }
-export function drawFoodEcology(ctx: CanvasRenderingContext2D, food: FoodParticle[], time: number, view?: {x:number;y:number;width:number;height:number}) {
+export function drawFoodEcology(ctx: CanvasRenderingContext2D, food: FoodParticle[], time: number, view?: {x:number;y:number;width:number;height:number}, consumer?: FoodConsumer) {
   const tau = Math.PI * 2;
   for (const f of food) {
     if (!f.active || (view && (f.x + 30 < view.x || f.x - 30 > view.x + view.width || f.y + 30 < view.y || f.y - 30 > view.y + view.height))) continue;
     ctx.save(); ctx.translate(f.x, f.y);
+    if (consumer && foodIsNearbyEdible(f, consumer)) drawEdibleGlow(ctx, f.size, time + f.seed);
     if (f.kind === 'algae') {
       // Every tuft grows from one attached receiver, with fine, unequal filaments.
-      if (f.x < 70) ctx.rotate(Math.PI / 2);
+      ctx.rotate(f.x < WORLD_WIDTH / 2 ? Math.PI / 2 : -Math.PI / 2);
       const variation = .8 + .2 * Math.sin(f.seed * 3);
       const base = ctx.createRadialGradient(0, 1, 0, 0, 1, 9);
       base.addColorStop(0, 'rgba(55,92,46,.48)'); base.addColorStop(1, 'rgba(55,92,46,0)');
@@ -94,4 +96,17 @@ export function drawFoodEcology(ctx: CanvasRenderingContext2D, food: FoodParticl
     }
     ctx.restore();
   }
+}
+
+export interface FoodConsumer { x:number; y:number; L:number; growth:number }
+/** Discovery and deliberate bites share one authored diet and mouth-size policy. */
+export function foodIsNearbyEdible(food:{x:number;y:number;size:number;kind:FoodKind;active:boolean}, consumer:FoodConsumer) {
+  return food.active && canEatFood(food.kind, consumer.growth, food.size, consumer.L)
+    && Math.hypot(food.x-consumer.x,food.y-consumer.y) <= Math.max(110, consumer.L*2.4);
+}
+export function drawEdibleGlow(ctx:CanvasRenderingContext2D,size:number,time:number) {
+ const radius=size+13+Math.sin(time*2)*2;
+ const glow=ctx.createRadialGradient(0,0,size*.35,0,0,radius);
+ glow.addColorStop(0,'rgba(222,244,165,.24)');glow.addColorStop(.55,'rgba(213,242,144,.16)');glow.addColorStop(1,'rgba(213,242,144,0)');
+ ctx.fillStyle=glow;ctx.beginPath();ctx.arc(0,0,radius,0,Math.PI*2);ctx.fill();
 }

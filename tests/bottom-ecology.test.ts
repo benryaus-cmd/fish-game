@@ -23,20 +23,36 @@ test('shrimp prey obeys growth and mouth size, and respawns in a bounded populat
  for(let i=0;i<25;i++)updateBottomEcology(state,1,player(450),floor);
  assert.equal(s.active,true);assert.equal(state.shrimps.length,count);
 });
-test('crabs telegraph, stay local, disengage high fish and respect nursery and shelter',()=>{
- const state=createBottomEcology();const c=state.crabs[0];c.rig.x=c.homeX;
- assert.ok(CRAB_WINDUP_SECONDS>=.6);
- for(let i=0;i<10;i++)assert.equal(updateBottomEcology(state,.05,player(c.homeX),floor),null);
- assert.equal(c.phase,'windup');assert.ok(c.rig.claws.some(p=>p.open>.3&&p.a<-.6));
- let hits=0; const hitTimes=[];
- for(let i=0;i<100;i++){if(updateBottomEcology(state,.05,player(c.rig.x),floor)){hits++;hitTimes.push(i*.05);}assert.ok(Math.abs(c.rig.x-c.homeX)<=105);}
- assert.ok(hits>0&&hits<=3);
- for(let i=1;i<hitTimes.length;i++)assert.ok(hitTimes[i]-hitTimes[i-1]>=1.5);
- for(let i=0;i<80;i++)assert.equal(updateBottomEcology(state,.05,player(c.homeX,1100),floor),null);
- assert.notEqual(c.phase,'windup');
- for(let i=0;i<80;i++)assert.equal(updateBottomEcology(state,.05,{...player(c.homeX),inShelter:true},floor),null);
- for(let i=0;i<80;i++)assert.equal(updateBottomEcology(state,.05,player(450),floor),null);
- assert.ok(state.crabs.every(c=>c.homeX-105>720));
+test('crabs wind up then hop with one hit per attack and a two second cooldown',()=>{
+ const state=createBottomEcology();const c=state.crabs[0];let hits=0;const times=[];let airborne=0;
+ for(let i=0;i<180;i++){
+  const damage=updateBottomEcology(state,.05,player(c.rig.x,1540),floor);
+  if(damage){hits++;times.push(i*.05);}
+  airborne=Math.max(airborne,1580-c.rig.cy);
+  assert.ok(c.rig.x>=800&&c.rig.x<=3500);
+ }
+ assert.ok(airborne>130);assert.ok(hits>0&&hits<=3);
+ for(let i=1;i<times.length;i++)assert.ok(times[i]-times[i-1]>=2);
+});
+test('crabs cannot attack the nursery but castle shelter does not stop their windup',()=>{
+ const state=createBottomEcology();const c=state.crabs[0];
+ for(let i=0;i<50;i++)assert.equal(updateBottomEcology(state,.05,player(450),floor),null);
+ updateBottomEcology(state,.05,{...player(c.rig.x),inShelter:true},floor);
+ assert.equal(c.phase,'windup');
+});
+test('neutral viewing disables crab attacks while allowing roaming beyond old home bounds',()=>{
+ const state=createBottomEcology();const c=state.crabs[0];c.rig.mode='walk';c.rig.tx=2800;c.rig.dir=1;
+ const start=c.rig.x;
+ for(let i=0;i<500;i++)assert.equal(updateBottomEcology(state,.05,player(c.rig.x),floor,{damageEnabled:false}),null);
+ assert.equal(c.phase,'idle');assert.ok(c.rig.x>start+105);
+});
+test('shrimp occupy the water column and dodge quickly away from an approaching fish',()=>{
+ const state=createBottomEcology();assert.ok(state.shrimps.some(s=>s.rig.y<500));assert.ok(state.shrimps.some(s=>s.rig.y>1200));
+ const s=state.shrimps[0];const x=s.rig.x,y=s.rig.y;
+ updateBottomEcology(state,.1,player(x-20,y),floor);
+ assert.ok(s.rig.x>x+15);assert.ok(Math.hypot(s.rig.vx,s.rig.vy)>120);
+ for(let i=0;i<300;i++)updateBottomEcology(state,.05,player(450,1500),floor);
+ for(const prey of state.shrimps){assert.ok(prey.rig.y>=80&&prey.rig.y<=1580);for(const v of [prey.rig.x,prey.rig.y,prey.rig.vx,prey.rig.vy])assert.ok(Number.isFinite(v));}
 });
 
 test('swimming over shrimp never eats them without an explicit bite call',()=>{

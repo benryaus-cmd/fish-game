@@ -7,7 +7,7 @@ import {
 } from '@/utils/fishModel';
 import { SPECIES, type SpeciesId } from '@/utils/fishSpecies';
 import type { PlayerSurvivalState } from '@/utils/playerSurvival';
-import { NURSERY_ZONE } from '@/utils/worldCamera';
+import { NURSERY_ZONE, WORLD_WIDTH } from '@/utils/worldCamera';
 
 const PI = Math.PI;
 const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
@@ -188,7 +188,7 @@ export function updatePrey(
     f.yawBody += (f.yaw - f.yawBody) * ease(4.0, dt);
     f.yawTail += (f.yawBody - f.yawTail) * ease(3.0, dt);
 
-    const speedTarget = f.cruise * f.L * f.pSpeed;
+    const speedTarget = f.cruise * f.L * f.pSpeed * .4;
     f.speed += (speedTarget - f.speed) * ease(isFleeing ? 3.5 : 1.2, dt);
 
     const vx = f.speed * Math.cos(f.yawBody);
@@ -247,7 +247,7 @@ export function updatePredator(
       if (pred.stateTimer <= 0 || Math.abs(f.tx - f.x) < f.L * 0.6) {
         pred.stateTimer = 4.0 + Math.random() * 4.0;
         // Patrol outside nursery (X: 850 to 2200)
-        f.tx = 900 + Math.random() * 1250;
+        f.tx = 900 + Math.random() * (WORLD_WIDTH - 1100);
         f.ty = 400 + Math.random() * 800;
         f.cruise = 0.65;
       }
@@ -326,7 +326,7 @@ export function updatePredator(
   f.yawBody += (f.yaw - f.yawBody) * ease(3.8, dt);
   f.yawTail += (f.yawBody - f.yawTail) * ease(2.8, dt);
 
-  const targetSpeed = f.cruise * f.L * f.pSpeed;
+  const targetSpeed = f.cruise * f.L * f.pSpeed * .4;
   f.speed += (targetSpeed - f.speed) * ease(pred.state === 'charge' ? 4.5 : 1.8, dt);
 
   const vx = f.speed * Math.cos(f.yawBody);
@@ -338,7 +338,7 @@ export function updatePredator(
 
   // Clamp predator to world
   const floorY = surfaceY(f.x);
-  f.x = clamp(f.x, 200, 2300);
+  f.x = clamp(f.x, 200, WORLD_WIDTH - 100);
   f.y = clamp(f.y, 150, floorY - f.L * 0.6);
 
   // Close mouth smoothly

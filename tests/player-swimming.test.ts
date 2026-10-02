@@ -33,7 +33,7 @@ test('straight dives hold the dorsal view from either prior side without changin
     for (const yaw of [down.yaw,down.yawBody,down.yawTail]) assert.ok(Math.abs(yaw-Math.PI/2)<0.01);
     assert.ok(down.pitch < -1.34 && down.pitch > -1.36);
     assert.ok(Math.sin(down.yawBody)*Math.sin(down.pitch)<-0.95, 'local back faces the camera');
-    assert.ok(Math.abs(down.vy-183.6)<0.001);
+    assert.ok(Math.abs(down.vy-183.6*.4)<0.001);
   }
 });
 test('climbs and diagonal dives have continuous depth rather than binary side facing', () => {

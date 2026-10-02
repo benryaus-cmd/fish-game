@@ -21,7 +21,7 @@ export default function StockSheet({ profile, saved, onChoose, onClose }: Props)
       <div className="home-sheet-scroll">
         <div className="home-stock-intro"><p>Three body families. Your own little lives.<br />Care reveals their colour as they grow.</p><span className="home-wallet"><span aria-hidden="true">◈</span> {profile.coins.toLocaleString()} <small>credits</small></span></div>
         <div className="stock-family-tabs" role="tablist" aria-label="Fish families">{([['starter','Starter'],['colorful','Tropical'],['angel','Angels']] as const).map(([id,label])=><button key={id} role="tab" aria-selected={family===id} onClick={()=>setFamily(id)}>{label}</button>)}</div>
-        {active && <p className="home-notice" role="status">An outing is already paused. Close this sheet and choose Continue raising to return to your fish.</p>}
+        {active && <p className="home-notice" role="status">An outing is already paused. Close this sheet and choose Continue Swim to return to your fish.</p>}
         {!saved && <p className="home-notice" role="status">Saving failed. Purchases complete only when saving succeeds. You can retry.</p>}
         <div className="home-stock-grid">{previews.filter(({stock})=>stock.bodyShape===family).map(({ stock, specimen }) => {
           const affordable = profile.coins >= stock.price;
@@ -29,8 +29,8 @@ export default function StockSheet({ profile, saved, onChoose, onClose }: Props)
           return <article className="home-stock-card" key={stock.id}>
             <div className="home-stock-portrait"><FishPortrait specimen={specimen} /><span className="home-stock-price">{stock.price === 0 ? 'Free' : `◈ ${stock.price}`}</span></div>
             <div className="home-stock-copy"><p className="home-eyebrow">{stock.species.toUpperCase()} FRY · {stock.finStyle.toUpperCase()} FINS</p><h3>{stock.name}</h3><p>{stock.description}</p>
-              <dl className="home-stock-facts"><div><dt>Potential</dt><dd>{stock.potential}</dd></div><div><dt>Starting condition</dt><dd>0% growth · 100% health · fully fed</dd></div><div><dt>Diet</dt><dd>Flakes and algae; tiny prey after juvenile growth</dd></div><div><dt>Destination</dt><dd>Growing tank · minimum 10 healthy minutes to adulthood</dd></div></dl>
-              <p className="home-stock-clarifier">Ornamental, Athletic and Vitality develop while raising.</p>
+              <dl className="home-stock-facts"><div><dt>Potential</dt><dd>{stock.potential}</dd></div><div><dt>Starting condition</dt><dd>0% growth · 100% health · fully fed</dd></div><div><dt>Diet</dt><dd>Flakes, pellets and algae; edible shrimp after juvenile growth</dd></div><div><dt>Destination</dt><dd>Swim · 10 healthy minutes; good meals can reduce this to 7.5</dd></div></dl>
+              <p className="home-stock-clarifier">Swift, Vibrancy, Ornate and Vital develop while raising.</p>
               <button className="home-button home-full" disabled={disabled} onClick={() => { if (disabled) return; onChoose(stock.id); }} aria-label={stock.id === 'ordinary' ? 'Raise ordinary guppy' : `Buy ${stock.name}${stock.species==='guppy'?' guppy':''}`}>{stock.price === 0 ? 'Raise ordinary guppy' : `Buy ${stock.name}${stock.species==='guppy'?' guppy':''}`} <span aria-hidden="true">↗</span></button>
               {!affordable && <p className="home-stock-shortfall">{stock.price - profile.coins} more credits needed</p>}
             </div>

@@ -26,7 +26,7 @@ test('paid stock debits and creates a healthy distinct fry in one profile', () =
   assert.equal(after.activeRun.specimen.inherited.finForm, 'fan');
   assert.equal(after.activeRun.specimen.growth, 0);
   assert.equal(after.activeRun.specimen.health, 100);
-  assert.equal(after.activeRun.specimen.hunger, 100);
+  assert.equal(after.activeRun.specimen.hunger, 70);
   assert.deepEqual(after.activeRun.specimen.traits, []);
   const memory = storage();
   assert.equal(writeBoutique(after, memory), true);
