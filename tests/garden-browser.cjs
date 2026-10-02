@@ -1,0 +1,92 @@
+// Build first. Requires Playwright and a Chromium executable (no production dependency).
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const http = require('node:http');
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
+const key = 'aqualume.boutique.v1';
+const fish = (id, growth, traits = []) => ({ id, name: 'Coral', species: 'guppy', growth, health: 100, hunger: 100, traits, color: '#f47f69', accent: '#ffd36e', raisedSeconds: 0 });
+const profile = (growth, traits = [], kept = []) => ({ version: 1, coins: 7, sales: 0, kept, completedRunIds: [], activeRun: { specimen: fish('live-guppy', growth, traits), x: 380, y: 1520, stamina: 100 } });
+(async () => {
+  const server = http.createServer((req, res) => { res.setHeader('Content-Type', 'text/html'); res.end(fs.readFileSync('dist/index.html')); });
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  let browser, page;
+  try {
+    browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE || undefined, headless: true,
+      args: process.env.CHROMIUM_ARGS_MODULE ? [...require(process.env.CHROMIUM_ARGS_MODULE).default.args.filter(arg => arg !== '--single-process'), '--disable-audio-output'] : ['--no-sandbox', '--disable-dev-shm-usage'] });
+    console.log('Browser launched');
+    page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    page.setDefaultTimeout(20000);
+    await page.addInitScript(() => { const fixture = sessionStorage.getItem('test.fixture'); if (fixture) { localStorage.setItem('aqualume.boutique.v1', fixture); sessionStorage.removeItem('test.fixture'); } });
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    const url = 'http://127.0.0.1:' + server.address().port;
+    console.log('Page created');
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    console.log('App loaded');
+    const load = async value => { await page.evaluate(({ key, value }) => sessionStorage.setItem('test.fixture', JSON.stringify(value)), { key, value }); await page.reload({ waitUntil: 'domcontentloaded' }); await page.getByRole('button', { name: 'Open boutique' }).waitFor(); };
+    const read = () => page.evaluate(key => JSON.parse(localStorage.getItem(key)), key);
+    await load(profile(30)); console.log('Sale fixture loaded');
+    await page.getByRole('button', { name: /Appraise your fish/ }).evaluate(el => el.click());
+    await page.getByLabel('Nursery appraisal').waitFor();
+    await page.getByRole('button', { name: /Sell this specimen/ }).evaluate(el => el.click());
+    await page.getByLabel('Specimen result').waitFor();
+    const sold = await read();
+    assert.ok(sold.coins > 7); assert.equal(sold.sales, 1); assert.equal(sold.activeRun, null); assert.deepEqual(sold.completedRunIds, ['live-guppy']);
+    await page.getByRole('button', { name: /Raise another guppy/ }).evaluate(el => el.click());
+    await page.getByRole('button', { name: 'Open boutique' }).evaluate(el => el.click());
+    const next = await read(); assert.notEqual(next.activeRun.specimen.id, 'live-guppy'); assert.equal(next.coins, sold.coins);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Open boutique' }).evaluate(el => el.click());
+    assert.equal((await read()).coins, sold.coins);
+    console.log('PASS sale, new run and reload');
+
+    await load(profile(40, ['ornate']));
+    await page.getByRole('button', { name: /Appraise your fish/ }).evaluate(el => el.click());
+    await page.locator('#specimen-name').fill('Goldleaf');
+    await page.getByRole('button', { name: /Keep in my display/ }).evaluate(el => el.click());
+    await page.getByLabel('Specimen result').waitFor();
+    console.log('Kept receipt reached');
+    const kept = await read(); assert.equal(kept.coins, 7); assert.equal(kept.kept[0].name, 'Goldleaf'); assert.equal(kept.activeRun, null);
+    await page.getByRole('button', { name: /Visit my boutique/ }).evaluate(el => el.click()); console.log('Boutique opened');
+    await page.getByRole('button', { name: /Swim as this fish/ }).evaluate(el => el.click());
+    await page.getByText('Personal display', { exact: true }).waitFor();
+    if (process.env.SCREENSHOTS) await page.screenshot({ path: 'test-results/display-mobile.png' });
+    await page.getByRole('button', { name: 'Open boutique' }).last().evaluate(el => el.click());
+    await page.getByRole('button', { name: /Continue raising/ }).evaluate(el => el.click());
+    await page.getByText('Guppy Garden', { exact: true }).waitFor();
+    assert.equal((await read()).kept[0].name, 'Goldleaf');
+    console.log('PASS keep, display control and return');
+
+    await load(profile(35));
+    await page.getByLabel('Choose an adaptation').waitFor();
+    await page.getByRole('button', { name: /Swift fins/ }).evaluate(el => el.click());
+    assert.deepEqual((await read()).activeRun.specimen.traits, ['swift']);
+    await load(profile(75, ['swift']));
+    await page.getByRole('button', { name: /Swift fins/ }).evaluate(el => el.click());
+    assert.deepEqual((await read()).activeRun.specimen.traits, ['swift', 'swift']);
+    console.log('PASS both growth choices');
+
+    await load(profile(30, [], [fish('display-guppy', 80, ['ornate', 'swift'])]));
+    await page.waitForTimeout(150); await page.keyboard.down('ArrowUp'); await page.waitForTimeout(2000); await page.keyboard.up('ArrowUp');
+    await page.getByRole('button', { name: 'Open boutique' }).evaluate(el => el.click());
+    const before = await read(); assert.ok(before.activeRun.y < 1519, 'up input moves vertically');
+    await page.setViewportSize({ width: 412, height: 915 }); await page.waitForTimeout(1000);
+    await page.getByRole('button', { name: /Continue raising/ }).evaluate(el => el.click());
+    await page.getByRole('button', { name: 'Open boutique' }).evaluate(el => el.click());
+    const after = await read(); assert.equal(after.activeRun.specimen.growth, before.activeRun.specimen.growth); assert.ok(Math.abs(after.activeRun.y - before.activeRun.y) < 3, 'menu pauses simulation and resize preserves position');
+    await page.getByRole('button', { name: /Continue raising/ }).evaluate(el => el.click());
+    await page.evaluate(() => { window.restoreStorage = Storage.prototype.setItem; Storage.prototype.setItem = () => { throw new Error('quota fixture'); }; });
+    await page.waitForTimeout(150); await page.keyboard.down('ArrowUp'); await page.waitForTimeout(2000); await page.keyboard.up('ArrowUp');
+    await page.getByRole('button', { name: 'Open boutique' }).evaluate(el => el.click());
+    await page.getByRole('button', { name: /Swim as this fish/ }).evaluate(el => el.click());
+    await page.getByRole('button', { name: 'Open boutique' }).last().evaluate(el => el.click());
+    await page.getByRole('button', { name: /Continue raising/ }).evaluate(el => el.click());
+    await page.evaluate(() => { Storage.prototype.setItem = window.restoreStorage; delete window.restoreStorage; });
+    await page.getByRole('button', { name: 'Open boutique' }).evaluate(el => el.click());
+    const recovered = await read(); console.log('Movement checkpoints', before.activeRun.y, recovered.activeRun.y); assert.ok(recovered.activeRun.y < before.activeRun.y - 1, 'unsaved live movement survives display visit');
+    await page.getByRole('button', { name: /Continue raising/ }).evaluate(el => el.click());
+    if (process.env.SCREENSHOTS) await page.screenshot({ path: 'test-results/garden-mobile.png' });
+    assert.deepEqual(errors, []);
+    console.log('PASS vertical movement, resize, pause, storage-failure/display regression; no runtime errors');
+  } catch (error) { console.error(error); if (page) { console.log(await page.locator('body').innerText()); console.log(await page.evaluate(() => ({save: localStorage.getItem('aqualume.boutique.v1'), hidden: document.hidden})));  } throw error; } finally { await Promise.race([browser?.close(), new Promise(r => setTimeout(r, 1500))]); server.closeAllConnections(); server.close(); }
+})().then(() => process.exit(0), e => { console.error(e); process.exit(1); });

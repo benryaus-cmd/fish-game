@@ -20,16 +20,27 @@ import { createCamera, updateCamera, triggerCameraShake, worldSurfaceY, buildWor
 import { createPlayerSurvival, updatePlayerFish, type PlayerSurvivalState } from '@/utils/playerSurvival';
 import { createPreyFish, createPredatorFish, getFishMouthPos, updatePrey, updatePredator, type PreyEntity, type PredatorEntity } from '@/utils/survivalEcology';
 import { createSurvivalJuice, spawnBurstWake, spawnEatGlints, updateSurvivalJuice, drawSurvivalJuice } from '@/utils/survivalJuice';
+import { createSpecimen, appraiseFish, getStage, settleRun, type ActiveRun, type Adaptation, type BoutiqueSave, type Specimen } from '@/utils/boutique';
+import { applySpecimenAppearance, specimenModifiers } from '@/utils/specimenAppearance';
+import { isInNursery, drawNurseryCover } from '@/utils/nurseryCover';
+import GardenHUD from '@/components/GardenHUD';
+import FishPortrait from '@/components/FishPortrait';
 const tweaks = aippyTweaks(tweaksConfig);
 const NOOP = () => {};
 interface AquariumProps {
   width: number;
   height: number;
+  profile: BoutiqueSave;
+  onProfileChange: (save: BoutiqueSave) => boolean;
+  onOpenShop: () => void;
+  paused: boolean;
+  displaySpecimen: Specimen | null;
+  saved: boolean;
 }
 const BGM_URL = assetsData.AUDIO_YDEK;
 const Aquarium = ({
   width,
-  height
+  height, profile, onProfileChange, onOpenShop, paused, displaySpecimen, saved
 }: AquariumProps) => {
   // Tweaks parameters
   const waterTop = tweaks.waterTopColor.useState();
@@ -176,7 +187,22 @@ const Aquarium = ({
     isDead: false,
     score: 0
   });
-  const [guidanceVisible, setGuidanceVisible] = useState(true);
+  const [appraisalOpen, setAppraisalOpen] = useState(false);
+  const [choiceStage, setChoiceStage] = useState(0);
+  const [receipt, setReceipt] = useState<{ kind: 'sell' | 'keep'; value: number; specimen: Specimen } | null>(null);
+  const [fishName, setFishName] = useState('Coral');
+  const profileRef = useRef(profile);
+  profileRef.current = profile;
+  const viewportRef = useRef({ width, height });
+  viewportRef.current = { width, height };
+  const resumeRef = useRef(profile.activeRun);
+  const specimenRef = useRef<Specimen>(displaySpecimen ?? profile.activeRun?.specimen ?? createSpecimen());
+  const endedRef = useRef(false);
+  const modalRef = useRef(false);
+  modalRef.current = paused || appraisalOpen || choiceStage > 0 || receipt !== null;
+  const checkpointRef = useRef(0);
+  const stickKnobRef = useRef<HTMLDivElement>(null);
+  const displayPalettesRef = useRef(new Map<number, FishPalette>());
 
   // Simulation Refs
   const inputManagerRef = useRef<InputManager | null>(null);
@@ -203,6 +229,32 @@ const Aquarium = ({
   const preyStarterPalRef = useRef<FishPalette | null>(null);
   const preyColorfulPalRef = useRef<FishPalette | null>(null);
   const predatorPalRef = useRef<FishPalette | null>(null);
+
+  const snapshot = useCallback((): ActiveRun | null => {
+    const fish = playerRef.current;
+    const state = survivalRef.current;
+    if (!fish || endedRef.current || displaySpecimen) return null;
+    return { specimen: { ...specimenRef.current, growth: state.growth, health: state.health, hunger: state.hunger },
+      x: fish.x, y: fish.y, stamina: state.stamina };
+  }, [displaySpecimen]);
+
+  const saveRun = useCallback(() => {
+    const activeRun = snapshot();
+    if (!activeRun) return;
+    const next = { ...profileRef.current, activeRun };
+    if (onProfileChange(next)) profileRef.current = next;
+  }, [snapshot, onProfileChange]);
+
+  useEffect(() => {
+    const saveOnHide = () => { if (document.hidden) saveRun(); };
+    window.addEventListener('pagehide', saveRun);
+    document.addEventListener('visibilitychange', saveOnHide);
+    return () => {
+      saveRun();
+      window.removeEventListener('pagehide', saveRun);
+      document.removeEventListener('visibilitychange', saveOnHide);
+    };
+  }, [saveRun]);
 
   // Setup input manager once
   useEffect(() => {
@@ -236,7 +288,7 @@ const Aquarium = ({
   // Palettes update
   useEffect(() => {
     // Distinctive warm coral/gold player appearance
-    playerPalRef.current = makeColorfulPalette('#ff7f50', '#ffd700');
+    if (playerRef.current) playerPalRef.current = applySpecimenAppearance(playerRef.current, specimenRef.current);
     preyStarterPalRef.current = makePalette(fishColor);
     preyColorfulPalRef.current = makeColorfulPalette(colorfulColor, colorfulAccent);
     // Predator dark contrasting silhouette
@@ -245,23 +297,37 @@ const Aquarium = ({
 
   // Restart / Reset Game session
   const restartGame = useCallback(() => {
+    const resume = displaySpecimen ? null : resumeRef.current;
+    resumeRef.current = null;
+    specimenRef.current = displaySpecimen ?? resume?.specimen ?? createSpecimen();
+    endedRef.current = false;
+    setAppraisalOpen(false); setChoiceStage(0); setReceipt(null);
+    inputManagerRef.current?.resetInput();
     const startL = 72;
     startLengthRef.current = startL;
     survivalRef.current = createPlayerSurvival();
+    const state = survivalRef.current;
+    state.growth = specimenRef.current.growth;
+    state.health = displaySpecimen ? 100 : specimenRef.current.health;
+    state.hunger = displaySpecimen ? 100 : specimenRef.current.hunger;
+    state.stamina = resume?.stamina ?? 100;
+    state.isDead = state.health <= 0;
 
     // Spawn player in nursery
-    const startX = 380;
-    const startY = 1520;
-    const p = createPreyFish(1, startX, startY, startL, 'starter').fish;
+    const startX = Math.max(45, Math.min(WORLD_WIDTH - 45, resume?.x ?? 380));
+    const startY = Math.max(60, Math.min(worldSurfaceY(startX) - 40, resume?.y ?? 1520));
+    const p = createPreyFish(1, startX, startY, startL * (1 + state.growth / 100 * 0.6), 'starter').fish;
     p.dir = 1;
     p.yaw = p.yawBody = p.yawTail = 0;
     p.speed = 0;
     playerRef.current = p;
+    playerPalRef.current = applySpecimenAppearance(p, specimenRef.current);
 
     // Reset camera onto player
     const cam = cameraRef.current;
-    cam.x = Math.max(0, startX - width / 2);
-    cam.y = Math.max(0, startY - height / 2);
+    const viewport = viewportRef.current;
+    cam.x = Math.max(0, Math.min(Math.max(0, WORLD_WIDTH - viewport.width), startX - viewport.width / 2));
+    cam.y = Math.max(0, Math.min(Math.max(0, WORLD_HEIGHT - viewport.height), startY - viewport.height / 2));
 
     // Spawn 24 prey distributed across feeding zone and open waters
     const prey: PreyEntity[] = [];
@@ -270,11 +336,19 @@ const Aquarium = ({
       const speciesId = i % 2 === 0 ? 'starter' : 'colorful';
       // Prey sizes: 38% to 62% of starting player length so they are edible
       const preyL = startL * (0.42 + rnd() * 0.2);
-      const px = 750 + rnd() * 1450;
-      const py = 350 + rnd() * 1100;
+      const px = i < 4 ? 730 + rnd() * 180 : 750 + rnd() * 1450;
+      const py = i < 4 ? 1380 + rnd() * 150 : 350 + rnd() * 1100;
       prey.push(createPreyFish(100 + i, px, py, preyL, speciesId));
     }
     preyListRef.current = prey;
+    displayPalettesRef.current.clear();
+    if (displaySpecimen) {
+      preyListRef.current = profileRef.current.kept.filter(fish => fish.id !== displaySpecimen.id).slice(0, 20).map((fish, i) => {
+        const entity = createPreyFish(100 + i, 650 + rnd() * 1400, 450 + rnd() * 850, startL * (1 + fish.growth / 100 * 0.6));
+        displayPalettesRef.current.set(entity.fish.id, applySpecimenAppearance(entity.fish, fish));
+        return entity;
+      });
+    }
 
     // Spawn 1 Predator far away in deep open water (X: 1950, Y: 800)
     predatorRef.current = createPredatorFish(1950, 800, startL * 1.75);
@@ -282,28 +356,16 @@ const Aquarium = ({
     // Reset juice
     juiceRef.current = createSurvivalJuice();
     setHudState({
-      health: 100,
-      hunger: 100,
-      stamina: 100,
-      growth: 0,
-      inShelter: true,
-      isDead: false,
-      score: 0
+      health: Math.round(state.health), hunger: Math.round(state.hunger), stamina: Math.round(state.stamina), growth: Math.round(state.growth),
+      inShelter: isInNursery(startX, startY), isDead: state.isDead, score: state.growth
     });
-  }, [width, height]);
+    saveRun();
+  }, [displaySpecimen, saveRun]);
 
   // Initial spawn
   useEffect(() => {
     restartGame();
   }, [restartGame]);
-
-  // Guidance auto-fade
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setGuidanceVisible(false);
-    }, 7000);
-    return () => clearTimeout(timer);
-  }, []);
 
   // Joystick touch handlers
   const handleJoyPointerDown = (e: PointerEvent<HTMLDivElement>) => {
@@ -313,6 +375,8 @@ const Aquarium = ({
   };
   const handleJoyPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     inputManagerRef.current?.onJoyMove(e.pointerId, e.clientX, e.clientY);
+    const knob = inputManagerRef.current?.getKnobOffset();
+    if (stickKnobRef.current && knob) stickKnobRef.current.style.transform = 'translate(' + knob.x + 'px,' + knob.y + 'px)';
   };
   const handleJoyPointerUp = (e: PointerEvent<HTMLDivElement>) => {
     try {
@@ -321,6 +385,7 @@ const Aquarium = ({
       // safe
     }
     inputManagerRef.current?.onJoyEnd(e.pointerId);
+    if (stickKnobRef.current) stickKnobRef.current.style.transform = '';
   };
 
   // Burst touch handlers
@@ -344,6 +409,7 @@ const Aquarium = ({
   } = useGameLoop({
     width,
     height,
+    maxFPS: paused || appraisalOpen || choiceStage > 0 || receipt ? 10 : 60,
     designWidth: 0
   }, ({
     deltaTime,
@@ -351,7 +417,7 @@ const Aquarium = ({
     height: vH
   }) => {
     // Avoid time accumulation if tab was backgrounded
-    if (document.hidden) return;
+    if (document.hidden || modalRef.current) return;
     const dt = Math.min(deltaTime * animationSpeed, 0.05);
     if (dt <= 0) return;
     timeRef.current += dt;
@@ -369,7 +435,7 @@ const Aquarium = ({
     if (!player || !predator) return;
 
     // Nursery Shelter Check: player in X: 160..720, Y > 1250
-    const inShelter = player.x >= NURSERY_ZONE.x0 && player.x <= NURSERY_ZONE.x1 && player.y >= NURSERY_ZONE.y0;
+    const inShelter = isInNursery(player.x, player.y);
 
     // Sound trigger on burst start
     if (input.burst && survival.stamina > 25 && survival.burstCooldown <= 0 && !survival.isBursting) {
@@ -382,7 +448,10 @@ const Aquarium = ({
         w: WORLD_WIDTH,
         h: WORLD_HEIGHT,
         surfaceY: worldSurfaceY
-      }, inShelter);
+      }, inShelter, specimenModifiers(specimenRef.current));
+      if (displaySpecimen) {
+        survival.health = 100; survival.hunger = 100; survival.isDead = false;
+      } else specimenRef.current.raisedSeconds += dt;
 
       // Burst bubble wake
       if (survival.isBursting && Math.random() < 0.6) {
@@ -395,7 +464,7 @@ const Aquarium = ({
       const pMouth = getFishMouthPos(player);
       const maxEdibleRatio = 0.68; // prey below ~68% player length
       const maxGrowthCap = startLengthRef.current * 1.6;
-      for (const p of preyListRef.current) {
+      for (const p of displaySpecimen ? [] : preyListRef.current) {
         if (!p.active) continue;
         // Check if small enough
         if (p.fish.L <= player.L * maxEdibleRatio) {
@@ -403,8 +472,9 @@ const Aquarium = ({
           const dy = p.fish.y - pMouth.y;
           const dist = Math.hypot(dx, dy);
           // Must be in front of player
-          const facingX = player.dir === 1 ? 1 : -1;
-          const inFront = dx * facingX > -player.L * 0.15;
+          const headX = Math.cos(player.yaw) * Math.cos(player.pitch);
+          const headY = -Math.sin(player.pitch);
+          const inFront = dx * headX + dy * headY > -player.L * 0.15;
           if (dist < player.L * 0.38 && inFront) {
             // BITE SUCCESS!
             p.active = false;
@@ -415,7 +485,7 @@ const Aquarium = ({
             survival.growthPulse = 1.0;
 
             // Smooth growth award (0..100%)
-            const growthDelta = 10;
+            const growthDelta = 5;
             const nextGrowth = Math.min(100, survival.growth + growthDelta);
             survival.growth = nextGrowth;
             player.L = Math.min(maxGrowthCap, startLengthRef.current * (1 + nextGrowth / 100 * 0.6));
@@ -443,7 +513,7 @@ const Aquarium = ({
     updatePrey(preyListRef.current, player, predator, dt, cam.x, cam.y, vW, vH, worldSurfaceY);
 
     // Update Predator
-    updatePredator(predator, player, survival, dt, worldSurfaceY, () => {
+    if (!displaySpecimen) updatePredator(predator, player, survival, dt, worldSurfaceY, () => {
       // Predator bite hit player!
       if (survival.invulnerableTime <= 0 && !survival.isDead) {
         survival.health = Math.max(0, survival.health - 25);
@@ -455,21 +525,34 @@ const Aquarium = ({
     });
 
     // Report Leaderboard score on death once
-    if (survival.isDead && !survival.scoreReported) {
+    if (survival.isDead && !survival.scoreReported && !displaySpecimen) {
       survival.scoreReported = true;
       reportScore(Math.round(survival.growth));
+      endedRef.current = true;
+      const next = { ...profileRef.current, activeRun: null };
+      if (onProfileChange(next)) profileRef.current = next;
     }
 
     // Camera Follow with Lookahead
     const lookAhead = survival.isBursting ? 120 : 60;
-    const lookAheadX = Math.cos(player.yawBody) * lookAhead;
-    const lookAheadY = Math.sin(player.pitch) * lookAhead * 0.4;
+    const lookAheadX = Math.cos(player.yawBody) * Math.cos(player.pitch) * lookAhead;
+    const lookAheadY = -Math.sin(player.pitch) * lookAhead;
     updateCamera(cam, player.x, player.y, vW, vH, dt, lookAheadX, lookAheadY);
 
     // Environmental particles & bubbles
     updateBubbles(bubblesRef.current, dt, WORLD_WIDTH, WORLD_HEIGHT, worldSurfaceY, bubbleAmount, NOOP);
     updateMotes(motesRef.current, dt, WORLD_WIDTH, WORLD_HEIGHT);
     updateSurvivalJuice(juice, dt);
+    checkpointRef.current += dt;
+    if (!displaySpecimen && !survival.isDead && checkpointRef.current > 3) { checkpointRef.current = 0; saveRun(); }
+    const requiredChoices = survival.growth >= 75 ? 2 : survival.growth >= 35 ? 1 : 0;
+    if (!displaySpecimen && !survival.isDead && specimenRef.current.traits.length < requiredChoices) {
+      modalRef.current = true;
+      inputManagerRef.current?.resetInput();
+      if (stickKnobRef.current) stickKnobRef.current.style.transform = '';
+      setChoiceStage(specimenRef.current.traits.length + 1);
+      saveRun();
+    }
 
     // Throttled HUD sync to React (10Hz)
     hudUpdateTimerRef.current += dt;
@@ -507,8 +590,7 @@ const Aquarium = ({
     const viewBottom = renderCamY + vH + 100;
 
     // 1. Screen Space Background (soft underwater gradient matching depth)
-    const bgGrad = ctx.createLinearGradient(0, 0, 0, vH);
-    const camYRatio = Math.max(0, Math.min(1, renderCamY / (WORLD_HEIGHT - vH)));
+    const bgGrad = ctx.createLinearGradient(0, -renderCamY, 0, WORLD_HEIGHT - renderCamY);
     bgGrad.addColorStop(0, waterTop);
     bgGrad.addColorStop(0.5, waterMid);
     bgGrad.addColorStop(1, waterDeep);
@@ -576,7 +658,7 @@ const Aquarium = ({
     // Nursery Shelter Plants (Dense green foliage)
     for (const p of scene.nurseryPlants) {
       if (p.x + 90 >= viewLeft && p.x - 90 <= viewRight) {
-        drawPlant(ctx, p.x, p.baseY, p, p.S, '#4fa85c', t, 1);
+        drawPlant(ctx, p.x, p.baseY, p, p.S, '#4fa85c', t, 1, 'back');
       }
     }
 
@@ -598,12 +680,12 @@ const Aquarium = ({
       if (!pr.active) continue;
       const f = pr.fish;
       if (f.x + f.L < viewLeft || f.x - f.L > viewRight) continue;
-      const pal = pr.speciesId === 'starter' ? preyStarterPalRef.current : preyColorfulPalRef.current;
+      const pal = displaySpecimen ? displayPalettesRef.current.get(f.id) : pr.speciesId === 'starter' ? preyStarterPalRef.current : preyColorfulPalRef.current;
       if (pal) drawFish(ctx, f, pal);
     }
 
     // Draw Predator Fish
-    if (predator && predatorPalRef.current) {
+    if (!displaySpecimen && predator && predatorPalRef.current) {
       const pf = predator.fish;
       if (pf.x + pf.L >= viewLeft && pf.x - pf.L <= viewRight) {
         drawFish(ctx, pf, predatorPalRef.current);
@@ -624,6 +706,8 @@ const Aquarium = ({
       ctx.restore();
     }
 
+    drawNurseryCover(ctx, scene.nurseryPlants, player, t, '#4fa85c');
+
     // World FX: Juice (wake bubbles, eat glints)
     drawSurvivalJuice(ctx, juice);
 
@@ -632,141 +716,95 @@ const Aquarium = ({
     drawMotes(ctx, motesRef.current, dotSprite, true);
     ctx.restore(); // End World Space
   });
-  return <div className="relative w-full h-full overflow-hidden select-none touch-none bg-[#2f7f98] font-sans" onClick={() => void initAudio()}>
-      {/* 2D Aquarium Canvas */}
-      <canvas ref={canvasRef} className="block w-full h-full" />
 
-      {/* TOP HUD BAR */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between px-3 pt-3" style={{
-      paddingTop: 'max(12px, env(safe-area-inset-top))',
-      paddingLeft: 'max(12px, env(safe-area-inset-left))',
-      paddingRight: 'max(12px, env(safe-area-inset-right))'
-    }}>
-        {/* Left Stats: Health & Hunger */}
-        <div className="flex flex-col gap-1.5 bg-black/45 backdrop-blur-md rounded-xl p-2.5 border border-white/10 shadow-lg min-w-[130px]">
-          {/* Health Bar */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-rose-300 w-11">HP</span>
-            <div className="flex-1 h-2 bg-black/60 rounded-full overflow-hidden border border-white/10">
-              <div className="h-full bg-gradient-to-r from-rose-500 to-rose-400 rounded-full transition-all duration-200" style={{
-              width: `${hudState.health}%`
-            }} />
-            </div>
-            <span className="text-[10px] font-mono text-white/80 w-6 text-right">
-              {hudState.health}
-            </span>
-          </div>
-
-          {/* Hunger / Fullness Bar */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-amber-300 w-11">FOOD</span>
-            <div className="flex-1 h-2 bg-black/60 rounded-full overflow-hidden border border-white/10">
-              <div className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all duration-200" style={{
-              width: `${hudState.hunger}%`
-            }} />
-            </div>
-            <span className="text-[10px] font-mono text-white/80 w-6 text-right">
-              {hudState.hunger}
-            </span>
-          </div>
-
-          {/* Nursery Status Pill */}
-          {hudState.inShelter && <div className="mt-0.5 self-start px-2 py-0.5 rounded-full bg-emerald-500/25 border border-emerald-400/40 text-[9px] font-semibold text-emerald-300 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Nursery Shelter (Safe)
-            </div>}
+  const openBoutique = () => {
+    inputManagerRef.current?.resetInput();
+    if (stickKnobRef.current) stickKnobRef.current.style.transform = '';
+    saveRun();
+    onOpenShop();
+  };
+  const openAppraisal = () => {
+    const player = playerRef.current;
+    if (!player || survivalRef.current.isDead || !isInNursery(player.x, player.y)) return;
+    inputManagerRef.current?.resetInput();
+    if (stickKnobRef.current) stickKnobRef.current.style.transform = '';
+    setFishName(specimenRef.current.name);
+    modalRef.current = true;
+    setAppraisalOpen(true);
+    saveRun();
+  };
+  const chooseAdaptation = (trait: Adaptation) => {
+    if (!choiceStage || specimenRef.current.traits.length !== choiceStage - 1) return;
+    specimenRef.current = { ...specimenRef.current, traits: [...specimenRef.current.traits, trait] };
+    if (playerRef.current) playerPalRef.current = applySpecimenAppearance(playerRef.current, specimenRef.current);
+    saveRun();
+    setChoiceStage(0);
+  };
+  const finishRun = (kind: 'sell' | 'keep') => {
+    const player = playerRef.current;
+    if (!player || endedRef.current || survivalRef.current.isDead || !isInNursery(player.x, player.y)) return;
+    specimenRef.current = { ...specimenRef.current, name: fishName.trim().slice(0, 40) || 'Coral' };
+    const activeRun = snapshot();
+    if (!activeRun) return;
+    const base = { ...profileRef.current, activeRun };
+    const next = settleRun(base, activeRun.specimen.id, kind);
+    if (next === base || !onProfileChange(next)) return;
+    profileRef.current = next;
+    endedRef.current = true;
+    inputManagerRef.current?.resetInput();
+    setReceipt({ kind, value: kind === 'sell' ? appraiseFish(activeRun.specimen) : 0, specimen: activeRun.specimen });
+    setAppraisalOpen(false);
+  };
+  const specimen = snapshot()?.specimen ?? specimenRef.current;
+  const controls = !paused && !appraisalOpen && !choiceStage && !receipt && !hudState.isDead;
+  return <div className="garden-root" onClick={() => void initAudio()}>
+    <canvas ref={canvasRef} className="block w-full h-full" />
+    <GardenHUD hud={{ ...hudState, threat: predatorRef.current?.state === 'stalk' || predatorRef.current?.state === 'charge' }}
+      coins={profile.coins} value={appraiseFish(specimen)} stage={getStage(hudState.growth)}
+      display={!!displaySpecimen} controls={controls} saved={saved}
+      onShop={openBoutique} onAppraise={openAppraisal} onSound={toggleSound} sound={soundEnabled}
+      knobRef={stickKnobRef} joyDown={handleJoyPointerDown} joyMove={handleJoyPointerMove} joyUp={handleJoyPointerUp}
+      burstDown={handleBurstPointerDown} burstUp={handleBurstPointerUp}>
+      {!!choiceStage && <div className="garden-modal"><section className="garden-dialog garden-glass" role="dialog" aria-modal="true" aria-label="Choose an adaptation">
+        <p className="garden-eyebrow">GROWTH MILESTONE · {choiceStage === 1 ? 'JUVENILE' : 'ADULT'}</p>
+        <h2>A little more you.</h2><FishPortrait specimen={specimen} />
+        <p>Your guppy has grown. Shape the way it swims or the beauty of its fins.</p>
+        <div className="dialog-actions">
+          <button className="garden-button" onClick={() => chooseAdaptation('swift')}>Swift fins <span>↗</span></button>
+          <p>12% more swim speed, with 8% more burst effort. Adds ◈ 12 to the base appraisal.</p>
+          <button className="garden-button garden-button-secondary" onClick={() => chooseAdaptation('ornate')}>Ornamental fins <span>✧</span></button>
+          <p>Longer flowing fins. Adds ◈ 24 to the base appraisal without a speed change.</p>
         </div>
-
-        {/* Center / Right: Growth & Audio Toggle */}
-        <div className="flex items-center gap-2">
-          {/* Growth Progress */}
-          <div className="flex flex-col items-center bg-black/45 backdrop-blur-md rounded-xl px-3 py-1.5 border border-white/10 shadow-lg">
-            <span className="text-[10px] font-semibold tracking-wider text-cyan-200 uppercase">
-              Growth
-            </span>
-            <span className="text-sm font-black text-amber-300 font-mono">
-              {hudState.growth}%
-            </span>
-          </div>
-
-          {/* Audio Mute/Unmute */}
-          {showSoundButton && <button onClick={toggleSound} className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-xl bg-black/45 backdrop-blur-md border border-white/15 text-white active:scale-95 transition-transform" aria-label="Toggle Sound">
-              {soundEnabled ? <svg className="w-5 h-5 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                </svg> : <svg className="w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                  <line x1="23" y1="9" x2="17" y2="15" />
-                  <line x1="17" y1="9" x2="23" y2="15" />
-                </svg>}
-            </button>}
+      </section></div>}
+      {appraisalOpen && <div className="garden-modal"><section className="garden-dialog garden-glass" role="dialog" aria-modal="true" aria-label="Nursery appraisal">
+        <p className="garden-eyebrow">THE NURSERY · SAFE IN THE LEAVES</p><h2>A little treasure.</h2>
+        <FishPortrait specimen={specimen} />
+        <label className="garden-eyebrow" htmlFor="specimen-name">SPECIMEN NAME</label>
+        <input id="specimen-name" className="specimen-name" value={fishName} maxLength={40} onChange={e => setFishName(e.target.value)} />
+        <div className="appraisal-value"><span>Current nursery offer</span><strong>◈ {appraiseFish(specimen)}</strong></div>
+        <div className="appraisal-breakdown"><span>{getStage(specimen.growth)} · {Math.round(specimen.growth)}% grown</span><span>{Math.round(specimen.health)}% health</span><span>{Math.round(specimen.hunger)}% fed</span>{specimen.traits.map((trait, i) => <span key={i}>{trait === 'swift' ? 'Swift fins' : 'Ornamental fins'}</span>)}</div>
+        <p>{specimen.growth < 10 ? 'Feed on a few small fish before selling or keeping this specimen.' : specimen.growth < 35 ? 'Juvenile growth at 35% brings your first adaptation and a higher offer.' : specimen.growth < 75 ? 'Adult growth at 75% brings another adaptation and a maturity premium.' : 'A beautifully raised adult. Keep it in your display, or sell and raise another.'}</p>
+        {!saved && <p className="garden-notice">Saving is unavailable. Your fish is still here; the transaction has not been completed.</p>}
+        <div className="dialog-actions">
+          <button className="garden-button" disabled={specimen.growth < 10} onClick={() => finishRun('sell')}>Sell this specimen <span>◈ {appraiseFish(specimen)}</span></button>
+          <button className="garden-button garden-button-secondary" disabled={specimen.growth < 10 || profile.kept.length >= 100} onClick={() => finishRun('keep')}>{profile.kept.length >= 100 ? 'Your display is full' : 'Keep in my display'} <span>♡</span></button>
+          <button className="garden-button garden-button-secondary" onClick={() => setAppraisalOpen(false)}>Keep exploring <span>↗</span></button>
         </div>
-      </div>
-
-      {/* INITIAL BRIEF GUIDANCE TOAST */}
-      {guidanceVisible && <div className="pointer-events-none absolute top-20 inset-x-0 z-20 flex justify-center">
-          <div className="px-4 py-2 rounded-full bg-slate-900/80 backdrop-blur-md border border-cyan-400/30 text-cyan-100 text-xs font-medium shadow-xl flex items-center gap-2 animate-bounce">
-            <span>Swim</span>
-            <span className="text-cyan-400">•</span>
-            <span>Eat smaller fish</span>
-            <span className="text-cyan-400">•</span>
-            <span>Hide from predators in plants</span>
-          </div>
-        </div>}
-
-      {/* FLOATING JOYSTICK (Bottom-Left) */}
-      <div className="pointer-events-auto absolute z-30" style={{
-      left: 'max(18px, env(safe-area-inset-left))',
-      bottom: 'max(24px, env(safe-area-inset-bottom))'
-    }}>
-        <div onPointerDown={handleJoyPointerDown} onPointerMove={handleJoyPointerMove} onPointerUp={handleJoyPointerUp} onPointerCancel={handleJoyPointerUp} className="relative flex items-center justify-center w-28 h-28 rounded-full bg-black/35 backdrop-blur-sm border border-white/15 touch-none active:bg-black/45">
-          {/* Inner Joystick Knob */}
-          <div className="w-12 h-12 rounded-full bg-gradient-to-b from-cyan-400 to-cyan-600 shadow-md border border-cyan-200/50 flex items-center justify-center pointer-events-none transition-transform duration-75" style={{
-          transform: `translate(${inputManagerRef.current?.getKnobOffset().x || 0}px, ${inputManagerRef.current?.getKnobOffset().y || 0}px)`
-        }}>
-            <div className="w-4 h-4 rounded-full bg-white/40" />
-          </div>
-        </div>
-      </div>
-
-      {/* BURST BUTTON & STAMINA RING (Bottom-Right, positioned left of the Dev Cog) */}
-      <div className="pointer-events-auto absolute z-30 flex flex-col items-center" style={{
-      right: 'max(76px, calc(env(safe-area-inset-right) + 64px))',
-      bottom: 'max(22px, env(safe-area-inset-bottom))'
-    }}>
-        {/* Stamina Meter above button */}
-        <div className="w-14 h-1.5 bg-black/60 rounded-full mb-1.5 overflow-hidden border border-white/15">
-          <div className="h-full bg-gradient-to-r from-amber-400 to-yellow-300 rounded-full transition-all duration-100" style={{
-          width: `${hudState.stamina}%`
-        }} />
-        </div>
-
-        <button onPointerDown={handleBurstPointerDown} onPointerUp={handleBurstPointerUp} onPointerCancel={handleBurstPointerUp} aria-label="Burst Speed" className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-tr from-amber-500 to-yellow-400 text-slate-950 font-black text-xs shadow-xl active:scale-90 transition-transform border-2 border-white/30 cursor-pointer">
-          <div className="flex flex-col items-center leading-none">
-            <span className="text-[13px] tracking-wider font-extrabold">BURST</span>
-            <span className="text-[9px] opacity-80 mt-0.5">SPACE</span>
-          </div>
-        </button>
-      </div>
-
-      {/* GAME OVER RETRY OVERLAY */}
-      {hudState.isDead && <div className="pointer-events-auto absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/75 backdrop-blur-md text-white p-6 text-center select-none animate-fadeIn">
-          <div className="text-6xl mb-3">🌊</div>
-          <h2 className="text-2xl font-black text-rose-400 mb-1">FATE OF THE REEF</h2>
-          <p className="text-sm text-slate-300 mb-4 max-w-xs">
-            Your journey ended. The deep waters are perilous, but life always returns to the nursery.
-          </p>
-
-          <div className="bg-white/10 rounded-xl px-6 py-3 border border-white/15 mb-6 text-center">
-            <div className="text-xs uppercase text-slate-400 tracking-wider">Final Growth Progress</div>
-            <div className="text-3xl font-black text-amber-300 font-mono mt-0.5">{hudState.growth}%</div>
-          </div>
-
-          <button onClick={restartGame} className="px-8 py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 rounded-xl text-base font-extrabold tracking-wide text-white shadow-xl active:scale-95 transition-transform cursor-pointer border border-cyan-200/40">
-            SWIM AGAIN
-          </button>
-        </div>}
-    </div>;
+      </section></div>}
+      {receipt && <div className="garden-modal"><section className="garden-dialog garden-glass" role="dialog" aria-modal="true" aria-label="Specimen result">
+        <p className="garden-eyebrow">{receipt.kind === 'sell' ? 'A BEAUTIFUL NEW BEGINNING' : 'A HOME OF ITS OWN'}</p>
+        <h2>{receipt.kind === 'sell' ? 'A lovely little sale.' : 'This one is yours.'}</h2>
+        <FishPortrait specimen={receipt.specimen} />
+        <p>{receipt.specimen.name}{receipt.kind === 'sell' ? ' has found a new home.' : ' now lives safely in your personal display.'}</p>
+        {receipt.kind === 'sell' && <div className="appraisal-value"><span>Added to your boutique</span><strong>+ ◈ {receipt.value}</strong></div>}
+        <div className="dialog-actions"><button className="garden-button" onClick={restartGame}>Raise another guppy <span>↗</span></button><button className="garden-button garden-button-secondary" onClick={() => { restartGame(); openBoutique(); }}>Visit my boutique <span>♡</span></button></div>
+      </section></div>}
+      {hudState.isDead && !receipt && <div className="garden-modal"><section className="garden-dialog garden-glass" role="dialog" aria-modal="true" aria-label="Excursion ended">
+        <p className="garden-eyebrow">THE GARDEN GOES ON</p><h2>A small life, a brave swim.</h2>
+        <p>This excursion ended at {hudState.growth}% growth. Your boutique coins and display fish are safe. Another little guppy is waiting.</p>
+        <div className="dialog-actions"><button className="garden-button" onClick={restartGame}>Raise a new guppy <span>↗</span></button></div>
+      </section></div>}
+    </GardenHUD>
+  </div>;
 };
 export default Aquarium;

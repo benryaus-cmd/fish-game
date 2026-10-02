@@ -8,6 +8,10 @@ interface Leaf { a: number; len: number; w: number; bend: number; ph: number; am
 
 const leafCache = new WeakMap<PlantDef, Leaf[]>();
 const colorCache = new Map<string, [string, string, string]>();
+// Gradients stay in world coordinates and are reused as the leaf tips sway.
+interface LeafMaterial { surface: CanvasGradient; curvature: CanvasGradient }
+interface PlantMaterials { key: string; leaves: LeafMaterial[] }
+const materialCache = new WeakMap<C, WeakMap<PlantDef, PlantMaterials>>();
 const SEG = 9;
 const PX = new Float32Array(SEG + 1), PY = new Float32Array(SEG + 1), PA = new Float32Array(SEG + 1);
 const rand = (seed: number, i: number) => { const s = Math.sin(seed * 91.7 + i * 47.3) * 43758.5453; return s - Math.floor(s); };
@@ -39,6 +43,35 @@ function colors(base: string, tone: number): [string, string, string] {
   return v;
 }
 
+function materials(ctx: C, d: PlantDef, x: number, baseY: number, S: number, base: string): LeafMaterial[] {
+  let cache = materialCache.get(ctx);
+  if (!cache) { cache = new WeakMap(); materialCache.set(ctx, cache); }
+  const key = `${x}|${baseY}|${S}|${base}|${d.h}|${d.tone}`;
+  const hit = cache.get(d);
+  if (hit?.key === key) return hit.leaves;
+  const pal = colors(base, d.tone), H = d.h * S;
+  const result = leaves(d).map(lf => {
+    const angle = lf.a + lf.bend * 0.5, length = lf.len * H;
+    const rootX = x + lf.ox * S;
+    const dx = Math.sin(angle), dy = -Math.cos(angle);
+    const surface = ctx.createLinearGradient(rootX, baseY, rootX + dx * length, baseY + dy * length);
+    surface.addColorStop(0, mix(base, '#0b2924', 0.64, 0.97));
+    surface.addColorStop(0.3, lf.front ? pal[1] : pal[0]);
+    surface.addColorStop(0.72, mix(base, '#d9edaa', lf.front ? 0.32 : 0.18, 0.94));
+    surface.addColorStop(1, mix(base, '#f0f4bd', 0.46, 0.78));
+    const mx = rootX + dx * length * 0.5, my = baseY + dy * length * 0.5;
+    const half = lf.w * H * 0.45, nx = Math.cos(angle), ny = Math.sin(angle);
+    const curvature = ctx.createLinearGradient(mx - nx * half, my - ny * half, mx + nx * half, my + ny * half);
+    curvature.addColorStop(0, 'rgba(8,30,27,0.40)');
+    curvature.addColorStop(0.38, 'rgba(9,32,25,0.04)');
+    curvature.addColorStop(0.64, 'rgba(227,248,169,0.15)');
+    curvature.addColorStop(1, 'rgba(227,248,183,0.30)');
+    return { surface, curvature };
+  });
+  cache.set(d, { key, leaves: result });
+  return result;
+}
+
 function halfWidth(kind: PlantKind, s: number): number {
   if (kind === 'leafy') return Math.pow(Math.sin(Math.PI * Math.min(1, s * 1.04)), 0.7) * 0.5 + 0.04;
   if (kind === 'grass') return Math.pow(1 - s, 0.9) * 0.5 + 0.02;
@@ -46,13 +79,19 @@ function halfWidth(kind: PlantKind, s: number): number {
 }
 
 /** x = plant root, baseY = sand contact; t = scene time for the sway. */
-export function drawPlant(ctx: C, x: number, baseY: number, d: PlantDef, S: number, base: string, t: number, alpha = 1) {
+export function drawPlant(ctx: C, x: number, baseY: number, d: PlantDef, S: number, base: string, t: number, alpha = 1, layer: 'all' | 'back' | 'front' = 'all') {
   if (alpha <= 0.001) return;
-  const H = d.h * S * (0.85 + 0.15 * alpha), pal = colors(base, d.tone), f = 0.8 + rand(d.seed, 99) * 0.35;
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = 'rgba(20,40,40,0.16)';
-  ctx.beginPath(); ctx.ellipse(x, baseY + 1, Math.max(4, S * (d.kind === 'tall' ? 0.3 : 0.45)), Math.max(1.5, S * 0.07), 0, 0, Math.PI * 2); ctx.fill();
-  for (const lf of leaves(d)) {
+  const H = d.h * S, pal = colors(base, d.tone), material = materials(ctx, d, x, baseY, S, base), f = 0.8 + rand(d.seed, 99) * 0.35;
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  if (layer !== 'front') {
+    ctx.fillStyle = 'rgba(20,40,40,0.16)';
+    ctx.beginPath(); ctx.ellipse(x, baseY + 1, Math.max(4, S * (d.kind === 'tall' ? 0.3 : 0.45)), Math.max(1.5, S * 0.07), 0, 0, Math.PI * 2); ctx.fill();
+  }
+  const plantLeaves = leaves(d);
+  for (let leafIndex = 0; leafIndex < plantLeaves.length; leafIndex++) {
+    const lf = plantLeaves[leafIndex];
+    if ((layer === 'front' && !lf.front) || (layer === 'back' && lf.front)) continue;
     const seg = (lf.len * H) / SEG, w = lf.w * H;
     let px = x + lf.ox * S, py = baseY + 1;
     for (let i = 0; i <= SEG; i++) {
@@ -72,8 +111,16 @@ export function drawPlant(ctx: C, x: number, baseY: number, d: PlantDef, S: numb
       ctx.lineTo(PX[i] - Math.cos(PA[i]) * hw, PY[i] - Math.sin(PA[i]) * hw);
     }
     ctx.closePath();
-    ctx.fillStyle = lf.front ? pal[1] : pal[0];
+    ctx.fillStyle = material[leafIndex].surface;
     ctx.fill();
+    ctx.fillStyle = material[leafIndex].curvature;
+    ctx.fill();
+    if (d.kind !== 'grass') {
+      // Translucent rim catches the aquarium light without canvas shadows/filters.
+      ctx.strokeStyle = lf.front ? 'rgba(224,248,179,0.26)' : 'rgba(116,186,119,0.12)';
+      ctx.lineWidth = Math.max(0.5, S * 0.012);
+      ctx.stroke();
+    }
     if (d.kind !== 'grass' && lf.front) {
       ctx.strokeStyle = pal[2]; ctx.lineWidth = 0.7;
       ctx.beginPath(); ctx.moveTo(PX[0], PY[0]);
@@ -81,5 +128,5 @@ export function drawPlant(ctx: C, x: number, baseY: number, d: PlantDef, S: numb
       ctx.stroke();
     }
   }
-  ctx.globalAlpha = 1;
+  ctx.restore();
 }

@@ -1,0 +1,17 @@
+{
+  "update": "guppy-garden-loop-v1",
+  "baseUrl": "https://raw.githubusercontent.com/benryaus-cmd/fish-game/main/",
+  "files": [
+    "src/games/importedAippy/upstream/src/App.tsx",
+    "src/games/importedAippy/upstream/src/components/Aquarium.tsx",
+    "src/games/importedAippy/upstream/src/components/BoutiqueScreen.tsx",
+    "src/games/importedAippy/upstream/src/components/FishPortrait.tsx",
+    "src/games/importedAippy/upstream/src/components/GardenHUD.tsx",
+    "src/games/importedAippy/upstream/src/components/GardenUI.css",
+    "src/games/importedAippy/upstream/src/utils/boutique.ts",
+    "src/games/importedAippy/upstream/src/utils/nurseryCover.ts",
+    "src/games/importedAippy/upstream/src/utils/playerSurvival.ts",
+    "src/games/importedAippy/upstream/src/utils/plantRender.ts",
+    "src/games/importedAippy/upstream/src/utils/specimenAppearance.ts"
+  ]
+}
