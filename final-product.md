@@ -1,106 +1,108 @@
 # AquaLume — final product direction
 
-**Design reference · 2 October 2026 · Intended destination, not a list of completed features.**
+**Revised 2 October 2026 after the first playable footage. Destination, not completed features.** Read the opening and the relevant section; workers do not need the whole document for every task.
 
 ## The game in 30 seconds
 
-Run a beautiful aquarium boutique **from inside its fish**. Choose a tiny specimen, explore a living tank, feed, evade predators and develop its appearance and abilities. Return to the nursery and decide: **sell now, risk another excursion, or keep this fish in your personal display**. Sales fund new species, richer habitats and a shop that visibly fills with your achievements.
+**Build a remarkable aquarium collection by living inside its fish.** Your saved aquarium is the main menu: named fish you kept swim among your plants and equipment. Select breeding stock, raise a free ordinary guppy or buy a promising specimen, explore a living tank, develop its traits, then sell it or bring it home. Breed your favourites towards silhouettes and trait combinations in **FishoDex**. Earnings buy stock, habitats and equipment that open new possibilities.
 
-The emotional rhythm is **wonder → appetite → danger → clever escape → relief → pride**. Swimming must be enjoyable before any reward appears. “AAA” means exceptional animation, materials, sound, responsiveness and finish throughout this compact mobile game.
+The rhythm is wonder → appetite → danger → escape → pride → curiosity about the next generation. Swimming and watching the aquarium must both be enjoyable. “AAA” means coherent art, expressive creatures, excellent controls and a polished compact game. Next: presentation and feel, then a complete home–stock–raise–keep/breed loop.
 
-## 1. The loop and the reason to return
+## 1. Home is a living aquarium
 
-- **Start:** choose a species and optional customer request. Starter guppies are free. Target 3–8 minutes for a raise-and-sell cycle, with suspend/resume anytime.
-- **Explore:** follow food, schools and landmarks into exposed routes. Eat suitable prey or forage according to species. Give a feeding success within 15 seconds.
-- **Develop:** grow through fry, juvenile and adult stages. At each transition choose between two adaptations, such as stronger burst versus ornamental fins. Choices have visible changes and trade-offs; fish stay within their species.
-- **Appraise:** the nursery shows current value and the next premium. Price combines species, maturity, pattern/fin traits and condition; customer requests add a disclosed bonus.
-- **Cash out or keep:** selling ends the run with a specimen portrait and payout. Keeping ends it without payout, placing that named individual safely in the personal display. Its appearance and achievements persist; favourites can be piloted there.
-- **Expand:** buy starter stock, habitats, curated planting/decor layouts and display upgrades. Requests encourage variety: a healthy adult guppy, long-finned angelfish or varied-diet specimen. Offer choices without real-world deadlines.
+Launch into the saved home tank, with kept fish wandering autonomously. Empty saves get a beautiful planted starter tank and one clear **Raise your first guppy** action. An unfinished outing offers **Continue raising** without discarding its state. Menus and backgrounding pause the outing.
 
-Defeat loses the current unbanked specimen and run gains. Banked coins, unlocks, catalogue records and display fish survive. Hunger advances only during active play. Health measures injury, food sustains growth/recovery and stamina powers exertion.
+Use a quiet bottom dock: **Raise · Tanks · Breed · FishoDex**, plus settings. Selecting a fish opens its portrait, name, lineage, traits and actions to swim, move, favourite, mark as breeding stock or sell. Collapse panels to watch the aquarium. Favourites and breeding stock require explicit sale confirmation.
 
-The long-term goal is a flourishing boutique and a personal collection worth watching. Completing the main tank progression opens expert requests, rare visual morphs and mastery challenges with normalised starting conditions.
+Swim freely as a kept fish at home. Home fish are persistent individuals, never consumable prey. No starvation, attacks or offline neglect losses at home. Equipment suitability controls comfort bonuses and breeding eligibility; explain incompatibility before transfer. Owned tanks are the collection/breeding layer; adventure tanks are the risk/growth layer. Their visual themes can be shared, but their rules must be clear.
 
-## 2. A small collection of memorable worlds
+## 2. The raise–sell–keep loop and stock
 
-Launch with four authored adventure tanks and the personal display. Tanks span several screens in both axes, with meaningful routes, shelter, food niches and landmarks.
+1. **Choose stock and destination.** Always offer a free ordinary guppy: modest silver/warm body, restrained markings and short translucent fins. Paid fancy guppies have visibly different inherited colour, pattern or tail potential. Other species unlock through progress and FishoDex. Show preview, price, starting traits, potential, diet and suitable tanks before spending credits. Purchased stock is a starting individual, not a finished achievement.
+2. **Explore and feed.** Suitable food should be reachable within 15 seconds. Swim through plants, schools and landmarks; take readable risks for better nourishment and discoveries. Species have distinct diets and mouth-size limits. Auto-bites happen at the mouth.
+3. **Develop.** Fry → juvenile → adult brings clear branching choices. Target roughly 3–8 minutes for an ordinary first raise-and-sell cycle; tune from real play, not idle waits. Returning early remains useful.
+4. **Appraise in refuge.** Show market value, condition, visible trait premiums and the next attainable premium. Choose sell, keep or continue exploring. Receipts make the earned amount clear.
+5. **Return home.** Keeping adds the actual individual to a compatible owned tank without payout. Selling credits the wallet and completes the outing. Present a stock choice next; do not automatically spawn another identical fancy fish.
 
-| Tank | Look and play identity |
+Defeat loses the current unbanked outing fish. Banked fish and progress stay safe. Home breeding stock does not enter a dangerous outing without an explicit risk choice; normally raise new stock or offspring. Prevent instant buy/sell profit loops; growth, care and interesting traits create value. Later customer requests reward variety without real-world deadlines.
+
+## 3. Three useful development paths
+
+| Path | Visible identity and benefit | Meaningful cost or limit |
+| --- | --- | --- |
+| **Ornamental** | Tail shape → patterned fins → refined colour/iridescence. Clearly prettier in motion and portraits; market and collection premiums. | Spectacular finnage can increase drag or burst cost. Beauty means authored shape, pattern and material, not unlimited fin scaling. |
+| **Athletic** | Streamlined form, stronger propulsion, acceleration, turning or burst recovery. Opens difficult food routes and escapes. | Fast builds need more food or stamina; every tier cannot improve every movement stat. |
+| **Vitality** | Robust condition, food efficiency, recovery and environmental tolerance. Useful parents for resilient offspring and demanding habitats. | Uses opportunities that could increase ornament or speed; never grants invulnerability or ignores species compatibility. |
+
+Each species gets a small authored branch tree, previewing appearance, immediate stat changes and its next branch. At juvenile/adult milestones choose a connected upgrade or permitted hybrid. Two repeated generic buttons are only the current prototype. Hybrids can be useful without becoming best at everything.
+
+Separate **inherited potential**, **development choices**, **current condition** and **tank bonuses**. Breeding passes defined hereditary traits and potential, not every acquired speed bonus or the parent's current health percentage. Healthy, well-fed parents improve breeding readiness and offspring condition; strong vitality potential can be inherited. Appraisal distinguishes beauty, maturity, condition and disclosed lineage premiums. An excellent breeder need not be the most expensive show fish.
+
+## 4. Breeding and FishoDex
+
+Select two compatible adults in a suitable owned tank, preview likely offspring, reserve nursery space and start a bounded breeding cycle. Parents remain owned and unavailable for conflicting sales/transfers during the cycle. The first tutorial resolves within a normal play session. Further cycles progress through active play; no paid waiting, offline deaths or mandatory daily care.
+
+Use a small understandable hereditary model: colour family, pattern, fin form and vitality/athletic potential. Show likely outcomes and probabilities or probability bands from the actual model. Begin with same-species pairings and explicit compatibility rules. Cross-species fish and magical species transformations are outside initial scope. Suitable environment can influence trait expression and eligible development, never turn a guppy into a seahorse.
+
+Offspring receive persistent identities, parent IDs and inherited traits. Choose which to raise, keep or sell once eligible; capacity is visible before breeding. Persist the outcome once so reloads cannot reroll a clutch, repeat a payout or duplicate parents. Existing kept fish migrate into valid starting ancestry without wiping the collection.
+
+**FishoDex is a goal screen and field guide.** Organise species → authored varieties, initially targeting eight species and roughly three signature varieties each. This is a content budget, not an excuse for colour-only duplicates.
+
+- Unknown entries show a recognisable silhouette, habitat, approximate route and prerequisites. Example fictional target: **Sunburst Veiltail Guppy** — warm-colour ancestry, veiltail potential, an ornamental branch and a stable planted breeding tank. Label this as a game breeding rule.
+- Discovered entries reveal artwork and confirmed traits; bred/raised entries add lineage, personal records and completion marks. Buying records ownership but does not award “bred by you”.
+- Pin one target. The breeding panel explains what the selected pair meets, what is missing and a useful next step. Related discoveries reveal more specific guidance; never require blind crossbreeding spam.
+- On unlock, replace the silhouette with the real fish rig and a restrained celebration. Track the finite authored catalogue separately from countless individual combinations.
+
+## 5. Tanks, environments and equipment
+
+Owned tanks have capacity, temperature, pH and oxygen/cleanliness bands. Species data defines comfortable ranges and breeding needs. Present **Suitable / Needs adjustment / Incompatible**, with exact settings available on demand. These are understandable game systems, not a chemistry maintenance simulator.
+
+Heaters regulate temperature; filters support stable clean water; aeration supports oxygen; plants, lighting and substrate affect shelter, comfort and authored breeding/development conditions. Every purchase explains its effect. Preview changes against every resident and apply gradual transitions. Poor settings suspend bonuses or breeding eligibility rather than silently destroying prized stock. Freshwater and marine families need suitable separate habitats.
+
+Adventure tanks span several screens in both axes. Ecology, current, cover and environmental requirements change how species play:
+
+| Tank | Identity |
 | --- | --- |
-| **Guppy Garden** | Sunlit jade leaves, pale sand, drifting fry. Learn feeding, hiding and returning to sell; one readable roaming threat. |
-| **Sunken Courtyard** | Amber light, terracotta, the existing castle transformed into a navigable ruin. Competing schools, narrow passages and territorial hunters. |
-| **Moonlit Roots** | Copper water, deep blue shadows and tangled roots. Ambush predators, alternate escape routes and crab side excursions. |
-| **Coral Gallery** | Pearl sand, luminous coral colours and gentle current lanes. Reef fish, seahorse feeding routes and dangerous open-water crossings. |
-| **Personal Display** | A safe, customisable shop showpiece populated by fish the player kept. Photograph, admire and swim as favourites. |
+| **Guppy Garden** | Sunlit jade leaves, pale sand, accessible meals, readable refuge and one telegraphed threat. |
+| **Sunken Courtyard** | Amber light, terracotta and navigable ruins. Schools, narrow routes and territorial hunters. |
+| **Moonlit Roots** | Copper water, deep shadows and tangled roots. Ambushes, cover routes and later crab excursions. |
+| **Coral Gallery** | Pearl sand, luminous coral and current lanes. Marine stock, seahorse feeding routes and exposed crossings. |
 
-Handcraft geography; vary food, patrols and specimen traits. Anchor reflections to the actual water surface and lighting to the world as the camera moves.
+Retain existing fish, angel, seahorse and crab bases where useful. Target guppy, tetra, fancy goldfish, angelfish, cichlid, reef dartfish, clownfish and seahorse, each with authored form, handling, diet and habitat. Predators visibly patrol, notice, pursue, search and disengage. Small creatures forage and react; the tank feels occupied beyond the player's needs.
 
-## 3. Creatures with identity
+## 6. Swimming, camera and hiding
 
-Target eight playable species: **guppy, tetra, fancy goldfish, angelfish, cichlid, reef dartfish, clownfish and seahorse**. Extend the existing fish, angel and seahorse rigs. Each needs a recognisable silhouette, palette/pattern family, fin motion, acceleration, turning style, diet and shelter fit. Alternate colours alone do not constitute another species.
+Full analogue movement in every direction, including steep ascent/descent. Preserve head/body/tail lag, fin motion and responsive full-stick reversals. All geometry follows a coherent local body frame: spine, cross-sections, dorsal/anal fins, tail, eyes and mouth. Near/far visibility follows pose. A diving fish must not become a thin vertical sausage with a dorsal fin buried inside it. Seahorses remain upright.
 
-Guppies thread vegetation; tetras accelerate and benefit from schooling; goldfish forage; angelfish glide precisely; cichlids hunt smaller prey; dartfish sprint between cover; clownfish use specific refuges; seahorses hover upright and pick tiny food from currents. Predation eligibility follows body/mouth size and diet, visibly communicated before a bite.
+The camera follows actual travel with restrained look-ahead. Smoothly zoom out for sustained speed/burst and larger bodies, revealing upcoming space and threats; ease back more slowly when slowing down. Start tuning around 1.0× normal and 0.75× fast/large, bounded to keep prey readable. Hysteresis prevents pulsing. Zoom changes visible world dimensions, culling, bounds, effects and world picking together. HUD/touch targets retain screen size. Provide reduced camera motion.
 
-Crabs, shrimp and starfish make the floor feel inhabited through feeding, cleaning, climbing and retreating. Later, optional short crab excursions let the player collect something under a ledge while the main fish waits safely in the nursery. Form changes happen at a refuge with a clear handoff, never as an escape exploit during a chase.
+Plants surround fish in rear and foreground layers. Soften foreground leaves locally around the controlled fish; do not erase whole plants or shrink geometry. Shelter visuals and detection volumes agree. Threats telegraph before damage, with recovery and grace periods. Bites, bursts and escapes have distinct restrained animation, sound and particles.
 
-Ambient fish have routines: school, investigate food, yield territory, startle, shelter and settle. Predators patrol, notice, telegraph, pursue, search the last seen location and disengage. Their senses, body language and habitats explain their behaviour.
+## 7. Art, interface and sound
 
-## 4. Swimming, hiding and tactile feedback
+A luminous miniature aquarium: jewel fish, shaded curved foliage, warm light shafts, tactile stone/ceramic and sand relief. Fish stay the clearest subject. Use translucent fin edges, eye highlights, controlled iridescence and coherent shadows. Preserve the appealing procedural animation; the scene must look good without bloom or particle overload.
 
-**Full two-dimensional swimming:** rise, dive, travel diagonally, curve and reverse. Analogue stick strength controls effort. Body orientation follows intended travel with believable species-specific articulation, while eyes, fins, spine and tail retain independent life. Preserve the responsive full-stick turn and gentle low-input movement. Seahorses remain upright while translating.
+Water lighting belongs to the world. Surface light attenuates gradually with depth; caustics cover visible water/receiving surfaces without rectangular cut-offs. Camera movement and zoom never expose an effect's drawing boundary.
 
-Use a left floating joystick, right burst and occasional contextual action. Support keyboard, simultaneous touch, left-handed layout and adjustable controls. Auto-bites occur at the mouth with clear contact.
+**Protect the swimming area.** Compact health/food and growth indicators at the edges; expand value, stats and traits on tap. Stamina surrounds burst. Show the nursery explanation once, then a small edge direction/distance cue when useful. In refuge, show a compact action near the controls. Never park a permanent instruction pill across the swimming route. Branding and wallet are secondary during play.
 
-The camera leads into travel and gently reframes growth. Landmarks preserve scale. Threat cues precede attacks; bites have a wind-up, recovery and damage grace period.
+Use petrol, ivory and restrained brass, consistent icons and material depth. Set text colours explicitly, including headings and empty states. Home menus open as drawers/sheets over the living tank. Appraisal and stock screens prioritise the fish and decision; primary actions remain reachable above safe areas and the keyboard. Minimum 44 CSS-pixel touch targets; test inside the actual Aippy game viewport as well as full-screen portrait. Development controls stay in developer access.
 
-**Hiding must be physical and visible.** Draw shelter foliage both behind and in front of the fish. Foreground leaves soften only around the player's silhouette; surrounding foliage stays lush. Entering cover adds a restrained concealed indicator, muffles the soundscape and changes predator search behaviour. Shelter volumes and sight obstruction must match the rendered plants and rocks.
+Keep an authored seamless ambient score, quiet tank-specific identity and restrained pursuit layer. One audio owner, reusable effects, bounded voices, smooth fades and clean pause/resume. Prefer pre-rendered music layers; diagnose scheduling/frame stalls before replacing libraries. Separate music/effects controls, reduced motion and non-colour cues are required.
 
-Food gives a mouth snap, glint and rounded sound. Bursts disturb leaves and particles; escapes bring musical relief. Damage compresses the body and nudges the camera. Reserve the largest celebrations for growth and sales.
+## 8. Implementation and release order
 
-## 5. Art direction and interface
+Live source: `src/games/importedAippy/upstream/src/`. Evolve it in place. Fish/plants are Canvas 2D procedural rigs, not imported SVG sprites. React owns screens; simulation owns motion. Active music uses Aippy `useSound`, with Tone effects. Keep working scoped aliases and the Node/Vite import route.
 
-**A luminous miniature world behind aquarium glass:** jewel-coloured fish, warm shafts of light, soft depth haze, rich foliage and tactile ceramic/stone. Fish remain the brightest and sharpest subject. Use clear focal lighting and restrained saturation around them.
+Define species, varieties, branches, breeding rules and tank suitability as data. Persist individuals separately from tank placement, outings and discoveries; migrate the current boutique save. Purchases, sales, breeding and transfers each commit once. Preserve live progress if storage fails. Split Aquarium orchestration as systems grow, preserving one coherent renderer and shared audio ownership.
 
-Plants need curved surfaces, shaded undersides, translucent edges, veins, overlapping shadows and delayed stem-to-tip motion. Fish wakes and gentle currents move the scene coherently. Sand gains relief, contact shadows and shells; fish gain controlled iridescence, translucent fins and eye highlights.
+Use Canvas caching, bounded particles and lower-frequency distant simulation first. Consider GPU rendering only after profiling a real bottleneck and proving the fish retain their character. No new library is required to start.
 
-Compose background, habitat, creatures, foreground cover and atmosphere as deliberate layers. Use cached shading, gradients, masks and controlled light effects. The scene must look premium with particles and bloom disabled.
+1. **Presentation and feel:** steep-angle geometry, continuous water lighting, quiet HUD, readable screens and speed/growth zoom. See the [footage review](docs/reviews/2026-10-02-footage-review.md) for evidence and acceptance criteria.
+2. **Home and stock:** living home/menu, tank placement, free ordinary versus paid fancy stock, safe return and preserved saves.
+3. **Purposeful guppy progression:** three authored paths, visible phenotype changes, differentiated stats, appraisal and a small FishoDex with tracked targets.
+4. **First breeding loop:** one complete guppy family, compatible parents, nursery capacity, inheritance, lineage and achievable Dex unlocks. Prove it before expanding the catalogue.
+5. **Habitat/species expansion:** adjustable owned tanks and equipment, then remaining species/adventure tanks, requests and collection goals.
+6. **Release finish:** onboarding through play, accessibility, migration/interruption recovery, balanced economy and sustained mobile performance.
 
-Moving light should cross leaves, scales and sand consistently. Caustics soften with depth; contact shadows anchor objects. Suggest water volume through refraction and layered motion.
-
-The UI uses deep petrol glass, warm ivory typography and small brass/pearl accents. Give panels bevels, contact shadows, considered spacing and consistent iconography. Gameplay shows a compact condition cluster, growth/value and contextual threat information. Stamina belongs around burst. Expand details on demand; keep the centre open for swimming.
-
-Shop screens feel like specimen display cases: animated fish portraits, simple appraisal tags, tactile selection and an inviting tank carousel. Safe-area-aware controls have generous touch targets. Include separate sound/music controls, reduced motion, readable contrast and shape/text cues alongside colour. Development controls stay in developer access.
-
-## 6. Sound that carries the mood
-
-Use an authored, seamless ambient score: soft glass/plucked tones, warm sustained harmony, restrained bass and ample silence. A quiet tension layer fades in during a credible pursuit and resolves on escape. Each tank has a related musical identity. Feeding, turning, bubbles and sales form a consistent, gentle sonic vocabulary; repeated feeding sounds vary slightly and never become piercing.
-
-Prefer a small set of pre-rendered music layers and reusable effects. Keep one audio owner, gesture unlock, pooled voices, bounded concurrency, smooth gain ramps and clean pause/resume. Load only the current tank's audio. Diagnose scheduling, duplicate playback and frame stalls before blaming or replacing a library.
-
-## 7. Build on the actual project
-
-**Verified baseline:** the main game lives in `src/games/importedAippy/upstream/src/`. Fish and plants are procedurally drawn with Canvas 2D; preserve and extend these rigs. SVG is useful for icons and authored shapes. Current vertical movement exists, but the finished swimming pose and handling need the full direction described above.
-
-Start with `components/Aquarium.tsx` and the `utils/` player, ecology, camera, fish and plant modules. Active music uses Aippy `useSound`; Tone.js supplies effects. The older `hooks/useBackgroundMusic.ts` is not the active music path.
-
-Evolve in place, separating simulation, rendering, audio and screens as they grow. Define species/tanks as data; separate shop progress from run state. Retain the scoped resolver and Aippy shell. Version saves and make sales atomic so refreshes cannot duplicate or lose payouts.
-
-Useful tools, selected for a concrete job:
-
-- **Existing Canvas 2D + React:** build the first slice here. Cache art, pool particles, limit React updates and reduce distant simulation frequency.
-- **[PixiJS](https://pixijs.com/8.x/guides/concepts/performance-tips):** optional GPU rendering after profiling. Prove one tank preserves the fish before migration; filters and changing complex graphics have costs.
-- **[GSAP timelines](https://gsap.com/docs/v3/GSAP/Timeline/):** optional shop/reward choreography; simulation owns gameplay movement.
-- **[Tone.js guidance](https://github.com/Tonejs/Tone.js/wiki/Performance):** balance scheduling latency with reliability; keep visual work out of audio callbacks.
-
-Deliver scoped GitHub updates through the working Node/Vite import process, with changed paths and a direct Aippy prompt. This brief supersedes prototype goals in `spec.md` and historical recovery notes in `MEMORY.md` for product direction.
-
-## 8. Build order and finish line
-
-1. **Prove one complete loop:** Guppy Garden, expressive all-direction swimming, convincing cover, fair pursuit, growth choice, appraisal, sell/keep, persistent shop and retry. Finish its fish/plant/UI/audio treatment as the reference for everything else.
-2. **Make choices matter:** distinct playable species, diets, adaptations, customer requests, collection and decorative progression.
-3. **Expand the world:** remaining tanks, predator personalities, currents and creature side excursions, each with its own visual and musical identity.
-4. **Ship the finish:** onboarding through play, settings/accessibility, save migration, interruption recovery, responsive layouts and sustained mobile performance.
-
-Release targets: 60 fps on representative mid-range phones, stable 30 fps fallback, clean audio through busy ten-minute sessions, reliable pause/resume, readable danger/cover and a first sale without a manual. Preserve input, fish articulation and fair simulation when reducing decorative cost.
-
-**Worker rule:** implement the requested slice, consulting the relevant sections here. Do not treat the whole destination as one task or describe planned features as already built. Update this brief only when the agreed product direction changes.
+Target 60 fps on representative mid-range phones with stable 30 fps fallback, readable danger and clean audio through a busy ten-minute session. Unit tests and builds do not certify visual finish. Inspect all-direction swimming, zoom, mobile layouts and a complete journey in motion. Record observations separately from intended features.
