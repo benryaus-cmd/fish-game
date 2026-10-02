@@ -1,9 +1,7 @@
-import assetsData from "@/config/assets";
 import { useEffect, useRef, useState, useCallback, type PointerEvent } from 'react';
 import { aippyTweaks } from '@aippy/runtime/tweaks';
 import { reportScore } from '@aippy/runtime/leaderboard';
-import { useSound, useAudioContext } from '@aippy/runtime/audio';
-import * as Tone from 'tone';
+import type { AquariumAudio } from '@/hooks/useAquariumAudio';
 import tweaksConfig from '@/config/tweaksConfig.json';
 import { useGameLoop } from '@/hooks/useGameLoop';
 import { drawWaterCaustics, drawRays, getCausticPattern, type Ray } from '@/utils/aquaScene';
@@ -33,14 +31,15 @@ interface AquariumProps {
   profile: BoutiqueSave;
   onProfileChange: (save: BoutiqueSave) => boolean;
   onOpenShop: () => void;
+  onChooseStock: () => void;
+  audio: AquariumAudio;
   paused: boolean;
   displaySpecimen: Specimen | null;
   saved: boolean;
 }
-const BGM_URL = assetsData.AUDIO_YDEK;
 const Aquarium = ({
   width,
-  height, profile, onProfileChange, onOpenShop, paused, displaySpecimen, saved
+  height, profile, onProfileChange, onOpenShop, onChooseStock, paused, displaySpecimen, saved, audio
 }: AquariumProps) => {
   // Tweaks parameters
   const waterTop = tweaks.waterTopColor.useState();
@@ -60,122 +59,7 @@ const Aquarium = ({
   const rockColor = tweaks.rockColor.useState();
   const plantColor = tweaks.plantColor.useState();
 
-  // Audio system: useSound for BGM, useAudioContext + Tone.js for crisp synth SFX
-  const {
-    play: playSound,
-    stop: stopSound
-  } = useSound({
-    bgm: BGM_URL
-  });
-  const {
-    getAudioContext,
-    unlock: unlockAudio
-  } = useAudioContext();
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [bgmStarted, setBgmStarted] = useState(false);
-
-  // Tone Synths
-  const biteSynthRef = useRef<Tone.Synth | null>(null);
-  const burstSynthRef = useRef<Tone.MembraneSynth | null>(null);
-  const damageSynthRef = useRef<Tone.Synth | null>(null);
-  const initAudio = useCallback(async () => {
-    try {
-      const ctx = getAudioContext();
-      if (!ctx) return;
-      await unlockAudio();
-      Tone.setContext(ctx);
-      await Tone.start();
-      if (!biteSynthRef.current) {
-        biteSynthRef.current = new Tone.Synth({
-          oscillator: {
-            type: 'sine'
-          },
-          envelope: {
-            attack: 0.005,
-            decay: 0.08,
-            sustain: 0,
-            release: 0.04
-          }
-        }).toDestination();
-        biteSynthRef.current.volume.value = -4;
-      }
-      if (!burstSynthRef.current) {
-        burstSynthRef.current = new Tone.MembraneSynth({
-          pitchDecay: 0.05,
-          octaves: 3,
-          oscillator: {
-            type: 'sine'
-          },
-          envelope: {
-            attack: 0.002,
-            decay: 0.15,
-            sustain: 0,
-            release: 0.1
-          }
-        }).toDestination();
-        burstSynthRef.current.volume.value = -6;
-      }
-      if (!damageSynthRef.current) {
-        damageSynthRef.current = new Tone.Synth({
-          oscillator: {
-            type: 'triangle'
-          },
-          envelope: {
-            attack: 0.01,
-            decay: 0.2,
-            sustain: 0,
-            release: 0.1
-          }
-        }).toDestination();
-        damageSynthRef.current.volume.value = -2;
-      }
-      if (!bgmStarted && soundEnabled) {
-        await playSound('bgm', {
-          loop: true,
-          volume: 0.45
-        });
-        setBgmStarted(true);
-      }
-    } catch (e) {
-      console.warn('[Aippy] Audio init notice:', e);
-    }
-  }, [getAudioContext, unlockAudio, playSound, bgmStarted, soundEnabled]);
-  const toggleSound = useCallback(() => {
-    setSoundEnabled(prev => {
-      const next = !prev;
-      if (!next) {
-        stopSound('bgm');
-        setBgmStarted(false);
-      } else {
-        void initAudio();
-      }
-      return next;
-    });
-  }, [stopSound, initAudio]);
-  const playBiteSound = useCallback(() => {
-    if (!soundEnabled || !biteSynthRef.current) return;
-    try {
-      biteSynthRef.current.triggerAttackRelease('G5', '32n');
-    } catch {
-      // safe fallback
-    }
-  }, [soundEnabled]);
-  const playBurstSound = useCallback(() => {
-    if (!soundEnabled || !burstSynthRef.current) return;
-    try {
-      burstSynthRef.current.triggerAttackRelease('C2', '16n');
-    } catch {
-      // safe fallback
-    }
-  }, [soundEnabled]);
-  const playDamageSound = useCallback(() => {
-    if (!soundEnabled || !damageSynthRef.current) return;
-    try {
-      damageSynthRef.current.triggerAttackRelease('D3', '16n');
-    } catch {
-      // safe fallback
-    }
-  }, [soundEnabled]);
+  const { initAudio, toggleSound, soundEnabled, playBiteSound, playBurstSound, playDamageSound } = audio;
 
   // Player Survival State (React for HUD, updated throttled)
   const [hudState, setHudState] = useState({
@@ -245,12 +129,26 @@ const Aquarium = ({
       x: fish.x, y: fish.y, stamina: state.stamina };
   }, [displaySpecimen]);
 
+  const persistDefeat = useCallback(() => {
+    if (displaySpecimen || !survivalRef.current.isDead) return false;
+    const current = profileRef.current;
+    if (!current.activeRun) return true;
+    const runId = specimenRef.current.id;
+    if (current.activeRun.specimen.id !== runId) return false;
+    const next = { ...current, activeRun: null,
+      completedRunIds: [...new Set([...current.completedRunIds, runId])].slice(-10_000) };
+    if (!onProfileChange(next)) return false;
+    profileRef.current = next;
+    return true;
+  }, [displaySpecimen, onProfileChange]);
+
   const saveRun = useCallback(() => {
+    if (endedRef.current && survivalRef.current.isDead) { persistDefeat(); return; }
     const activeRun = snapshot();
     if (!activeRun) return;
     const next = { ...profileRef.current, activeRun };
     if (onProfileChange(next)) profileRef.current = next;
-  }, [snapshot, onProfileChange]);
+  }, [snapshot, onProfileChange, persistDefeat]);
 
   useEffect(() => {
     const saveOnHide = () => { if (document.hidden) saveRun(); };
@@ -265,7 +163,7 @@ const Aquarium = ({
 
   // Setup input manager once
   useEffect(() => {
-    const im = new InputManager();
+    const im = new InputManager(() => !modalRef.current && !survivalRef.current.isDead);
     inputManagerRef.current = im;
     return () => {
       im.destroy();
@@ -539,8 +437,7 @@ const Aquarium = ({
       survival.scoreReported = true;
       reportScore(Math.round(survival.growth));
       endedRef.current = true;
-      const next = { ...profileRef.current, activeRun: null };
-      if (onProfileChange(next)) profileRef.current = next;
+      persistDefeat();
     }
 
     // Camera Follow with Lookahead
@@ -815,12 +712,13 @@ const Aquarium = ({
         <FishPortrait specimen={receipt.specimen} />
         <p>{receipt.specimen.name}{receipt.kind === 'sell' ? ' has found a new home.' : ' now lives safely in your personal display.'}</p>
         {receipt.kind === 'sell' && <div className="appraisal-value"><span>Added to your boutique</span><strong>+ ◈ {receipt.value}</strong></div>}
-        <div className="dialog-actions"><button className="garden-button" onClick={restartGame}>Raise another guppy <span>↗</span></button><button className="garden-button garden-button-secondary" onClick={() => { restartGame(); openBoutique(); }}>Visit my boutique <span>♡</span></button></div>
+        <div className="dialog-actions"><button className="garden-button" onClick={onChooseStock} aria-label="Choose next stock">Choose next stock <span aria-hidden="true">↗</span></button><button className="garden-button garden-button-secondary" onClick={onOpenShop} aria-label="Return home">Return home <span aria-hidden="true">♡</span></button></div>
       </section></div>}
       {hudState.isDead && !receipt && <div className="garden-modal"><section className="garden-dialog garden-glass" role="dialog" aria-modal="true" aria-label="Excursion ended">
         <p className="garden-eyebrow">THE GARDEN GOES ON</p><h2>A small life, a brave swim.</h2>
         <p>This excursion ended at {hudState.growth}% growth. Your boutique coins and display fish are safe. Another little guppy is waiting.</p>
-        <div className="dialog-actions"><button className="garden-button" onClick={restartGame}>Raise a new guppy <span>↗</span></button></div>
+        {!saved && <p className="garden-notice" role="status">Saving failed. Your credits and home fish are safe. Retry either action when saving is available.</p>}
+        <div className="dialog-actions"><button className="garden-button" onClick={() => { if (persistDefeat()) onChooseStock(); }} aria-label="Choose next stock">Choose next stock <span aria-hidden="true">↗</span></button><button className="garden-button garden-button-secondary" onClick={() => { if (persistDefeat()) onOpenShop(); }} aria-label="Return home">Return home <span aria-hidden="true">♡</span></button></div>
       </section></div>}
     </GardenHUD>
   </div>;

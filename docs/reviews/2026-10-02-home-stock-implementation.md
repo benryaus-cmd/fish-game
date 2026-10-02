@@ -1,0 +1,15 @@
+# Living home and stock implementation
+
+Implements slice 2 of final-product.md after the presentation pass. Launch now opens the planted home aquarium. Actual kept residents wander with their own appearance; choose a resident through canvas picking or the paged collection and swim safely with keyboard/analogue controls. An unfinished outing offers Continue raising and remains paused/mounted during home visits, including unsaved motion.
+
+Raise opens explicit stock selection: Ordinary is free; Sunburst costs 40 credits; Blue Veil costs 75. Inherited colour and short/fan/veil morphology are distinct from acquired Swift/Ornamental choices. Each preview discloses condition, potential, diet and destination. Atomic purchases create the outing only after saving succeeds; live runs cannot be overwritten. Sale/keep receipts lead to home or another stock choice without auto-spawning.
+
+Existing version-1 profiles migrate additively: palettes, traits, identities, credits, active checkpoints and transaction history are retained; residents receive home placement. Legacy morphology remains unchanged. Home uses one owned tank and up to 24 visible residents, with the full legacy collection accessible through pages. Tank equipment, three authored progression branches, FishoDex and breeding remain future slices. Home pose is transient, while resident identity and placement persist. Existing save limits and single-tab semantics remain.
+
+App owns one shared Aippy BGM/Tone effect hook with mute, visibility handling and disposal. The audio content was preserved; this pass does not establish audible quality or device performance.
+
+Fresh combined review found hidden outing input suppressing Space on menu buttons and failed defeat saving trapping an active run. Both were reproduced by failing built-browser checks. Input now accepts gameplay keys only in active play and excludes interactive/editable targets. Defeat retirement retries independently of one-shot score reporting and records the completed identity; recovery permits new stock without changing credits or owned fish. A generic save warning no longer claims a specific purchase outcome.
+
+Verification: 54 Node checks passed, one optional pose-sheet export skipped; scoped TypeScript and production build passed. Built Chromium journeys cover empty/populated launch, free/paid stock, insufficient funds, active-run guard, purchase/save recovery, reload, keep placement, safe resident control, sale-to-stock navigation, unsaved outing roundtrip, milestones, vertical motion, pause/resize, short stock-sheet reachability and both review regressions. Prior presentation checks also cover fish/camera/lighting/HUD. Inspected mobile home, resident-control, stock preview and 390×420 sheet screenshots. No physical-device touch, mobile FPS or audible playback check performed. No Aippy deployment claimed.
+
+Import with updates/home-stock.json after the existing guppy-garden and presentation slices. Next: purposeful guppy progression and a small tracked FishoDex, before breeding.

@@ -1,0 +1,18 @@
+{
+  "update": "fish-home-stock-v1",
+  "baseUrl": "https://raw.githubusercontent.com/benryaus-cmd/fish-game/main/",
+  "files": [
+    "src/games/importedAippy/upstream/src/App.tsx",
+    "src/games/importedAippy/upstream/src/components/Aquarium.tsx",
+    "src/games/importedAippy/upstream/src/components/HomeScreen.tsx",
+    "src/games/importedAippy/upstream/src/components/HomeTank.tsx",
+    "src/games/importedAippy/upstream/src/components/HomeUI.css",
+    "src/games/importedAippy/upstream/src/components/StockSheet.tsx",
+    "src/games/importedAippy/upstream/src/hooks/useAquariumAudio.ts",
+    "src/games/importedAippy/upstream/src/utils/boutique.ts",
+    "src/games/importedAippy/upstream/src/utils/homeScene.ts",
+    "src/games/importedAippy/upstream/src/utils/playerInput.ts",
+    "src/games/importedAippy/upstream/src/utils/specimenAppearance.ts",
+    "src/games/importedAippy/upstream/src/utils/stockCatalog.ts"
+  ]
+}

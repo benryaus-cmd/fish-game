@@ -19,7 +19,7 @@ export class InputManager {
   private joyActive = false;
   private burstActive = false;
 
-  constructor() {
+  constructor(private readonly acceptsKeyboard: () => boolean = () => true) {
     this.handleKeyDown = this.handleKeyDown.bind(this);
     this.handleKeyUp = this.handleKeyUp.bind(this);
     this.handleBlur = this.handleBlur.bind(this);
@@ -39,6 +39,7 @@ export class InputManager {
   }
 
   private handleKeyDown(e: KeyboardEvent) {
+    if (!this.acceptsKeyboard() || (e.target instanceof HTMLElement && e.target.closest('button,input,textarea,select,[contenteditable="true"]'))) return;
     this.keys.add(e.code);
     if (e.code === 'Space') {
       e.preventDefault();

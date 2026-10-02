@@ -1,3 +1,6 @@
+import { getStock, type StockId, type ColorFamily, type FinForm } from './stockCatalog.ts';
+export type { StockId, ColorFamily, FinForm } from './stockCatalog.ts';
+
 /** The entire boutique and current excursion share one atomic JSON profile. */
 export type Adaptation = 'swift' | 'ornate';
 export interface Specimen {
@@ -12,6 +15,8 @@ export interface Specimen {
   color: string;
   accent: string;
   raisedSeconds: number;
+  origin?: StockId;
+  inherited?: { colorFamily: ColorFamily; finForm: FinForm; parents: string[] };
 }
 export interface ActiveRun { specimen: Specimen; x: number; y: number; stamina: number }
 export interface BoutiqueSave {
@@ -21,6 +26,7 @@ export interface BoutiqueSave {
   kept: Specimen[];
   activeRun: ActiveRun | null;
   completedRunIds: string[];
+  placements?: Record<string, 'home'>;
 }
 
 const SAVE_KEY = 'aqualume.boutique.v1';
@@ -33,11 +39,28 @@ const MAX_HISTORY = 10_000;
 let fallbackId = 0;
 
 export function createBoutiqueSave(): BoutiqueSave {
-  return { version: 1, coins: 0, sales: 0, kept: [], activeRun: null, completedRunIds: [] };
+  return { version: 1, coins: 0, sales: 0, kept: [], activeRun: null, completedRunIds: [], placements: {} };
 }
-export function createSpecimen(): Specimen {
-  const id = globalThis.crypto?.randomUUID?.() ?? `guppy-${Date.now().toString(36)}-${(++fallbackId).toString(36)}-${Math.random().toString(36).slice(2)}`;
-  return { id, name: 'Coral', species: 'guppy', growth: 0, health: 100, hunger: 100, traits: [], color: CORAL, accent: GOLD, raisedSeconds: 0 };
+export function createSpecimen(stockId: StockId = 'ordinary', id?: string): Specimen {
+  const stock = getStock(stockId);
+  const specimenId = id ?? globalThis.crypto?.randomUUID?.() ?? `guppy-${Date.now().toString(36)}-${(++fallbackId).toString(36)}-${Math.random().toString(36).slice(2)}`;
+  return {
+    id: specimenId, name: stock?.name ?? 'Coral', species: 'guppy', growth: 0, health: 100, hunger: 100,
+    traits: [], color: stock?.color ?? CORAL, accent: stock?.accent ?? GOLD, raisedSeconds: 0,
+    origin: stock?.id ?? 'legacy',
+    ...(stock ? { inherited: { colorFamily: stock.colorFamily, finForm: stock.finForm, parents: [] } } : {}),
+  };
+}
+/** Pure candidate transaction. Commit this entire profile before installing it in UI state. */
+export function startStockRun(save: BoutiqueSave, stockId: StockId, runId: string): BoutiqueSave {
+  const stock = getStock(stockId);
+  if (!stock || !validId(runId) || save.activeRun || !Number.isFinite(save.coins) || save.coins < stock.price
+    || save.completedRunIds.includes(runId) || save.kept.some(specimen => specimen.id === runId)) return save;
+  return {
+    ...save,
+    coins: save.coins - stock.price,
+    activeRun: { specimen: createSpecimen(stock.id, runId), x: 380, y: 1520, stamina: 100 },
+  };
 }
 const bounded = (value: unknown, maximum: number, fallback = 0): number =>
   typeof value === 'number' && Number.isFinite(value) ? Math.min(maximum, Math.max(0, value)) : fallback;
@@ -56,7 +79,7 @@ export function appraiseFish(specimen: Specimen): number {
   return Math.round((10 + growth * 1.2 + stagePremium + traitPremium) * condition);
 }
 function cloneSpecimen(specimen: Specimen): Specimen {
-  return { ...specimen, traits: [...specimen.traits] };
+  return { ...specimen, traits: [...specimen.traits], ...(specimen.inherited ? { inherited: { ...specimen.inherited, parents: [...specimen.inherited.parents] } } : {}) };
 }
 export function settleRun(save: BoutiqueSave, runId: string, kind: 'sell' | 'keep'): BoutiqueSave {
   const specimen = save.activeRun?.specimen;
@@ -68,6 +91,7 @@ export function settleRun(save: BoutiqueSave, runId: string, kind: 'sell' | 'kee
     coins: kind === 'sell' ? Math.min(MAX_COINS, save.coins + appraiseFish(specimen)) : save.coins,
     sales: kind === 'sell' ? Math.min(MAX_SALES, save.sales + 1) : save.sales,
     kept: kind === 'keep' ? [...save.kept, cloneSpecimen(specimen)] : save.kept,
+    placements: kind === 'keep' ? { ...save.placements, [specimen.id]: 'home' } : save.placements,
     activeRun: null,
     completedRunIds: [...save.completedRunIds, runId].slice(-MAX_HISTORY),
   };
@@ -84,6 +108,14 @@ function color(value: unknown, fallback: string): string {
 }
 function readSpecimen(value: unknown): Specimen | null {
   if (!record(value) || !validId(value.id) || value.species !== 'guppy') return null;
+  const origin: StockId = getStock(value.origin)?.id ?? 'legacy';
+  const inherited = record(value.inherited) && ['silver', 'warm', 'cool'].includes(value.inherited.colorFamily as string)
+    && ['short', 'fan', 'veil'].includes(value.inherited.finForm as string)
+    ? {
+      colorFamily: value.inherited.colorFamily as ColorFamily,
+      finForm: value.inherited.finForm as FinForm,
+      parents: Array.isArray(value.inherited.parents) ? [...new Set(value.inherited.parents.filter(validId))].slice(0, 2) : [],
+    } : undefined;
   return {
     id: value.id,
     name: typeof value.name === 'string' && value.name.trim() ? value.name.slice(0, 40) : 'Coral',
@@ -95,6 +127,8 @@ function readSpecimen(value: unknown): Specimen | null {
     color: color(value.color, CORAL),
     accent: color(value.accent, GOLD),
     raisedSeconds: bounded(value.raisedSeconds, 604_800),
+    origin,
+    ...(inherited ? { inherited } : {}),
   };
 }
 function readSave(value: unknown): BoutiqueSave {
@@ -115,7 +149,8 @@ function readSave(value: unknown): BoutiqueSave {
       activeRun = { specimen, x: bounded(value.activeRun.x, 100_000), y: bounded(value.activeRun.y, 100_000), stamina: bounded(value.activeRun.stamina, 100, 100) };
     }
   }
-  return { version: 1, coins: Math.floor(bounded(value.coins, MAX_COINS)), sales: Math.floor(bounded(value.sales, MAX_SALES)), kept, activeRun, completedRunIds };
+  const placements: Record<string, 'home'> = Object.fromEntries(kept.map(specimen => [specimen.id, 'home']));
+  return { version: 1, coins: Math.floor(bounded(value.coins, MAX_COINS)), sales: Math.floor(bounded(value.sales, MAX_SALES)), kept, activeRun, completedRunIds, placements };
 }
 export function loadBoutique(storage?: Pick<Storage, 'getItem'>): BoutiqueSave {
   try {

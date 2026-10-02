@@ -27,6 +27,7 @@ const seed = { version: 1, coins: 7, sales: 0, kept: [], completedRunIds: [], ac
       };
     }, seed);
     await page.goto('http://127.0.0.1:' + server.address().port, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Continue raising', exact: true }).click();
     await page.getByRole('button', { name: 'Open boutique' }).waitFor();
     const check = async (name, fn) => { try { await fn(); console.log('PASS', name); } catch (e) { checks.push(name + ': ' + e.message); console.log('FAIL', name); } };
     await check('swimming centre is free of persistent instruction', async () => assert.equal(await page.getByText('Feed, grow, then return to the leafy nursery', { exact: true }).count(), 0));
@@ -44,12 +45,14 @@ const seed = { version: 1, coins: 7, sales: 0, kept: [], completedRunIds: [], ac
       await page.keyboard.up('ArrowDown');
     }
     await page.getByRole('button', { name: 'Open boutique' }).evaluate(el => el.click());
+    await page.getByRole('button', { name: 'Collection', exact: true }).click();
     await check('collection and empty headings have light explicit text', async () => {
-      for (const selector of ['.boutique-section-title h2', '.boutique-empty h3']) {
+      for (const selector of ['.home-sheet h2', '.home-collection-empty h3']) {
         const colour = await page.locator(selector).evaluate(el => getComputedStyle(el).color);
         const components = colour.match(/[\d.]+/g).slice(0, 3).map(Number); assert.ok(components.every(c => c > 170), colour);
       }
     });
+    await page.getByRole('button', { name: 'Close collection', exact: true }).click();
     await page.getByRole('button', { name: /Continue raising/ }).evaluate(el => el.click());
     if (process.env.SCREENSHOTS) {
       await page.getByRole('button', { name: 'Open boutique' }).evaluate(el => el.click());
@@ -59,6 +62,7 @@ const seed = { version: 1, coins: 7, sales: 0, kept: [], completedRunIds: [], ac
     // Short embedded viewport, including the space left when a mobile keyboard is open.
     await page.evaluate(seed => { seed.activeRun.x = 380; seed.activeRun.y = 1520; sessionStorage.setItem('presentation.fixture', JSON.stringify(seed)); }, seed);
     await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Continue raising', exact: true }).click();
     await page.getByRole('button', { name: /Appraise your fish/ }).waitFor();
     await page.setViewportSize({ width: 320, height: 680 });
     await check('nursery action does not overlap controls on narrow phone', async () => {
@@ -89,6 +93,7 @@ const seed = { version: 1, coins: 7, sales: 0, kept: [], completedRunIds: [], ac
       sessionStorage.setItem('presentation.fixture', JSON.stringify(seed));
     }, seed);
     await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Continue raising', exact: true }).click();
     await page.waitForFunction(() => window.presentationZoom < 0.82);
     await check('adult body framing reaches real renderer zoom', async () => assert.ok(await page.evaluate(() => window.presentationZoom) >= 0.749));
     if (process.env.SCREENSHOTS) {
@@ -111,6 +116,7 @@ const seed = { version: 1, coins: 7, sales: 0, kept: [], completedRunIds: [], ac
       sessionStorage.setItem('presentation.fixture', JSON.stringify(seed));
     }, seed);
     await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Continue raising', exact: true }).click();
     await page.getByRole('button', { name: 'Open boutique' }).waitFor();
     await page.waitForFunction(() => window.presentationFrames > 8);
     await page.keyboard.down('ArrowDown'); await page.waitForTimeout(2000); await page.keyboard.up('ArrowDown');
