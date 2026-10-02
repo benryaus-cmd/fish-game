@@ -23,3 +23,7 @@ Cumulative Node/Vite importer manifest: `updates/swim-owned-residents.json` (63 
 ## View clarity follow-up
 
 Removed the broad upper HomeUI scrim from both declarations; the quiet lower dock fade remains. Owned name-tag backgrounds are 30% opaque (70% transparent), with readable text retained. Their centre now sits 0.38 body lengths plus 5px above the fish rather than 0.65 lengths plus 9px. Scoped TypeScript and production build pass. A built 390 × 844 daylight View capture (`.superpowers/swim-view-clarity.png`) was inspected and its computed top overlay checked; no page errors. Cumulative importer: `updates/swim-view-clarity.json`, 63 files.
+
+## Tap-to-reveal follow-up
+
+Owned names and halos start hidden. An empty-water pointer tap reveals them for 2 seconds, then fades both over 400ms. Another miss refreshes the reveal. A direct fish tap still selects care even when hints are invisible. Entering another mode clears the hint. The reveal uses monotonic presentation time, independent of saved care/world timestamps. Scoped TypeScript, production build and all six View behaviour tests pass. The built mobile-browser journey checks actual label draw alpha at hidden/full/half/faded states, confirms owned fish still render while hints are hidden, and directly selects a hidden fish; no page errors. Canvas captures before/after reveal were inspected. Cumulative importer: `updates/swim-view-hints.json`, 63 files.

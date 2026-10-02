@@ -21,7 +21,7 @@ const WORLD_WIDTH=3600,WORLD_HEIGHT=1800,CASTLE_LANDMARK={cx:3200};const worldSu
 const drawWaterBackground=()=>{},drawSandCaustics=()=>{},drawCycleTint=()=>{},getCausticPattern=()=>null,drawWaterCaustics=()=>{},drawRays=()=>{};
 const getTankPalette=()=>({sand:'#eee',plant:'#abc'});
 `+source;
-const {createAquariumView,updateAquariumView,drawAquariumView}=await import(moduleURL(source));
+const {createAquariumView,updateAquariumView,drawAquariumView,revealAquariumFish,ownedFishHintOpacity}=await import(moduleURL(source));
 const profile=()=>({kept:[],activeRun:{specimen:{id:'active',color:'#abc',accent:'#def',growth:40,health:100,hunger:100,traits:[]},x:1800,y:900}});
 test('active View fish drifts from its saved Swim origin without changing the save',()=>{
  const save=profile(),before=JSON.stringify(save),state=createAquariumView();
@@ -63,4 +63,11 @@ test('overview stays at eight shrimp and thirty ambient fish when Swim ecology e
  const shrimps=Array.from({length:16},(_,i)=>({active:true,rig:{id:i,x:200+i*180,y:800,S:30}}));
  drawAquariumView(ctx,state,{kept:[]},{crabs:[],shrimps},null,colors,800,600,1,.5,null,colors,ambient);
  assert.equal(ctx.shrimps.length,8);assert.equal(ctx.predators.length,30);
+});
+
+test('owned hints start hidden, reveal for two seconds, fade and restart on another empty-water tap',()=>{
+ const state=createAquariumView();assert.equal(ownedFishHintOpacity(state,100),0);
+ revealAquariumFish(state,100);assert.equal(ownedFishHintOpacity(state,100),1);assert.equal(ownedFishHintOpacity(state,2099),1);
+ assert.equal(ownedFishHintOpacity(state,2300),.5);assert.equal(ownedFishHintOpacity(state,2500),0);
+ revealAquariumFish(state,2600);assert.equal(ownedFishHintOpacity(state,2700),1);
 });

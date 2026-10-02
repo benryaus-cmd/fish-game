@@ -22,8 +22,19 @@ import { drawCastleBubbles } from '@/utils/castleHealing';
 import { drawFoodEcology, type FoodParticle } from '@/utils/foodEcology';
 
 /** A composed overview of the same aquarium; it never moves or copies saved fish. */
-export interface AquariumViewState { residents: HomeResident[]; width:number;height:number; rigs: Map<string, {fish: Fish; palette: FishPalette; appearance: string}>; waterTime:number; activeSwimOrigin:string|null }
-export const createAquariumView = (): AquariumViewState => ({ residents: [], width:1,height:1,rigs: new Map(), waterTime:0, activeSwimOrigin:null });
+export interface AquariumViewState { residents: HomeResident[]; width:number;height:number; rigs: Map<string, {fish: Fish; palette: FishPalette; appearance: string}>; waterTime:number; activeSwimOrigin:string|null; hintStartedAt:number|null }
+export const createAquariumView = (): AquariumViewState => ({ residents: [], width:1,height:1,rigs: new Map(), waterTime:0, activeSwimOrigin:null, hintStartedAt:null });
+/** Empty-water taps reveal ownership for two seconds, then fade over 400ms. */
+export function revealAquariumFish(state:AquariumViewState,now=performance.now()) {
+  if(Number.isFinite(now))state.hintStartedAt=now;
+}
+export function ownedFishHintOpacity(state:AquariumViewState,now=performance.now()) {
+  if(state.hintStartedAt===null)return 0;
+  const age=Math.max(0,now-state.hintStartedAt);
+  if(age<=2000)return 1;
+  const fade=Math.min(1,(age-2000)/400);
+  return 1-fade*fade*(3-2*fade);
+}
 export function ownedAquariumFish(profile: BoutiqueSave): Specimen[] {
   const fish = profile.activeRun ? [...profile.kept, profile.activeRun.specimen] : profile.kept;
   return [...new Map(fish.map(f => [f.id, f])).values()];
@@ -91,12 +102,14 @@ export function drawAquariumView(ctx: CanvasRenderingContext2D, state: AquariumV
   for(const shrimp of (bottom.shrimps??[]).slice(0,8)){if(!shrimp.active)continue;const rig=shrimp.rig,scale=Math.min(20,w*.045)/rig.S;ctx.save();ctx.translate(rig.x/WORLD_WIDTH*w-rig.x*scale,rig.y/WORLD_HEIGHT*h*.94-rig.y*scale);ctx.scale(scale,scale);drawShrimp(ctx,rig,shrimpPalette);ctx.restore();}
   for(const resident of ambient.slice(0,30)){if(!resident.active)continue;const fish=resident.fish,scale=Math.min(23,w*.055)*(.5+((fish.id*37)%101)/200)/fish.L;ctx.save();ctx.translate(fish.x/WORLD_WIDTH*w-fish.x*scale,fish.y/WORLD_HEIGHT*h*.94-fish.y*scale);ctx.scale(scale,scale);const colors=resident.palette??predatorPalette;if(colors){if(resident.specimen)drawSpecimenFish(ctx,fish,colors,resident.specimen);else drawFish(ctx,fish,colors);}ctx.restore();}
   if(angel?.specimen&&angel.palette){const fish=angel.fish,scale=Math.min(68,w*.17)/fish.L;ctx.save();ctx.translate(fish.x/WORLD_WIDTH*w-fish.x*scale,fish.y/WORLD_HEIGHT*h*.94-fish.y*scale);ctx.scale(scale,scale);drawSpecimenFish(ctx,fish,angel.palette,angel.specimen);ctx.restore();}
+  const hintAlpha=ownedFishHintOpacity(state);
   const owned=new Map(ownedAquariumFish(profile).map(f=>[f.id,f]));
-  for(const r of [...state.residents].sort((a,b)=>a.y-b.y)){const rig=state.rigs.get(r.id),s=owned.get(r.id);if(!rig||!s)continue;ctx.save();if(s.health<=0){const rise=Math.max(0,Date.now()-(s.deathAtMs??Date.now()))/1000*55;ctx.translate(rig.fish.x,Math.max(30,rig.fish.y-rise));ctx.rotate(Math.PI);ctx.translate(-rig.fish.x,-rig.fish.y);}else {drawFishShadow(ctx,rig.fish,surface);const f=rig.fish,glow=ctx.createRadialGradient(f.x,f.y,0,f.x,f.y,f.L*.85);glow.addColorStop(0,'rgba(213,245,213,.03)');glow.addColorStop(.55,'rgba(213,245,213,.15)');glow.addColorStop(1,'rgba(213,245,213,0)');ctx.fillStyle=glow;ctx.beginPath();ctx.ellipse(f.x,f.y,f.L*.85,f.L*(s.species==='angelfish'?.85:.48),0,0,Math.PI*2);ctx.fill();}drawSpecimenFish(ctx,rig.fish,rig.palette,s);ctx.restore();}
+  for(const r of [...state.residents].sort((a,b)=>a.y-b.y)){const rig=state.rigs.get(r.id),s=owned.get(r.id);if(!rig||!s)continue;ctx.save();if(s.health<=0){const rise=Math.max(0,Date.now()-(s.deathAtMs??Date.now()))/1000*55;ctx.translate(rig.fish.x,Math.max(30,rig.fish.y-rise));ctx.rotate(Math.PI);ctx.translate(-rig.fish.x,-rig.fish.y);}else {drawFishShadow(ctx,rig.fish,surface);if(hintAlpha>0){const originalAlpha=ctx.globalAlpha;ctx.globalAlpha*=hintAlpha;const f=rig.fish,glow=ctx.createRadialGradient(f.x,f.y,0,f.x,f.y,f.L*.85);glow.addColorStop(0,'rgba(213,245,213,.03)');glow.addColorStop(.55,'rgba(213,245,213,.15)');glow.addColorStop(1,'rgba(213,245,213,0)');ctx.fillStyle=glow;ctx.beginPath();ctx.ellipse(f.x,f.y,f.L*.85,f.L*(s.species==='angelfish'?.85:.48),0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=originalAlpha;}}drawSpecimenFish(ctx,rig.fish,rig.palette,s);ctx.restore();}
   for(let i=0;i<7;i++){const x=w*(.015+i*.033);drawPlant(ctx,x,surface(x)+3,{kind:i%2?'leafy':'tall',h:1.7+i%3*.45,seed:43+i*7,tone:i%3},plantScale,palette.plant,time,.8,'front');}
   drawCycleTint(ctx,w,h,daylight);
   // Quiet, screen-sized labels distinguish owned individuals from ambient life.
-  ctx.save();ctx.font='500 11px system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  if(hintAlpha<=0)return;
+  ctx.save();ctx.globalAlpha*=hintAlpha;ctx.font='500 11px system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
   for(const [id,rig]of state.rigs){const s=owned.get(id);if(!s||s.health<=0)continue;
     const name=s.name.length>24?s.name.slice(0,23)+'…':s.name;
     const tw=ctx.measureText(name).width+16;

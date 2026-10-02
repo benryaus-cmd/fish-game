@@ -32,7 +32,7 @@ import { ensureSpecimenCare, advanceSpecimenCare, feedSpecimen, careSummary, cho
 import { grazeTankAlgae } from '@/utils/tankCare';
 import { drawAerator, inAeratorHealingPlume } from '@/utils/aeratorHealing';
 import { CASTLE_HEAL_PER_SECOND, inCastleHealingPlume, drawCastleBubbles } from '@/utils/castleHealing';
-import { createAquariumView, updateAquariumView, drawAquariumView, pickAquariumViewFish } from '@/utils/aquariumView';
+import { createAquariumView, updateAquariumView, drawAquariumView, pickAquariumViewFish, revealAquariumFish } from '@/utils/aquariumView';
 import { drawSandCaustics, drawCycleTint, getTankPalette } from '@/utils/tankLighting';
 import { sampleWorldClock } from '@/utils/worldClock';
 import { createFoodEcology, updateFoodEcology, drawFoodEcology, biteFood, BITE_INTERVAL_SECONDS } from '@/utils/foodEcology';
@@ -331,6 +331,8 @@ const Aquarium = ({
   useEffect(() => {
     if(!playerRef.current || (profile.activeRun && (endedRef.current || profile.activeRun.specimen.id!==runMetadataRef.current?.specimen.id || profile.activeRun.visitId!==runMetadataRef.current?.visitId))) restartGame();
   }, [restartGame, profile.activeRun?.specimen.id, profile.activeRun?.visitId]);
+
+  useEffect(()=>{viewStateRef.current.hintStartedAt=null;},[mode]);
 
   // In View, the profile's real-time care/paid actions are authoritative. Swim
   // checkpoints own live damage and motion, so a background tick cannot rewind it.
@@ -833,7 +835,7 @@ const Aquarium = ({
   const controls = mode==='swim' && !paused && !detailsOpen && !appraisalOpen && !choiceStage && !receipt && !hudState.isDead;
   return <div className="garden-root" onClick={() => void initAudio()}>
     <canvas ref={canvasRef} className="block w-full h-full" onPointerDown={e => {
-      if(mode==='view'&&!paused){const rect=e.currentTarget.getBoundingClientRect();const id=pickAquariumViewFish(viewStateRef.current,(e.clientX-rect.left)*width/rect.width,(e.clientY-rect.top)*height/rect.height);if(id)onSelectFish(id);return;}
+      if(mode==='view'&&!paused){const rect=e.currentTarget.getBoundingClientRect();const id=pickAquariumViewFish(viewStateRef.current,(e.clientX-rect.left)*width/rect.width,(e.clientY-rect.top)*height/rect.height);if(id)onSelectFish(id);else revealAquariumFish(viewStateRef.current);return;}
       if (!controls || !playerRef.current) return;
       const rect = e.currentTarget.getBoundingClientRect();
       const view = getCameraView(cameraRef.current, width, height);
